@@ -1145,6 +1145,93 @@ void NyasCamera::Navigate()
 	}
 }
 
+static void
+_TexLoader(void *arg)
+{
+	TexLoaderArgs *a = (TexLoaderArgs*)arg;
+	Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path);
+}
+
+static void
+_MeshLoader(void *arg)
+{
+	MeshLoaderArgs *a = (MeshLoaderArgs*)arg;
+	*a->Mesh = Nyas::LoadMesh(a->Path); // TODO: separate create and load like textures in
+											// order to avoid concurrent writes in mesh_pool
+}
+
+static void
+_ShaderLoader(void *arg)
+{
+	struct ShaderLoaderArgs *a = (ShaderLoaderArgs*)arg;
+	*a->Shader = Nyas::CreateShader(&a->Descriptor);
+	// TODO: Shaders compilation and program linking.
+}
+
+static void
+_EnvLoader(void *args)
+{
+	struct EnvLoaderArgs *ea = (EnvLoaderArgs*)args;
+	NyUtil::nyut_env_load(ea->Path, ea->LUT, ea->Sky, ea->Irradiance, ea->Pref);
+}
+
+void
+AssetLoader::AddMesh(MeshLoaderArgs *args)
+{
+	Async.Push({_MeshLoader, args});
+}
+
+void
+AssetLoader::AddTex(TexLoaderArgs *args)
+{
+	Async.Push({_TexLoader, args});
+}
+
+void
+AssetLoader::AddShader(ShaderLoaderArgs *args)
+{
+	Sequential.Push({_ShaderLoader, args});
+}
+
+void
+AssetLoader::AddEnv(EnvLoaderArgs *args)
+{
+	Async.Push({_EnvLoader, args});
+}
+
+void
+AssetLoader::AddJob(NyJob j, bool async)
+{
+	if (async) {
+		Async.Push(j);
+	} else {
+		Sequential.Push(j);
+	}
+}
+
+void
+AssetLoader::Load(int threads)
+{
+	NySched *load_sched = NULL;
+	if (Async.Size) {
+		load_sched = NyUtil::CreateScheduler(threads);
+		for (int i = 0; i < Async.Size; ++i) {
+			NyUtil::DoJob(load_sched, Async[i]);
+		}
+	}
+
+	if (Sequential.Size) {
+		for (int i = 0; i < Sequential.Size; ++i) {
+			(*Sequential[i].Job)(Sequential[i].Args);
+		}
+	}
+
+	if (Async.Size) {
+		NyUtil::WaitJobs(load_sched); // TODO(Check): sched_destroy waits?
+		NyUtil::DestroySched(load_sched);
+	}
+}
+
 namespace NyUtil
 {
 	static NySched *scheds = NULL;
@@ -1280,36 +1367,6 @@ namespace NyUtil
 		return NyasCode_Ok;
 	}
 
-	static void
-	_TexLoader(void *arg)
-	{
-		TexLoaderArgs *a = (TexLoaderArgs*)arg;
-		Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path);
-	}
-
-	static void
-	_MeshLoader(void *arg)
-	{
-		MeshLoaderArgs *a = (MeshLoaderArgs*)arg;
-		*a->Mesh = Nyas::LoadMesh(a->Path); // TODO: separate create and load like textures in
-												// order to avoid concurrent writes in mesh_pool
-	}
-
-	static void
-	_ShaderLoader(void *arg)
-	{
-		struct ShaderLoaderArgs *a = (ShaderLoaderArgs*)arg;
-		*a->Shader = Nyas::CreateShader(&a->Descriptor);
-		// TODO: Shaders compilation and program linking.
-	}
-
-	static void
-	_EnvLoader(void *args)
-	{
-		struct EnvLoaderArgs *ea = (EnvLoaderArgs*)args;
-		nyut_env_load(ea->Path, ea->LUT, ea->Sky, ea->Irradiance, ea->Pref);
-	}
-
 	AssetLoader *
 	nyut_assets_create(void)
 	{
@@ -1317,63 +1374,6 @@ namespace NyUtil
 		l->Async = {};
 		l->Sequential = {};
 		return l;
-	}
-
-	void
-	AssetLoader::AddMesh(MeshLoaderArgs *args)
-	{
-		Async.Push({_MeshLoader, args});
-	}
-
-	void
-	AssetLoader::AddTex(TexLoaderArgs *args)
-	{
-		Async.Push({_TexLoader, args});
-	}
-
-	void
-	AssetLoader::AddShader(ShaderLoaderArgs *args)
-	{
-		Sequential.Push({_ShaderLoader, args});
-	}
-
-	void
-	AssetLoader::AddEnv(EnvLoaderArgs *args)
-	{
-		Async.Push({_EnvLoader, args});
-	}
-
-	void
-	AssetLoader::AddJob(NyJob j, bool async)
-	{
-		if (async) {
-			Async.Push(j);
-		} else {
-			Sequential.Push(j);
-		}
-	}
-
-	void
-	AssetLoader::Load(int threads)
-	{
-		NySched *load_sched = NULL;
-		if (Async.Size) {
-			load_sched = NyUtil::CreateScheduler(threads);
-			for (int i = 0; i < Async.Size; ++i) {
-				NyUtil::DoJob(load_sched, Async[i]);
-			}
-		}
-
-		if (Sequential.Size) {
-			for (int i = 0; i < Sequential.Size; ++i) {
-				(*Sequential[i].Job)(Sequential[i].Args);
-			}
-		}
-
-		if (Async.Size) {
-			NyUtil::WaitJobs(load_sched); // TODO(Check): sched_destroy waits?
-			NyUtil::DestroySched(load_sched);
-		}
 	}
 
 	static void

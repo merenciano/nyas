@@ -929,12 +929,6 @@ namespace NyUtil
 
 
 	AssetLoader *nyut_assets_create(void);
-	void nyut_assets_add_mesh(AssetLoader *l, MeshLoaderArgs *args);
-	void nyut_assets_add_tex(AssetLoader *l, TexLoaderArgs *args);
-	void nyut_assets_add_shader(AssetLoader *l, ShaderLoaderArgs *args);
-	void nyut_assets_add_env(AssetLoader *l, EnvLoaderArgs *args);
-	void nyut_assets_add_job(AssetLoader *l, NyJob j, bool async);
-	void nyut_assets_load(AssetLoader *l, int threads);
 
 	void nyut_mesh_init_geometry(void);
 	void nyut_mesh_set_geometry(NyasHandle mesh, NyasGeometry geo);
