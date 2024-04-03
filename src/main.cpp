@@ -1,5 +1,4 @@
 #include "nyas.h"
-
 #include <mathc.h>
 #include <stdio.h>
 
@@ -155,7 +154,7 @@ void Init(void)
     pbr_scene_tex[2] = prefilter;
 
     G_Framebuf = Nyas::CreateFramebuffer();
-    NyVec2i vp = Nyas::IO.WindowSize;
+    NyVec2i vp = Nyas::GetCurrentCtx()->IO.WindowSize;
     NyasTexDesc descriptor(NyasTexType_2D, NyasTexFmt_RGB_32F, vp.X, vp.Y);
     G_FbTex = Nyas::CreateTexture();
     Nyas::SetTexture(G_FbTex, &descriptor);
@@ -369,7 +368,7 @@ void Init(void)
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
 {
     Nyas::PollIO();
-    NyVec2i vp = Nyas::IO.WindowSize;
+    NyVec2i vp = Nyas::GetCurrentCtx()->IO.WindowSize;
     Nyas::Camera.Navigate();
 
     /* PBR common shader data. */
@@ -452,16 +451,16 @@ int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
     Nyas::InitIO("NYAS PBR Material Demo", 1920, 1080);
-    Nyas::Camera.Init(Nyas::IO);
+    Nyas::Camera.Init(Nyas::GetCurrentCtx()->IO);
     // nuklear_init();
     Init();
     NyChrono frame_chrono;
-    while (!Nyas::IO.WindowClosed)
+    while (!Nyas::GetCurrentCtx()->Platform.WindowClosed)
     {
         // NewFrame
         float delta_time = NyChrono::Seconds((double)frame_chrono.Elapsed());
         frame_chrono.Restart();
-        Nyas::IO.DeltaTime = delta_time;
+        Nyas::GetCurrentCtx()->Platform.DeltaTime = delta_time;
         // Build
         NyArray<NyasDrawCmd, NyFrameAllocator> frame;
         BuildFrame(frame);

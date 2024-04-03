@@ -2,25 +2,25 @@
 
 #ifndef STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-//#define STBI_MALLOC NYAS_ALLOC
-//#define STBI_REALLOC nyas::nyas_realloc
-//#define STBI_FREE NYAS_FREE
+// #define STBI_MALLOC NYAS_ALLOC
+// #define STBI_REALLOC nyas::nyas_realloc
+// #define STBI_FREE NYAS_FREE
 #endif
 
 #include "stb_image.h"
 
 #ifndef TINYOBJ_LOADER_C_IMPLEMENTATION
 #define TINYOBJ_LOADER_C_IMPLEMENTATION
-//#define TINYOBJ_MALLOC NYAS_ALLOC
-//#define TINYOBJ_REALLOC nyas::nyas_realloc
-//#define TINYOBJ_CALLOC nyas::nyas_calloc
-//#define TINYOBJ_FREE NYAS_FREE
+// #define TINYOBJ_MALLOC NYAS_ALLOC
+// #define TINYOBJ_REALLOC nyas::nyas_realloc
+// #define TINYOBJ_CALLOC nyas::nyas_calloc
+// #define TINYOBJ_FREE NYAS_FREE
 #endif
 
 #include "tinyobj_loader_c.h"
 
-#include <stdlib.h>
 #include <mathc.h>
+#include <stdlib.h>
 
 #define MEM_ALIGN 8
 #define MEM_ALIGN_MOD(ADDRESS) ((ADDRESS) & (MEM_ALIGN - 1))
@@ -33,37 +33,40 @@
 #include <string.h>
 #include <time.h>
 
-#define NYAS_MOUSE_BUTTON_UPDATE(MBTN) \
-	IO.MouseButton[(MBTN)] =          \
-	((IO.MouseButton[(MBTN)] << 1) | glfwGetMouseButton((GLFWwindow*)IO.InternalWindow, (MBTN))) & 3
+#define NYAS_MOUSE_BUTTON_UPDATE(MBTN)                                                                                 \
+    G_Ctx->IO.MouseButton[(MBTN)] =                                                                                    \
+        ((G_Ctx->IO.MouseButton[(MBTN)] << 1) | glfwGetMouseButton((GLFWwindow *)G_Ctx->IO.InternalWindow, (MBTN))) &  \
+        3
 
-#define NYAS_KEY_UPDATE(KEY) \
-	(IO.Keys[(KEY)] = ((IO.Keys[(KEY)] << 1) | glfwGetKey((GLFWwindow*)IO.InternalWindow, (KEY))) & 3)
-
+#define NYAS_KEY_UPDATE(KEY)                                                                                           \
+    (G_Ctx->IO.Keys[(KEY)] =                                                                                           \
+         ((G_Ctx->IO.Keys[(KEY)] << 1) | glfwGetKey((GLFWwindow *)G_Ctx->IO.InternalWindow, (KEY))) & 3)
 
 typedef pthread_t NyThread;
 
 typedef int NyasSchedState;
 enum NyasSchedState_
 {
-	NyasSchedState_None = 0,
-	NyasSchedState_Running,
-	NyasSchedState_Closing,
-	NyasSchedState_Closed,
-	NyasSchedState_COUNT
+    NyasSchedState_None = 0,
+    NyasSchedState_Running,
+    NyasSchedState_Closing,
+    NyasSchedState_Closed,
+    NyasSchedState_COUNT
 };
 
 struct NySched
 {
-	NySched *next;
-	NyArray<NyJob> queue;
-	NyArray<NyThread> threads;
-	pthread_mutex_t mtx;
-	pthread_cond_t cond;
-	int waiting;
-	NyasSchedState state;
+    NySched *next;
+    NyArray<NyJob> queue;
+    NyArray<NyThread> threads;
+    pthread_mutex_t mtx;
+    pthread_cond_t cond;
+    int waiting;
+    NyasSchedState state;
 
-	NySched() : next(NULL), waiting(0), state(NyasSchedState_None) {}
+    NySched() : next(NULL), waiting(0), state(NyasSchedState_None)
+    {
+    }
 };
 
 // ---
@@ -115,966 +118,1020 @@ void nypx_stencil_disable_mask(void);
 void nypx_viewport(NyRect rect);
 void nypx_scissor(NyRect rect);
 
+NyasCtx DefaultCtx;
+NyasCtx *G_Ctx = &DefaultCtx;
+
 namespace Nyas
 {
-	NyasIO IO;
-	NyPool<NyasMesh> Meshes;
-	NyPool<NyasTexture> Textures;
-	NyPool<NyasShader> Shaders;
-	NyPool<NyasFramebuffer> Framebufs;
-
-	NyPool<NyasEntity> Entities;
-	NyasCamera Camera;
-
-	static inline void
-	ReadInput(void)
-	{
-		NYAS_KEY_UPDATE(NyasKey_Invalid);
-		NYAS_KEY_UPDATE(NyasKey_Space);
-		NYAS_KEY_UPDATE(NyasKey_Apostrophe);
-		NYAS_KEY_UPDATE(NyasKey_Comma);
-		NYAS_KEY_UPDATE(NyasKey_Minus);
-		NYAS_KEY_UPDATE(NyasKey_Period);
-		NYAS_KEY_UPDATE(NyasKey_Slash);
-		NYAS_KEY_UPDATE(NyasKey_0);
-		NYAS_KEY_UPDATE(NyasKey_1);
-		NYAS_KEY_UPDATE(NyasKey_2);
-		NYAS_KEY_UPDATE(NyasKey_3);
-		NYAS_KEY_UPDATE(NyasKey_4);
-		NYAS_KEY_UPDATE(NyasKey_5);
-		NYAS_KEY_UPDATE(NyasKey_6);
-		NYAS_KEY_UPDATE(NyasKey_7);
-		NYAS_KEY_UPDATE(NyasKey_8);
-		NYAS_KEY_UPDATE(NyasKey_9);
-		NYAS_KEY_UPDATE(NyasKey_Semicolon);
-		NYAS_KEY_UPDATE(NyasKey_Equal);
-		NYAS_KEY_UPDATE(NyasKey_A);
-		NYAS_KEY_UPDATE(NyasKey_B);
-		NYAS_KEY_UPDATE(NyasKey_C);
-		NYAS_KEY_UPDATE(NyasKey_D);
-		NYAS_KEY_UPDATE(NyasKey_E);
-		NYAS_KEY_UPDATE(NyasKey_F);
-		NYAS_KEY_UPDATE(NyasKey_G);
-		NYAS_KEY_UPDATE(NyasKey_H);
-		NYAS_KEY_UPDATE(NyasKey_I);
-		NYAS_KEY_UPDATE(NyasKey_J);
-		NYAS_KEY_UPDATE(NyasKey_K);
-		NYAS_KEY_UPDATE(NyasKey_L);
-		NYAS_KEY_UPDATE(NyasKey_M);
-		NYAS_KEY_UPDATE(NyasKey_N);
-		NYAS_KEY_UPDATE(NyasKey_O);
-		NYAS_KEY_UPDATE(NyasKey_P);
-		NYAS_KEY_UPDATE(NyasKey_Q);
-		NYAS_KEY_UPDATE(NyasKey_R);
-		NYAS_KEY_UPDATE(NyasKey_S);
-		NYAS_KEY_UPDATE(NyasKey_T);
-		NYAS_KEY_UPDATE(NyasKey_U);
-		NYAS_KEY_UPDATE(NyasKey_V);
-		NYAS_KEY_UPDATE(NyasKey_W);
-		NYAS_KEY_UPDATE(NyasKey_X);
-		NYAS_KEY_UPDATE(NyasKey_Y);
-		NYAS_KEY_UPDATE(NyasKey_Z);
-		NYAS_KEY_UPDATE(NyasKey_LeftBracket);
-		NYAS_KEY_UPDATE(NyasKey_Backslash);
-		NYAS_KEY_UPDATE(NyasKey_RightBracket);
-		NYAS_KEY_UPDATE(NyasKey_GraveAccent);
-		NYAS_KEY_UPDATE(NyasKey_World1);
-		NYAS_KEY_UPDATE(NyasKey_World2);
-		NYAS_KEY_UPDATE(NyasKey_Escape);
-		NYAS_KEY_UPDATE(NyasKey_Enter);
-		NYAS_KEY_UPDATE(NyasKey_Tab);
-		NYAS_KEY_UPDATE(NyasKey_Backspace);
-		NYAS_KEY_UPDATE(NyasKey_Insert);
-		NYAS_KEY_UPDATE(NyasKey_Delete);
-		NYAS_KEY_UPDATE(NyasKey_Right);
-		NYAS_KEY_UPDATE(NyasKey_Left);
-		NYAS_KEY_UPDATE(NyasKey_Down);
-		NYAS_KEY_UPDATE(NyasKey_Up);
-		NYAS_KEY_UPDATE(NyasKey_PageUp);
-		NYAS_KEY_UPDATE(NyasKey_PageDown);
-		NYAS_KEY_UPDATE(NyasKey_Home);
-		NYAS_KEY_UPDATE(NyasKey_End);
-		NYAS_KEY_UPDATE(NyasKey_CapsLock);
-		NYAS_KEY_UPDATE(NyasKey_ScrollLock);
-		NYAS_KEY_UPDATE(NyasKey_NumLock);
-		NYAS_KEY_UPDATE(NyasKey_PrintScreen);
-		NYAS_KEY_UPDATE(NyasKey_Pause);
-		NYAS_KEY_UPDATE(NyasKey_F1);
-		NYAS_KEY_UPDATE(NyasKey_F2);
-		NYAS_KEY_UPDATE(NyasKey_F3);
-		NYAS_KEY_UPDATE(NyasKey_F4);
-		NYAS_KEY_UPDATE(NyasKey_F5);
-		NYAS_KEY_UPDATE(NyasKey_F6);
-		NYAS_KEY_UPDATE(NyasKey_F7);
-		NYAS_KEY_UPDATE(NyasKey_F8);
-		NYAS_KEY_UPDATE(NyasKey_F9);
-		NYAS_KEY_UPDATE(NyasKey_F10);
-		NYAS_KEY_UPDATE(NyasKey_F11);
-		NYAS_KEY_UPDATE(NyasKey_F12);
-		NYAS_KEY_UPDATE(NyasKey_F13);
-		NYAS_KEY_UPDATE(NyasKey_F14);
-		NYAS_KEY_UPDATE(NyasKey_F15);
-		NYAS_KEY_UPDATE(NyasKey_F16);
-		NYAS_KEY_UPDATE(NyasKey_F17);
-		NYAS_KEY_UPDATE(NyasKey_F18);
-		NYAS_KEY_UPDATE(NyasKey_F19);
-		NYAS_KEY_UPDATE(NyasKey_F20);
-		NYAS_KEY_UPDATE(NyasKey_F21);
-		NYAS_KEY_UPDATE(NyasKey_F22);
-		NYAS_KEY_UPDATE(NyasKey_F23);
-		NYAS_KEY_UPDATE(NyasKey_F24);
-		NYAS_KEY_UPDATE(NyasKey_F25);
-		NYAS_KEY_UPDATE(NyasKey_Kp0);
-		NYAS_KEY_UPDATE(NyasKey_Kp1);
-		NYAS_KEY_UPDATE(NyasKey_Kp2);
-		NYAS_KEY_UPDATE(NyasKey_Kp3);
-		NYAS_KEY_UPDATE(NyasKey_Kp4);
-		NYAS_KEY_UPDATE(NyasKey_Kp5);
-		NYAS_KEY_UPDATE(NyasKey_Kp6);
-		NYAS_KEY_UPDATE(NyasKey_Kp7);
-		NYAS_KEY_UPDATE(NyasKey_Kp8);
-		NYAS_KEY_UPDATE(NyasKey_Kp9);
-		NYAS_KEY_UPDATE(NyasKey_KpDecimal);
-		NYAS_KEY_UPDATE(NyasKey_KpDivide);
-		NYAS_KEY_UPDATE(NyasKey_KpMultiply);
-		NYAS_KEY_UPDATE(NyasKey_KpSubtract);
-		NYAS_KEY_UPDATE(NyasKey_KpAdd);
-		NYAS_KEY_UPDATE(NyasKey_KpEnter);
-		NYAS_KEY_UPDATE(NyasKey_KpEqual);
-		NYAS_KEY_UPDATE(NyasKey_LeftShift);
-		NYAS_KEY_UPDATE(NyasKey_LeftControl);
-		NYAS_KEY_UPDATE(NyasKey_LeftAlt);
-		NYAS_KEY_UPDATE(NyasKey_LeftSuper);
-		NYAS_KEY_UPDATE(NyasKey_RightShift);
-		NYAS_KEY_UPDATE(NyasKey_RightControl);
-		NYAS_KEY_UPDATE(NyasKey_RightAlt);
-		NYAS_KEY_UPDATE(NyasKey_RightSuper);
-		NYAS_KEY_UPDATE(NyasKey_Menu);
-
-		NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Left);
-		NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Right);
-		NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Middle);
-
-		double x, y;
-		glfwGetCursorPos((GLFWwindow*)IO.InternalWindow, &x, &y);
-		IO.MousePosition = {(float)x, (float)y};
-	}
-
-	static void
-	nyas__scrollcallback(GLFWwindow *window, double x_offset, double y_offset)
-	{
-		NY_UNUSED(window);
-		IO.MouseScroll = {(float)x_offset, (float)y_offset};
-	}
-
-	static void
-	nyas__cursor_enter_callback(GLFWwindow *window, int entered)
-	{
-		NY_UNUSED(window);
-		IO.WindowHovered = entered;
-	}
-
-	static void
-	nyas__window_focus_callback(GLFWwindow *window, int focused)
-	{
-		NY_UNUSED(window);
-		IO.WindowFocused = focused;
-	}
-
-	bool
-	InitIO(const char *title, int win_w, int win_h)
-	{
-		memset(&IO, 0, sizeof(IO));
-		if (!glfwInit()) {
-			return false;
-		}
-
-		IO.InternalWindow = glfwCreateWindow(win_w, win_h, title, NULL, NULL);
-		if (!IO.InternalWindow) {
-			glfwTerminate();
-			return false;
-		}
-
-		glfwMakeContextCurrent((GLFWwindow*)IO.InternalWindow);
-	#ifndef __EMSCRIPTEN__
-		gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-	#endif
-
-		glfwSwapInterval(1);
-		glfwSetScrollCallback((GLFWwindow*)IO.InternalWindow, nyas__scrollcallback);
-		glfwSetCursorEnterCallback((GLFWwindow*)IO.InternalWindow, nyas__cursor_enter_callback);
-		glfwSetWindowFocusCallback((GLFWwindow*)IO.InternalWindow, nyas__window_focus_callback);
-		glfwSetInputMode((GLFWwindow*)IO.InternalWindow, GLFW_STICKY_KEYS, GLFW_TRUE);
-		glfwSetInputMode((GLFWwindow*)IO.InternalWindow, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
-
-		IO.ShowCursor = true;
-		IO.CaptureMouse = true;
-		IO.CaptureKeyboard = true;
-
-		IO.NavCfg.Speed = 10.0f;
-		IO.NavCfg.Sensitivity = 0.001f;
-		IO.NavCfg.ScrollSensitivity = 1.0f;
-
-		PollIO();
-		return true;
-	}
-
-	int
-	nyas_file_read(const char *path, char **dst, size_t *size)
-	{
-		FILE *f = fopen(path, "rb");
-		if (!f) {
-			NYAS_LOG_ERR("File open failed for %s.", path);
-			return NyasError_File;
-		}
-
-		fseek(f, 0L, SEEK_END);
-		*size = ftell(f) + 1;
-		rewind(f);
-
-		*dst = (char*)NYAS_ALLOC(*size);
-		if (!*dst) {
-			NYAS_LOG_ERR("Alloc (%lu bytes) failed.", *size);
-			fclose(f);
-			return NyasError_Alloc;
-		}
-
-		if (fread(*dst, *size - 1, 1, f) != 1) {
-			NYAS_LOG_ERR("File read failed for %s.", path);
-			NYAS_FREE(*dst);
-			fclose(f);
-			return NyasError_File;
-		}
-
-		fclose(f);
-		(*dst)[*size - 1] = '\0';
-		return NyasCode_Ok;
-	}
-
-	void
-	PollIO(void)
-	{
-		NYAS_ASSERT(IO.InternalWindow && "The IO system is uninitalized");
-		IO.MouseScroll = { 0.0f, 0.0f };
-		glfwPollEvents();
-		ReadInput();
-		IO.WindowClosed = glfwWindowShouldClose((GLFWwindow*)IO.InternalWindow);
-		glfwGetWindowSize((GLFWwindow*)IO.InternalWindow, &IO.WindowSize.X, &IO.WindowSize.Y);
-
-		if (IO.ShowCursor) {
-			glfwSetInputMode((GLFWwindow*)IO.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		} else {
-			glfwSetInputMode((GLFWwindow*)IO.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		}
-	}
-
-	void
-	WindowSwap(void)
-	{
-		NYAS_ASSERT(IO.InternalWindow && "The IO system is uninitalized");
-		glfwSwapBuffers((GLFWwindow*)IO.InternalWindow);
-	}
-
-	static inline void
-	nyas__check_handle(int h, void *arr)
-	{
-		(void)h, (void)arr;
-		NYAS_ASSERT(arr && h >= 0 && ((NyPool<NyasTexture>*)arr)->Arr.Size > h && "Invalid handle range.");
-	}
-
-	static void
-	nyas__file_reader(void *_1, const char *path, int _2, const char *_3, char **buf, size_t *size)
-	{
-		(void)_1, (void)_2, (void)_3;
-		nyas_file_read(path, buf, size);
-	}
-
-	static NyasHandle
-	_CreateMeshHandle(void)
-	{
-		return Meshes.Add(NyasMesh());
-	}
-
-	static NyasHandle
-	_CreateFramebufHandle(void)
-	{
-		return Framebufs.Add(NyasFramebuffer());
-	}
-
-	static NyasHandle
-	_CreateShaderHandle(void)
-	{
-		return Shaders.Add(NyasShader());
-	}
-
-	const char *
-	_GetImgFacePath(const char *path, int face, int face_count)
-	{
-		switch (face_count) {
-		case 6:
-		case 5:
-		case 4:
-		case 3:
-		case 2: {
-			const char *suffixes = "RLUDFB";
-			static char buffer[1024];
-			int count = snprintf(buffer, 1024, path, suffixes[face]);
-			if (count < 1024) {
-				NYAS_LOG_ERR("Cubemap face path format: %s is too long!", path);
-				return NULL;
-			}
-			return buffer;
-		}
-		case 1: return path;
-		default: NYAS_LOG_WARN("Invalid cubemap face count. Path is %s.", path); return path;
-		}
-	}
-
-	static int
-	_TexChannels(NyasTexFmt fmt)
-	{
-		switch (fmt) {
-		case NyasTexFmt_RGBA_16F:
-		case NyasTexFmt_RGBA_8: return 4;
-		case NyasTexFmt_RGB_16F:
-		case NyasTexFmt_RGB_8:
-		case NyasTexFmt_SRGB_8: return 3;
-		case NyasTexFmt_RG_16F:
-		case NyasTexFmt_RG_8: return 2;
-		case NyasTexFmt_R_16F:
-		case NyasTexFmt_R_8: return 1;
-		default: return 0;
-		}
-	}
-
-	static int
-	_TexFaces(NyasTexType type)
-	{
-		switch (type) {
-		case NyasTexType_2D:
-		case NyasTexType_Array2D: return 1;
-		case NyasTexType_Cubemap:
-		case NyasTexType_ArrayCubemap: return 6;
-		default: return 0;
-		}
-	}
-
-	static bool
-	_TexFmtFloat(NyasTexFmt fmt)
-	{
-		switch (fmt) {
-		case NyasTexFmt_RGBA_16F:
-		case NyasTexFmt_RGB_16F:
-		case NyasTexFmt_RGB_32F:
-		case NyasTexFmt_RG_16F:
-		case NyasTexFmt_R_16F: return true;
-		default: return false;
-		}
-	}
-
-	NyasHandle
-	CreateTexture(void)
-	{
-		int tex = Textures.Add(NyasTexture());
-		return tex;
-	}
-
-	void
-	LoadTexture(NyasHandle texture, struct NyasTexDesc *desc, const char *path)
-	{
-		NYAS_ASSERT(*path != '\0' && "For empty textures use nyas_tex_set");
-		NyasTexture *t = &Textures[texture];
-		t->Resource.Id = 0;
-		t->Resource.Flags = NyasResourceFlags_Dirty;
-		t->Data = *desc;
-
-		int fmt_ch = _TexChannels(t->Data.Format);
-		stbi_set_flip_vertically_on_load(t->Data.Flags & NyasTexFlags_FlipVerticallyOnLoad);
-
-		int channels = 0;
-		int face_count = _TexFaces(t->Data.Type);
-		for (int i = 0; i < face_count; ++i) {
-			NyasTexImg img;
-			const char *p = _GetImgFacePath(path, i, face_count);
-			img.Face = i;
-			if (_TexFmtFloat(t->Data.Format)) {
-				img.Pix = stbi_loadf(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
-			} else {
-				img.Pix = stbi_load(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
-			}
-
-			if (!img.Pix) {
-				NYAS_LOG_ERR("The image '%s' couldn't be loaded", p);
-			}
-			t->Img.Push(img);
-		}
-	}
-
-	void
-	SetTexture(NyasHandle texture, struct NyasTexDesc *desc)
-	{
-		NYAS_ASSERT(desc->Width > 0 && desc->Height > 0 && "Incorrect dimensions");
-		NyasTexture *t = &Textures[texture];
-		t->Resource.Flags |= NyasResourceFlags_Dirty;
-		t->Data = *desc;
-		if (!t->Img.Size) {
-			int face_count = _TexFaces(t->Data.Type);
-			for (int i = 0; i < face_count; ++i) {
-				NyasTexImg img;
-				img.Face = i;
-				t->Img.Push(img);
-			}
-		}
-	}
-
-	NyasHandle
-	CreateShader(const struct NyasShaderDesc *desc)
-	{
-		NyasHandle ret = _CreateShaderHandle();
-		Shaders[ret].Name = desc->Name;
-		Shaders[ret].Resource.Id = 0;
-		Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
-		Shaders[ret].Count[0].Data = desc->DataCount;
-		Shaders[ret].Count[0].Tex = desc->TexCount;
-		Shaders[ret].Count[0].Cubemap = desc->CubemapCount;
-		Shaders[ret].Count[1].Data = desc->SharedDataCount;
-		Shaders[ret].Count[1].Tex = desc->SharedTexCount;
-		Shaders[ret].Count[1].Cubemap = desc->SharedCubemapCount;
-		Shaders[ret].Shared = NYAS_ALLOC(
-		(desc->SharedDataCount + desc->SharedTexCount + desc->SharedCubemapCount) *
-		sizeof(float));
-		return ret;
-	}
-
-	void *
-	GetMaterialSharedData(NyasHandle shader)
-	{
-		return Shaders[shader].Shared;
-	}
-
-	NyasHandle *
-	GetMaterialSharedTextures(NyasHandle shader)
-	{
-		NyasShader *shdr = &Shaders[shader];
-		return (NyasHandle *)shdr->Shared + shdr->Count[1].Data;
-	}
-
-	NyasHandle *
-	GetMaterialSharedCubemaps(NyasHandle shader)
-	{
-		NyasShader *shdr = &Shaders[shader];
-		return GetMaterialSharedTextures(shader) + shdr->Count[1].Tex;
-	}
-
-	void
-	ReloadShader(NyasHandle shader)
-	{
-		Shaders[shader].Resource.Flags |= NyasResourceFlags_Dirty;
-	}
-
-	static NyDrawIdx
-	_CheckVertex(const float *v, const float *end, const float *newvtx)
-	{
-		NyDrawIdx i = 0;
-		for (; v < end; ++i, v += 14) {
-			if ((v[0] == newvtx[0]) && (v[1] == newvtx[1]) && (v[2] == newvtx[2]) &&
-				(v[3] == newvtx[3]) && (v[4] == newvtx[4]) && (v[5] == newvtx[5]) &&
-				(v[12] == newvtx[12]) && (v[13] == newvtx[13])) {
-				return i;
-			}
-		}
-		return i;
-	}
-
-	static void
-	_SetMeshObj(NyasMesh *mesh, const char *path)
-	{
-		tinyobj_attrib_t attrib;
-		tinyobj_shape_t *shapes = NULL;
-		size_t shape_count;
-		tinyobj_material_t *mats = NULL;
-		size_t mats_count;
-
-		int result = tinyobj_parse_obj(
-		&attrib, &shapes, &shape_count, &mats, &mats_count, path, nyas__file_reader, NULL,
-		TINYOBJ_FLAG_TRIANGULATE);
-
-		NYAS_ASSERT(result == TINYOBJ_SUCCESS && "Obj loader failed.");
-		if (result != TINYOBJ_SUCCESS) {
-			NYAS_LOG_ERR("Error loading obj. Err: %d", result);
-		}
-
-		size_t vertex_count = attrib.num_face_num_verts * 3;
-
-		NYAS_FREE(mesh->Vtx);
-		NYAS_FREE(mesh->Indices);
-
-		mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_Tangent | NyasVtxAttribFlags_Bitangent | NyasVtxAttribFlags_UV;
-		mesh->VtxSize = vertex_count * 14 * sizeof(float);
-		mesh->ElementCount = vertex_count;
-		mesh->Vtx = (float*)NYAS_ALLOC(mesh->VtxSize);
-		mesh->Indices = (NyDrawIdx*)NYAS_ALLOC(mesh->ElementCount * sizeof(NyDrawIdx));
-
-		float *vit = mesh->Vtx;
-
-		size_t index_offset = 0;
-		for (size_t i = 0; i < attrib.num_face_num_verts; ++i) {
-			for (int f = 0; f < attrib.face_num_verts[i] / 3; ++f) {
-				tinyobj_vertex_index_t idx = attrib.faces[3 * f + index_offset];
-				float v1[14], v2[14], v3[14];
-
-				v1[0] = attrib.vertices[3 * idx.v_idx + 0];
-				v1[1] = attrib.vertices[3 * idx.v_idx + 1];
-				v1[2] = attrib.vertices[3 * idx.v_idx + 2];
-				v1[3] = attrib.normals[3 * idx.vn_idx + 0];
-				v1[4] = attrib.normals[3 * idx.vn_idx + 1];
-				v1[5] = attrib.normals[3 * idx.vn_idx + 2];
-				v1[12] = attrib.texcoords[2 * idx.vt_idx + 0];
-				v1[13] = attrib.texcoords[2 * idx.vt_idx + 1];
-
-				idx = attrib.faces[3 * f + index_offset + 1];
-				v2[0] = attrib.vertices[3 * idx.v_idx + 0];
-				v2[1] = attrib.vertices[3 * idx.v_idx + 1];
-				v2[2] = attrib.vertices[3 * idx.v_idx + 2];
-				v2[3] = attrib.normals[3 * idx.vn_idx + 0];
-				v2[4] = attrib.normals[3 * idx.vn_idx + 1];
-				v2[5] = attrib.normals[3 * idx.vn_idx + 2];
-				v2[12] = attrib.texcoords[2 * idx.vt_idx + 0];
-				v2[13] = attrib.texcoords[2 * idx.vt_idx + 1];
-
-				idx = attrib.faces[3 * f + index_offset + 2];
-				v3[0] = attrib.vertices[3 * idx.v_idx + 0];
-				v3[1] = attrib.vertices[3 * idx.v_idx + 1];
-				v3[2] = attrib.vertices[3 * idx.v_idx + 2];
-				v3[3] = attrib.normals[3 * idx.vn_idx + 0];
-				v3[4] = attrib.normals[3 * idx.vn_idx + 1];
-				v3[5] = attrib.normals[3 * idx.vn_idx + 2];
-				v3[12] = attrib.texcoords[2 * idx.vt_idx + 0];
-				v3[13] = attrib.texcoords[2 * idx.vt_idx + 1];
-
-				// Calculate tangent and bitangent
-				float delta_p1[3], delta_p2[3], delta_uv1[2], delta_uv2[2];
-				vec3_subtract(delta_p1, v2, v1);
-				vec3_subtract(delta_p2, v3, v1);
-				vec2_subtract(delta_uv1, &v2[12], &v1[12]);
-				vec2_subtract(delta_uv2, &v3[12], &v1[12]);
-				float r = 1.0f / (delta_uv1[0] * delta_uv2[1] - delta_uv1[1] * delta_uv2[0]);
-
-				float tn[3], bitn[3], tmp[3];
-				vec3_multiply_f(tn, delta_p1, delta_uv2[1]);
-				vec3_multiply_f(tmp, delta_p2, delta_uv1[1]);
-				vec3_multiply_f(tn, vec3_subtract(tn, tn, tmp), r);
-
-				vec3_multiply_f(bitn, delta_p2, delta_uv1[0]);
-				vec3_multiply_f(tmp, delta_p1, delta_uv2[0]);
-				vec3_multiply_f(bitn, vec3_subtract(bitn, bitn, tmp), r);
-
-				v1[6] = tn[0];
-				v1[7] = tn[1];
-				v1[8] = tn[2];
-				v2[6] = tn[0];
-				v2[7] = tn[1];
-				v2[8] = tn[2];
-				v3[6] = tn[0];
-				v3[7] = tn[1];
-				v3[8] = tn[2];
-
-				v1[9] = bitn[0];
-				v1[10] = bitn[1];
-				v1[11] = bitn[2];
-				v2[9] = bitn[0];
-				v2[10] = bitn[1];
-				v2[11] = bitn[2];
-				v3[9] = bitn[0];
-				v3[10] = bitn[1];
-				v3[11] = bitn[2];
-
-				// Check vertex rep
-				NyDrawIdx nxt_idx = _CheckVertex(mesh->Vtx, vit, v1);
-				mesh->Indices[index_offset++] = nxt_idx;
-				if (nxt_idx * 14 == (vit - mesh->Vtx)) {
-					for (int j = 0; j < 14; ++j) {
-						*vit++ = v1[j];
-					}
-				}
-
-				nxt_idx = _CheckVertex(mesh->Vtx, vit, v2);
-				mesh->Indices[index_offset++] = nxt_idx;
-				if (nxt_idx * 14 == (vit - mesh->Vtx)) {
-					for (int j = 0; j < 14; ++j) {
-						*vit++ = v2[j];
-					}
-				}
-
-				nxt_idx = _CheckVertex(mesh->Vtx, vit, v3);
-				mesh->Indices[index_offset++] = nxt_idx;
-				if (nxt_idx * 14 == (vit - mesh->Vtx)) {
-					for (int j = 0; j < 14; ++j) {
-						*vit++ = v3[j];
-					}
-				}
-			}
-		}
-
-		tinyobj_attrib_free(&attrib);
-		tinyobj_shapes_free(shapes, shape_count);
-		tinyobj_materials_free(mats, mats_count);
-	}
-
-	static void
-	_SetMeshMsh(NyasMesh *mesh, const char *path)
-	{
-		char *data;
-		size_t sz;
-		nyas__file_reader(NULL, path, 0, NULL, &data, &sz);
-		if (!data || !sz) {
-			NYAS_LOG_ERR("Problem reading file %s", path);
-			return;
-		}
-
-		NYAS_FREE(mesh->Vtx);
-		NYAS_FREE(mesh->Indices);
-
-		mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_Tangent | NyasVtxAttribFlags_Bitangent | NyasVtxAttribFlags_UV;
-		mesh->VtxSize = *(size_t *)data; // *(((size_t *)data)++)
-		data += sizeof(size_t);
-		mesh->Vtx = (float*)NYAS_ALLOC(mesh->VtxSize);
-		memcpy(mesh->Vtx, data, mesh->VtxSize);
-		data += mesh->VtxSize;
-
-		mesh->ElementCount = (*(size_t *)data) / sizeof(NyDrawIdx); // *(((size_t *)data)++)
-		data += sizeof(size_t);
-		mesh->Indices = (NyDrawIdx*)NYAS_ALLOC(mesh->ElementCount * sizeof(NyDrawIdx));
-		memcpy(mesh->Indices, data, mesh->ElementCount * sizeof(NyDrawIdx));
-
-		NYAS_FREE(data - mesh->VtxSize - (2 * sizeof(size_t)));
-	}
-
-	void
-	ReloadMesh(NyasHandle msh, const char *path)
-	{
-		NyasMesh *m = &Meshes[msh];
-		size_t len = strlen(path);
-		const char *extension = path + len;
-		while (*--extension != '.') {}
-		extension++;
-		if (!strcmp(extension, "obj")) {
-			_SetMeshObj(m, path);
-		} else if (!strcmp(extension, "msh")) {
-			_SetMeshMsh(m, path);
-		} else {
-			NYAS_LOG_ERR("Extension (%s) of file %s not recognised.", extension, path);
-		}
-
-		m->Resource.Flags |= NyasResourceFlags_Dirty;
-	}
-
-	static NyasHandle
-	_NewMesh(void)
-	{
-		NyasHandle mesh_handle = _CreateMeshHandle();
-		Meshes[mesh_handle].Resource.Id = 0;
-		Meshes[mesh_handle].Resource.Flags = NyasResourceFlags_Dirty;
-		Meshes[mesh_handle].Attribs = 0;
-		Meshes[mesh_handle].Vtx = NULL;
-		Meshes[mesh_handle].Indices = NULL;
-		Meshes[mesh_handle].VtxSize = 0;
-		Meshes[mesh_handle].ElementCount = 0;
-		Meshes[mesh_handle].ResVtx.Id = 0;
-		Meshes[mesh_handle].ResVtx.Flags = NyasResourceFlags_Dirty;
-		Meshes[mesh_handle].ResIdx.Id = 0;
-		Meshes[mesh_handle].ResIdx.Flags = NyasResourceFlags_Dirty;
-
-		return mesh_handle;
-	}
-
-	NyasHandle
-	CreateMesh(void)
-	{
-		return _NewMesh();
-	}
-
-	NyasHandle
-	LoadMesh(const char *path)
-	{
-		NyasHandle mesh_handle = _NewMesh();
-		ReloadMesh(mesh_handle, path);
-		return mesh_handle;
-	}
-
-	NyasHandle
-	CreateFramebuffer(void)
-	{
-		NyasHandle framebuffer = _CreateFramebufHandle();
-		Framebufs[framebuffer].Resource.Id = 0;
-		Framebufs[framebuffer].Resource.Flags = NyasResourceFlags_Dirty;
-		for (int i = 0; i < 8; ++i) {
-			Framebufs[framebuffer].Target[i].Tex = NyasCode_None;
-		}
-		return framebuffer;
-	}
-
-	void
-	SetFramebufferTarget(NyasHandle framebuffer, int index, struct NyasTexTarget target)
-	{
-		Framebufs[framebuffer].Resource.Flags |= NyasResourceFlags_Dirty;
-		Framebufs[framebuffer].Target[index] = target;
-	}
-
-	NyasMaterial
-	CreateMaterial(NyasHandle shader)
-	{
-		NyasMaterial ret(shader);
-		NyasShader *s = &Shaders[shader];
-		int elements = s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap;
-		ret.Ptr = NYAS_ALLOC(elements * sizeof(float));
-		return ret;
-	}
-
-	NyasMaterial
-	CreateMaterialTmp(NyasHandle shader)
-	{
-		NyasMaterial ret(shader);
-		NyasShader *s = &Shaders[shader];
-		int elements = s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap;
-		ret.Ptr = NyFrameAllocator::Alloc(elements * sizeof(float));
-		return ret;
-	}
-
-	NyasMaterial
-	CopyMaterialTmp(NyasMaterial mat)
-	{
-		NyasMaterial ret(mat.Shader);
-		NyasShader *s = &Shaders[mat.Shader];
-		size_t size = (s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap) * 4;
-		ret.Ptr = NyFrameAllocator::Alloc(size);
-		memcpy(ret.Ptr, mat.Ptr, size);
-		return ret;
-	}
-
-	NyasMaterial
-	CopyShaderMaterialTmp(NyasHandle shader)
-	{
-		NyasMaterial ret(shader);
-		NyasShader *s = &Shaders[shader];
-		int elements = s->Count[1].Data + s->Count[1].Tex + s->Count[1].Cubemap;
-		ret.Ptr = NyFrameAllocator::Alloc(elements * sizeof(float));
-		memcpy(ret.Ptr, s->Shared, elements * sizeof(float));
-		return ret;
-	}
-
-	NyasHandle *
-	GetMaterialTextures(NyasMaterial mat)
-	{
-		return (NyasHandle *)mat.Ptr + Shaders[mat.Shader].Count[0].Data;
-	}
-
-	static void
-	_SyncMesh(NyasHandle msh, NyasHandle shader)
-	{
-		nyas__check_handle(msh, &Meshes);
-		//nypx__check_handle(shader, &shader_pool);
-		NyasMesh *m = &Meshes[msh];
-
-		if (!(m->Resource.Flags & NyasResourceFlags_Created)) {
-			nypx_mesh_create(&m->Resource.Id, &m->ResVtx.Id, &m->ResIdx.Id);
-			m->Resource.Flags |= NyasResourceFlags_Created;
-		}
-
-		if (m->Resource.Flags & NyasResourceFlags_Dirty) {
-			nypx_mesh_set(m, Shaders[shader].Resource.Id);
-			m->Resource.Flags &= ~NyasResourceFlags_Dirty;
-		}
-	}
-
-	static NyasTexture *
-	_SyncTex(NyasHandle texture)
-	{
-		nyas__check_handle(texture, &Textures);
-		NyasTexture *t = &Textures[texture];
-		if (!(t->Resource.Flags & NyasResourceFlags_Created)) {
-			nypx_tex_create(t);
-			t->Resource.Flags |= (NyasResourceFlags_Created | NyasResourceFlags_Dirty);
-		}
-
-		if (t->Resource.Flags & NyasResourceFlags_Dirty) {
-			nypx_tex_set(t);
-			t->Resource.Flags &= ~NyasResourceFlags_Dirty;
-		}
-		return t;
-	}
-
-	static void
-	_SyncShaderData(NyasShader *s, void *srcdata, int common)
-	{
-		NYAS_ASSERT((common == 0 || common == 1) && "Invalid common value.");
-
-		int dc = s->Count[common].Data;
-		int tc = s->Count[common].Tex;
-		int cc = s->Count[common].Cubemap;
-		int dl = s->Location[common].Data;
-		int tl = s->Location[common].Tex;
-		int cl = s->Location[common].Cubemap;
-		int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
-
-		NYAS_ASSERT((dc >= 0) && (tc >= 0) && (cc >= 0));
-		NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
-
-		if (!(dc + tc + cc)) {
-			return;
-		}
-
-		// change texture handle for texture internal id
-		NyasHandle *data_tex = (NyasHandle *)srcdata + dc;
-		for (int i = 0; i < tc + cc; ++i) {
-			NyasTexture *itx = _SyncTex(data_tex[i]);
-			data_tex[i] = (int)itx->Resource.Id;
-		}
-
-		// set opengl uniforms
-		if (dc) {
-			nypx_shader_set_data(dl, (float*)srcdata, dc / 4);
-		}
-
-		if (tc) {
-			nypx_shader_set_tex(tl, data_tex, tc, tex_unit);
-		}
-
-		if (cc) {
-			nypx_shader_set_cube(cl, data_tex + tc, cc, tex_unit + tc);
-		}
-	}
-
-	void
-	_SyncShader(NyasShader *s)
-	{
-		static const char *uniforms[] = {
-			"u_data", "u_tex", "u_cube", "u_shared_data", "u_common_tex", "u_common_cube"
-		};
-
-		if (!(s->Resource.Flags & NyasResourceFlags_Created)) {
-			nypx_shader_create(&s->Resource.Id);
-			s->Resource.Flags |= NyasResourceFlags_Created;
-		}
-
-		if (s->Resource.Flags & NyasResourceFlags_Dirty) {
-			NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
-			nypx_shader_compile(s->Resource.Id, s->Name);
-			nypx_shader_loc(s->Resource.Id, &s->Location[0].Data, &uniforms[0], 6);
-			s->Resource.Flags &= ~NyasResourceFlags_Dirty;
-		}
-	}
-
-	static void
-	_SyncFramebuf(NyasHandle framebuffer)
-	{
-		//nypx__check_handle(framebuffer, &Framebufs);
-		struct NyasFramebuffer *fb = &Framebufs[framebuffer];
-		if (!(fb->Resource.Flags & NyasResourceFlags_Created)) {
-			nypx_fb_create(fb);
-			fb->Resource.Flags |= NyasResourceFlags_Created;
-		}
-
-		nypx_fb_use(fb->Resource.Id);
-		if (fb->Resource.Flags & NyasResourceFlags_Dirty) {
-			for (int i = 0; fb->Target[i].Tex != NyasCode_None; ++i) {
-				struct NyasTexture *t = _SyncTex(fb->Target[i].Tex);
-				nypx_fb_set(fb->Resource.Id, t->Resource.Id, &fb->Target[i]);
-			}
-			fb->Resource.Flags &= ~NyasResourceFlags_Dirty;
-		}
-	}
-
-	void
-	Draw(NyasDrawCmd *cmd)
-	{
-		if (cmd->Framebuf != NyasCode_NoOp) {
-			if (cmd->Framebuf == NyasCode_Default) {
-				nypx_fb_use(0);
-			} else {
-				//nypx__check_handle(cmd->fb, &Framebufs);
-				_SyncFramebuf(cmd->Framebuf);
-			}
-		}
-		//_draw_target(cmd->fb);
-
-		if (cmd->ShaderMaterial.Shader != NyasCode_NoOp) {
-			//nypx__check_handle(mat.shader, &shader_pool);
-			NyasShader *s = &Shaders[cmd->ShaderMaterial.Shader];
-			_SyncShader(s);
-			nypx_shader_use(s->Resource.Id);
-			_SyncShaderData(s, cmd->ShaderMaterial.Ptr, true);
-		}
-
-		NyasDrawState& s = cmd->State;
-		nypx_clear_color(s.BgColorR, s.BgColorG, s.BgColorB, s.BgColorA);
-		nypx_clear(s.EnableFlags & NyasDrawFlags_ColorClear, s.EnableFlags & NyasDrawFlags_DepthClear,
-		s.EnableFlags & NyasDrawFlags_StencilClear);
-
-		nypx_viewport({s.ViewportMinX, s.ViewportMinY, s.ViewportMaxX, s.ViewportMaxY});
-		nypx_scissor({s.ScissorMinX, s.ScissorMinY, s.ScissorMaxX, s.ScissorMaxY});
-
-		if (s.DisableFlags & NyasDrawFlags_DepthTest) {
-			nypx_depth_disable_test();
-		} else if (s.EnableFlags & NyasDrawFlags_DepthTest) {
-			nypx_depth_enable_test();
-		}
-
-		if (s.DisableFlags & NyasDrawFlags_DepthWrite) {
-			nypx_depth_disable_mask();
-		} else if (s.EnableFlags & NyasDrawFlags_DepthWrite) {
-			nypx_depth_enable_mask();
-		}
-
-		if (s.DisableFlags & NyasDrawFlags_StencilTest) {
-			nypx_stencil_disable_test();
-		} else if (s.EnableFlags & NyasDrawFlags_StencilTest) {
-			nypx_stencil_enable_test();
-		}
-
-		if (s.DisableFlags & NyasDrawFlags_StencilWrite) {
-			nypx_stencil_disable_mask();
-		} else if (s.EnableFlags & NyasDrawFlags_StencilWrite) {
-			nypx_stencil_enable_mask();
-		}
-
-		if (s.DisableFlags & NyasDrawFlags_Blend) {
-			nypx_blend_disable();
-		} else if (s.EnableFlags & NyasDrawFlags_Blend) {
-			nypx_blend_enable();
-		}
-
-		if (s.DisableFlags & NyasDrawFlags_FaceCulling) {
-			nypx_cull_disable();
-		} else if (s.EnableFlags & NyasDrawFlags_FaceCulling) {
-			nypx_cull_enable();
-		}
-
-		if (s.DisableFlags & NyasDrawFlags_Scissor) {
-			nypx_scissor_disable();
-		} else if (s.EnableFlags & NyasDrawFlags_Scissor) {
-			nypx_scissor_enable();
-		}
-
-		nypx_depth_set(s.Depth);
-		nypx_blend_set(s.BlendSrc, s.BlendDst);
-		nypx_cull_set(s.FaceCulling);
-
-		for (int i = 0; i < cmd->UnitCount; ++i) {
-			NyasMesh *imsh = &Meshes[cmd->Units[i].Mesh];
-			nyas__check_handle(cmd->Units[i].Mesh, &Meshes);
-			NYAS_ASSERT(imsh->ElementCount && "Attempt to draw an uninitialized mesh");
-
-			if (imsh->Resource.Flags & NyasResourceFlags_Dirty) {
-				_SyncMesh(cmd->Units[i].Mesh, cmd->Units[i].Material.Shader);
-			}
-
-			NyasShader *s = &Shaders[cmd->Units[i].Material.Shader];
-			_SyncShaderData(s, cmd->Units[i].Material.Ptr, false);
-			nypx_mesh_use(imsh, s);
-			nypx_draw(imsh->ElementCount, sizeof(NyDrawIdx) == 4);
-		}
-	}
+NyPool<NyasMesh> Meshes;
+NyPool<NyasTexture> Textures;
+NyPool<NyasShader> Shaders;
+NyPool<NyasFramebuffer> Framebufs;
+
+NyPool<NyasEntity> Entities;
+NyasCamera Camera;
+
+static inline void ReadInput(void)
+{
+    NYAS_KEY_UPDATE(NyasKey_Invalid);
+    NYAS_KEY_UPDATE(NyasKey_Space);
+    NYAS_KEY_UPDATE(NyasKey_Apostrophe);
+    NYAS_KEY_UPDATE(NyasKey_Comma);
+    NYAS_KEY_UPDATE(NyasKey_Minus);
+    NYAS_KEY_UPDATE(NyasKey_Period);
+    NYAS_KEY_UPDATE(NyasKey_Slash);
+    NYAS_KEY_UPDATE(NyasKey_0);
+    NYAS_KEY_UPDATE(NyasKey_1);
+    NYAS_KEY_UPDATE(NyasKey_2);
+    NYAS_KEY_UPDATE(NyasKey_3);
+    NYAS_KEY_UPDATE(NyasKey_4);
+    NYAS_KEY_UPDATE(NyasKey_5);
+    NYAS_KEY_UPDATE(NyasKey_6);
+    NYAS_KEY_UPDATE(NyasKey_7);
+    NYAS_KEY_UPDATE(NyasKey_8);
+    NYAS_KEY_UPDATE(NyasKey_9);
+    NYAS_KEY_UPDATE(NyasKey_Semicolon);
+    NYAS_KEY_UPDATE(NyasKey_Equal);
+    NYAS_KEY_UPDATE(NyasKey_A);
+    NYAS_KEY_UPDATE(NyasKey_B);
+    NYAS_KEY_UPDATE(NyasKey_C);
+    NYAS_KEY_UPDATE(NyasKey_D);
+    NYAS_KEY_UPDATE(NyasKey_E);
+    NYAS_KEY_UPDATE(NyasKey_F);
+    NYAS_KEY_UPDATE(NyasKey_G);
+    NYAS_KEY_UPDATE(NyasKey_H);
+    NYAS_KEY_UPDATE(NyasKey_I);
+    NYAS_KEY_UPDATE(NyasKey_J);
+    NYAS_KEY_UPDATE(NyasKey_K);
+    NYAS_KEY_UPDATE(NyasKey_L);
+    NYAS_KEY_UPDATE(NyasKey_M);
+    NYAS_KEY_UPDATE(NyasKey_N);
+    NYAS_KEY_UPDATE(NyasKey_O);
+    NYAS_KEY_UPDATE(NyasKey_P);
+    NYAS_KEY_UPDATE(NyasKey_Q);
+    NYAS_KEY_UPDATE(NyasKey_R);
+    NYAS_KEY_UPDATE(NyasKey_S);
+    NYAS_KEY_UPDATE(NyasKey_T);
+    NYAS_KEY_UPDATE(NyasKey_U);
+    NYAS_KEY_UPDATE(NyasKey_V);
+    NYAS_KEY_UPDATE(NyasKey_W);
+    NYAS_KEY_UPDATE(NyasKey_X);
+    NYAS_KEY_UPDATE(NyasKey_Y);
+    NYAS_KEY_UPDATE(NyasKey_Z);
+    NYAS_KEY_UPDATE(NyasKey_LeftBracket);
+    NYAS_KEY_UPDATE(NyasKey_Backslash);
+    NYAS_KEY_UPDATE(NyasKey_RightBracket);
+    NYAS_KEY_UPDATE(NyasKey_GraveAccent);
+    NYAS_KEY_UPDATE(NyasKey_World1);
+    NYAS_KEY_UPDATE(NyasKey_World2);
+    NYAS_KEY_UPDATE(NyasKey_Escape);
+    NYAS_KEY_UPDATE(NyasKey_Enter);
+    NYAS_KEY_UPDATE(NyasKey_Tab);
+    NYAS_KEY_UPDATE(NyasKey_Backspace);
+    NYAS_KEY_UPDATE(NyasKey_Insert);
+    NYAS_KEY_UPDATE(NyasKey_Delete);
+    NYAS_KEY_UPDATE(NyasKey_Right);
+    NYAS_KEY_UPDATE(NyasKey_Left);
+    NYAS_KEY_UPDATE(NyasKey_Down);
+    NYAS_KEY_UPDATE(NyasKey_Up);
+    NYAS_KEY_UPDATE(NyasKey_PageUp);
+    NYAS_KEY_UPDATE(NyasKey_PageDown);
+    NYAS_KEY_UPDATE(NyasKey_Home);
+    NYAS_KEY_UPDATE(NyasKey_End);
+    NYAS_KEY_UPDATE(NyasKey_CapsLock);
+    NYAS_KEY_UPDATE(NyasKey_ScrollLock);
+    NYAS_KEY_UPDATE(NyasKey_NumLock);
+    NYAS_KEY_UPDATE(NyasKey_PrintScreen);
+    NYAS_KEY_UPDATE(NyasKey_Pause);
+    NYAS_KEY_UPDATE(NyasKey_F1);
+    NYAS_KEY_UPDATE(NyasKey_F2);
+    NYAS_KEY_UPDATE(NyasKey_F3);
+    NYAS_KEY_UPDATE(NyasKey_F4);
+    NYAS_KEY_UPDATE(NyasKey_F5);
+    NYAS_KEY_UPDATE(NyasKey_F6);
+    NYAS_KEY_UPDATE(NyasKey_F7);
+    NYAS_KEY_UPDATE(NyasKey_F8);
+    NYAS_KEY_UPDATE(NyasKey_F9);
+    NYAS_KEY_UPDATE(NyasKey_F10);
+    NYAS_KEY_UPDATE(NyasKey_F11);
+    NYAS_KEY_UPDATE(NyasKey_F12);
+    NYAS_KEY_UPDATE(NyasKey_F13);
+    NYAS_KEY_UPDATE(NyasKey_F14);
+    NYAS_KEY_UPDATE(NyasKey_F15);
+    NYAS_KEY_UPDATE(NyasKey_F16);
+    NYAS_KEY_UPDATE(NyasKey_F17);
+    NYAS_KEY_UPDATE(NyasKey_F18);
+    NYAS_KEY_UPDATE(NyasKey_F19);
+    NYAS_KEY_UPDATE(NyasKey_F20);
+    NYAS_KEY_UPDATE(NyasKey_F21);
+    NYAS_KEY_UPDATE(NyasKey_F22);
+    NYAS_KEY_UPDATE(NyasKey_F23);
+    NYAS_KEY_UPDATE(NyasKey_F24);
+    NYAS_KEY_UPDATE(NyasKey_F25);
+    NYAS_KEY_UPDATE(NyasKey_Kp0);
+    NYAS_KEY_UPDATE(NyasKey_Kp1);
+    NYAS_KEY_UPDATE(NyasKey_Kp2);
+    NYAS_KEY_UPDATE(NyasKey_Kp3);
+    NYAS_KEY_UPDATE(NyasKey_Kp4);
+    NYAS_KEY_UPDATE(NyasKey_Kp5);
+    NYAS_KEY_UPDATE(NyasKey_Kp6);
+    NYAS_KEY_UPDATE(NyasKey_Kp7);
+    NYAS_KEY_UPDATE(NyasKey_Kp8);
+    NYAS_KEY_UPDATE(NyasKey_Kp9);
+    NYAS_KEY_UPDATE(NyasKey_KpDecimal);
+    NYAS_KEY_UPDATE(NyasKey_KpDivide);
+    NYAS_KEY_UPDATE(NyasKey_KpMultiply);
+    NYAS_KEY_UPDATE(NyasKey_KpSubtract);
+    NYAS_KEY_UPDATE(NyasKey_KpAdd);
+    NYAS_KEY_UPDATE(NyasKey_KpEnter);
+    NYAS_KEY_UPDATE(NyasKey_KpEqual);
+    NYAS_KEY_UPDATE(NyasKey_LeftShift);
+    NYAS_KEY_UPDATE(NyasKey_LeftControl);
+    NYAS_KEY_UPDATE(NyasKey_LeftAlt);
+    NYAS_KEY_UPDATE(NyasKey_LeftSuper);
+    NYAS_KEY_UPDATE(NyasKey_RightShift);
+    NYAS_KEY_UPDATE(NyasKey_RightControl);
+    NYAS_KEY_UPDATE(NyasKey_RightAlt);
+    NYAS_KEY_UPDATE(NyasKey_RightSuper);
+    NYAS_KEY_UPDATE(NyasKey_Menu);
+
+    NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Left);
+    NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Right);
+    NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Middle);
+
+    double x, y;
+    glfwGetCursorPos((GLFWwindow *)G_Ctx->IO.InternalWindow, &x, &y);
+    G_Ctx->IO.MousePosition = {(float)x, (float)y};
+}
+
+static void nyas__scrollcallback(GLFWwindow *window, double x_offset, double y_offset)
+{
+    NY_UNUSED(window);
+    G_Ctx->IO.MouseScroll = {(float)x_offset, (float)y_offset};
+}
+
+static void nyas__cursor_enter_callback(GLFWwindow *window, int entered)
+{
+    NY_UNUSED(window);
+    G_Ctx->Platform.WindowHovered = entered;
+}
+
+static void nyas__window_focus_callback(GLFWwindow *window, int focused)
+{
+    NY_UNUSED(window);
+    G_Ctx->Platform.WindowFocused = focused;
+}
+
+NyasCtx *GetCurrentCtx()
+{
+    return G_Ctx;
+}
+
+bool InitIO(const char *title, int win_w, int win_h)
+{
+    memset(&G_Ctx->IO, 0, sizeof(G_Ctx->IO));
+    if (!glfwInit())
+    {
+        return false;
+    }
+
+    G_Ctx->IO.InternalWindow = glfwCreateWindow(win_w, win_h, title, NULL, NULL);
+    if (!G_Ctx->IO.InternalWindow)
+    {
+        glfwTerminate();
+        return false;
+    }
+
+    glfwMakeContextCurrent((GLFWwindow *)G_Ctx->IO.InternalWindow);
+#ifndef __EMSCRIPTEN__
+    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+#endif
+
+    glfwSwapInterval(1);
+    glfwSetScrollCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, nyas__scrollcallback);
+    glfwSetCursorEnterCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, nyas__cursor_enter_callback);
+    glfwSetWindowFocusCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, nyas__window_focus_callback);
+    glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_STICKY_KEYS, GLFW_TRUE);
+    glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+
+    G_Ctx->IO.ShowCursor = true;
+    G_Ctx->IO.CaptureMouse = true;
+    G_Ctx->IO.CaptureKeyboard = true;
+
+    G_Ctx->Cfg.NavCfg.Speed = 10.0f;
+    G_Ctx->Cfg.NavCfg.Sensitivity = 0.001f;
+    G_Ctx->Cfg.NavCfg.ScrollSensitivity = 1.0f;
+
+    PollIO();
+    return true;
+}
+
+int nyas_file_read(const char *path, char **dst, size_t *size)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f)
+    {
+        NYAS_LOG_ERR("File open failed for %s.", path);
+        return NyasError_File;
+    }
+
+    fseek(f, 0L, SEEK_END);
+    *size = ftell(f) + 1;
+    rewind(f);
+
+    *dst = (char *)NYAS_ALLOC(*size);
+    if (!*dst)
+    {
+        NYAS_LOG_ERR("Alloc (%lu bytes) failed.", *size);
+        fclose(f);
+        return NyasError_Alloc;
+    }
+
+    if (fread(*dst, *size - 1, 1, f) != 1)
+    {
+        NYAS_LOG_ERR("File read failed for %s.", path);
+        NYAS_FREE(*dst);
+        fclose(f);
+        return NyasError_File;
+    }
+
+    fclose(f);
+    (*dst)[*size - 1] = '\0';
+    return NyasCode_Ok;
+}
+
+void PollIO(void)
+{
+    NYAS_ASSERT(G_Ctx->IO.InternalWindow && "The IO system is uninitalized");
+    G_Ctx->IO.MouseScroll = {0.0f, 0.0f};
+    glfwPollEvents();
+    ReadInput();
+    G_Ctx->Platform.WindowClosed = glfwWindowShouldClose((GLFWwindow *)G_Ctx->IO.InternalWindow);
+    glfwGetWindowSize((GLFWwindow *)G_Ctx->IO.InternalWindow, &G_Ctx->IO.WindowSize.X, &G_Ctx->IO.WindowSize.Y);
+
+    if (G_Ctx->IO.ShowCursor)
+    {
+        glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+    else
+    {
+        glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+}
+
+void WindowSwap(void)
+{
+    NYAS_ASSERT(G_Ctx->IO.InternalWindow && "The IO system is uninitalized");
+    glfwSwapBuffers((GLFWwindow *)G_Ctx->IO.InternalWindow);
+}
+
+static inline void nyas__check_handle(int h, void *arr)
+{
+    (void)h, (void)arr;
+    NYAS_ASSERT(arr && h >= 0 && ((NyPool<NyasTexture> *)arr)->Arr.Size > h && "Invalid handle range.");
+}
+
+static void nyas__file_reader(void *_1, const char *path, int _2, const char *_3, char **buf, size_t *size)
+{
+    (void)_1, (void)_2, (void)_3;
+    nyas_file_read(path, buf, size);
+}
+
+static NyasHandle _CreateMeshHandle(void)
+{
+    return Meshes.Add(NyasMesh());
+}
+
+static NyasHandle _CreateFramebufHandle(void)
+{
+    return Framebufs.Add(NyasFramebuffer());
+}
+
+static NyasHandle _CreateShaderHandle(void)
+{
+    return Shaders.Add(NyasShader());
+}
+
+const char *_GetImgFacePath(const char *path, int face, int face_count)
+{
+    switch (face_count)
+    {
+    case 6:
+    case 5:
+    case 4:
+    case 3:
+    case 2: {
+        const char *suffixes = "RLUDFB";
+        static char buffer[1024];
+        int count = snprintf(buffer, 1024, path, suffixes[face]);
+        if (count < 1024)
+        {
+            NYAS_LOG_ERR("Cubemap face path format: %s is too long!", path);
+            return NULL;
+        }
+        return buffer;
+    }
+    case 1:
+        return path;
+    default:
+        NYAS_LOG_WARN("Invalid cubemap face count. Path is %s.", path);
+        return path;
+    }
+}
+
+static int _TexChannels(NyasTexFmt fmt)
+{
+    switch (fmt)
+    {
+    case NyasTexFmt_RGBA_16F:
+    case NyasTexFmt_RGBA_8:
+        return 4;
+    case NyasTexFmt_RGB_16F:
+    case NyasTexFmt_RGB_8:
+    case NyasTexFmt_SRGB_8:
+        return 3;
+    case NyasTexFmt_RG_16F:
+    case NyasTexFmt_RG_8:
+        return 2;
+    case NyasTexFmt_R_16F:
+    case NyasTexFmt_R_8:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static int _TexFaces(NyasTexType type)
+{
+    switch (type)
+    {
+    case NyasTexType_2D:
+    case NyasTexType_Array2D:
+        return 1;
+    case NyasTexType_Cubemap:
+    case NyasTexType_ArrayCubemap:
+        return 6;
+    default:
+        return 0;
+    }
+}
+
+static bool _TexFmtFloat(NyasTexFmt fmt)
+{
+    switch (fmt)
+    {
+    case NyasTexFmt_RGBA_16F:
+    case NyasTexFmt_RGB_16F:
+    case NyasTexFmt_RGB_32F:
+    case NyasTexFmt_RG_16F:
+    case NyasTexFmt_R_16F:
+        return true;
+    default:
+        return false;
+    }
+}
+
+NyasHandle CreateTexture(void)
+{
+    int tex = Textures.Add(NyasTexture());
+    return tex;
+}
+
+void LoadTexture(NyasHandle texture, struct NyasTexDesc *desc, const char *path)
+{
+    NYAS_ASSERT(*path != '\0' && "For empty textures use nyas_tex_set");
+    NyasTexture *t = &Textures[texture];
+    t->Resource.Id = 0;
+    t->Resource.Flags = NyasResourceFlags_Dirty;
+    t->Data = *desc;
+
+    int fmt_ch = _TexChannels(t->Data.Format);
+    stbi_set_flip_vertically_on_load(t->Data.Flags & NyasTexFlags_FlipVerticallyOnLoad);
+
+    int channels = 0;
+    int face_count = _TexFaces(t->Data.Type);
+    for (int i = 0; i < face_count; ++i)
+    {
+        NyasTexImg img;
+        const char *p = _GetImgFacePath(path, i, face_count);
+        img.Face = i;
+        if (_TexFmtFloat(t->Data.Format))
+        {
+            img.Pix = stbi_loadf(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
+        }
+        else
+        {
+            img.Pix = stbi_load(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
+        }
+
+        if (!img.Pix)
+        {
+            NYAS_LOG_ERR("The image '%s' couldn't be loaded", p);
+        }
+        t->Img.Push(img);
+    }
+}
+
+void SetTexture(NyasHandle texture, struct NyasTexDesc *desc)
+{
+    NYAS_ASSERT(desc->Width > 0 && desc->Height > 0 && "Incorrect dimensions");
+    NyasTexture *t = &Textures[texture];
+    t->Resource.Flags |= NyasResourceFlags_Dirty;
+    t->Data = *desc;
+    if (!t->Img.Size)
+    {
+        int face_count = _TexFaces(t->Data.Type);
+        for (int i = 0; i < face_count; ++i)
+        {
+            NyasTexImg img;
+            img.Face = i;
+            t->Img.Push(img);
+        }
+    }
+}
+
+NyasHandle CreateShader(const struct NyasShaderDesc *desc)
+{
+    NyasHandle ret = _CreateShaderHandle();
+    Shaders[ret].Name = desc->Name;
+    Shaders[ret].Resource.Id = 0;
+    Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
+    Shaders[ret].Count[0].Data = desc->DataCount;
+    Shaders[ret].Count[0].Tex = desc->TexCount;
+    Shaders[ret].Count[0].Cubemap = desc->CubemapCount;
+    Shaders[ret].Count[1].Data = desc->SharedDataCount;
+    Shaders[ret].Count[1].Tex = desc->SharedTexCount;
+    Shaders[ret].Count[1].Cubemap = desc->SharedCubemapCount;
+    Shaders[ret].Shared =
+        NYAS_ALLOC((desc->SharedDataCount + desc->SharedTexCount + desc->SharedCubemapCount) * sizeof(float));
+    return ret;
+}
+
+void *GetMaterialSharedData(NyasHandle shader)
+{
+    return Shaders[shader].Shared;
+}
+
+NyasHandle *GetMaterialSharedTextures(NyasHandle shader)
+{
+    NyasShader *shdr = &Shaders[shader];
+    return (NyasHandle *)shdr->Shared + shdr->Count[1].Data;
+}
+
+NyasHandle *GetMaterialSharedCubemaps(NyasHandle shader)
+{
+    NyasShader *shdr = &Shaders[shader];
+    return GetMaterialSharedTextures(shader) + shdr->Count[1].Tex;
+}
+
+void ReloadShader(NyasHandle shader)
+{
+    Shaders[shader].Resource.Flags |= NyasResourceFlags_Dirty;
+}
+
+static NyDrawIdx _CheckVertex(const float *v, const float *end, const float *newvtx)
+{
+    NyDrawIdx i = 0;
+    for (; v < end; ++i, v += 14)
+    {
+        if ((v[0] == newvtx[0]) && (v[1] == newvtx[1]) && (v[2] == newvtx[2]) && (v[3] == newvtx[3]) &&
+            (v[4] == newvtx[4]) && (v[5] == newvtx[5]) && (v[12] == newvtx[12]) && (v[13] == newvtx[13]))
+        {
+            return i;
+        }
+    }
+    return i;
+}
+
+static void _SetMeshObj(NyasMesh *mesh, const char *path)
+{
+    tinyobj_attrib_t attrib;
+    tinyobj_shape_t *shapes = NULL;
+    size_t shape_count;
+    tinyobj_material_t *mats = NULL;
+    size_t mats_count;
+
+    int result = tinyobj_parse_obj(&attrib, &shapes, &shape_count, &mats, &mats_count, path, nyas__file_reader, NULL,
+                                   TINYOBJ_FLAG_TRIANGULATE);
+
+    NYAS_ASSERT(result == TINYOBJ_SUCCESS && "Obj loader failed.");
+    if (result != TINYOBJ_SUCCESS)
+    {
+        NYAS_LOG_ERR("Error loading obj. Err: %d", result);
+    }
+
+    size_t vertex_count = attrib.num_face_num_verts * 3;
+
+    NYAS_FREE(mesh->Vtx);
+    NYAS_FREE(mesh->Indices);
+
+    mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_Tangent |
+                    NyasVtxAttribFlags_Bitangent | NyasVtxAttribFlags_UV;
+    mesh->VtxSize = vertex_count * 14 * sizeof(float);
+    mesh->ElementCount = vertex_count;
+    mesh->Vtx = (float *)NYAS_ALLOC(mesh->VtxSize);
+    mesh->Indices = (NyDrawIdx *)NYAS_ALLOC(mesh->ElementCount * sizeof(NyDrawIdx));
+
+    float *vit = mesh->Vtx;
+
+    size_t index_offset = 0;
+    for (size_t i = 0; i < attrib.num_face_num_verts; ++i)
+    {
+        for (int f = 0; f < attrib.face_num_verts[i] / 3; ++f)
+        {
+            tinyobj_vertex_index_t idx = attrib.faces[3 * f + index_offset];
+            float v1[14], v2[14], v3[14];
+
+            v1[0] = attrib.vertices[3 * idx.v_idx + 0];
+            v1[1] = attrib.vertices[3 * idx.v_idx + 1];
+            v1[2] = attrib.vertices[3 * idx.v_idx + 2];
+            v1[3] = attrib.normals[3 * idx.vn_idx + 0];
+            v1[4] = attrib.normals[3 * idx.vn_idx + 1];
+            v1[5] = attrib.normals[3 * idx.vn_idx + 2];
+            v1[12] = attrib.texcoords[2 * idx.vt_idx + 0];
+            v1[13] = attrib.texcoords[2 * idx.vt_idx + 1];
+
+            idx = attrib.faces[3 * f + index_offset + 1];
+            v2[0] = attrib.vertices[3 * idx.v_idx + 0];
+            v2[1] = attrib.vertices[3 * idx.v_idx + 1];
+            v2[2] = attrib.vertices[3 * idx.v_idx + 2];
+            v2[3] = attrib.normals[3 * idx.vn_idx + 0];
+            v2[4] = attrib.normals[3 * idx.vn_idx + 1];
+            v2[5] = attrib.normals[3 * idx.vn_idx + 2];
+            v2[12] = attrib.texcoords[2 * idx.vt_idx + 0];
+            v2[13] = attrib.texcoords[2 * idx.vt_idx + 1];
+
+            idx = attrib.faces[3 * f + index_offset + 2];
+            v3[0] = attrib.vertices[3 * idx.v_idx + 0];
+            v3[1] = attrib.vertices[3 * idx.v_idx + 1];
+            v3[2] = attrib.vertices[3 * idx.v_idx + 2];
+            v3[3] = attrib.normals[3 * idx.vn_idx + 0];
+            v3[4] = attrib.normals[3 * idx.vn_idx + 1];
+            v3[5] = attrib.normals[3 * idx.vn_idx + 2];
+            v3[12] = attrib.texcoords[2 * idx.vt_idx + 0];
+            v3[13] = attrib.texcoords[2 * idx.vt_idx + 1];
+
+            // Calculate tangent and bitangent
+            float delta_p1[3], delta_p2[3], delta_uv1[2], delta_uv2[2];
+            vec3_subtract(delta_p1, v2, v1);
+            vec3_subtract(delta_p2, v3, v1);
+            vec2_subtract(delta_uv1, &v2[12], &v1[12]);
+            vec2_subtract(delta_uv2, &v3[12], &v1[12]);
+            float r = 1.0f / (delta_uv1[0] * delta_uv2[1] - delta_uv1[1] * delta_uv2[0]);
+
+            float tn[3], bitn[3], tmp[3];
+            vec3_multiply_f(tn, delta_p1, delta_uv2[1]);
+            vec3_multiply_f(tmp, delta_p2, delta_uv1[1]);
+            vec3_multiply_f(tn, vec3_subtract(tn, tn, tmp), r);
+
+            vec3_multiply_f(bitn, delta_p2, delta_uv1[0]);
+            vec3_multiply_f(tmp, delta_p1, delta_uv2[0]);
+            vec3_multiply_f(bitn, vec3_subtract(bitn, bitn, tmp), r);
+
+            v1[6] = tn[0];
+            v1[7] = tn[1];
+            v1[8] = tn[2];
+            v2[6] = tn[0];
+            v2[7] = tn[1];
+            v2[8] = tn[2];
+            v3[6] = tn[0];
+            v3[7] = tn[1];
+            v3[8] = tn[2];
+
+            v1[9] = bitn[0];
+            v1[10] = bitn[1];
+            v1[11] = bitn[2];
+            v2[9] = bitn[0];
+            v2[10] = bitn[1];
+            v2[11] = bitn[2];
+            v3[9] = bitn[0];
+            v3[10] = bitn[1];
+            v3[11] = bitn[2];
+
+            // Check vertex rep
+            NyDrawIdx nxt_idx = _CheckVertex(mesh->Vtx, vit, v1);
+            mesh->Indices[index_offset++] = nxt_idx;
+            if (nxt_idx * 14 == (vit - mesh->Vtx))
+            {
+                for (int j = 0; j < 14; ++j)
+                {
+                    *vit++ = v1[j];
+                }
+            }
+
+            nxt_idx = _CheckVertex(mesh->Vtx, vit, v2);
+            mesh->Indices[index_offset++] = nxt_idx;
+            if (nxt_idx * 14 == (vit - mesh->Vtx))
+            {
+                for (int j = 0; j < 14; ++j)
+                {
+                    *vit++ = v2[j];
+                }
+            }
+
+            nxt_idx = _CheckVertex(mesh->Vtx, vit, v3);
+            mesh->Indices[index_offset++] = nxt_idx;
+            if (nxt_idx * 14 == (vit - mesh->Vtx))
+            {
+                for (int j = 0; j < 14; ++j)
+                {
+                    *vit++ = v3[j];
+                }
+            }
+        }
+    }
+
+    tinyobj_attrib_free(&attrib);
+    tinyobj_shapes_free(shapes, shape_count);
+    tinyobj_materials_free(mats, mats_count);
+}
+
+static void _SetMeshMsh(NyasMesh *mesh, const char *path)
+{
+    char *data;
+    size_t sz;
+    nyas__file_reader(NULL, path, 0, NULL, &data, &sz);
+    if (!data || !sz)
+    {
+        NYAS_LOG_ERR("Problem reading file %s", path);
+        return;
+    }
+
+    NYAS_FREE(mesh->Vtx);
+    NYAS_FREE(mesh->Indices);
+
+    mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_Tangent |
+                    NyasVtxAttribFlags_Bitangent | NyasVtxAttribFlags_UV;
+    mesh->VtxSize = *(size_t *)data; // *(((size_t *)data)++)
+    data += sizeof(size_t);
+    mesh->Vtx = (float *)NYAS_ALLOC(mesh->VtxSize);
+    memcpy(mesh->Vtx, data, mesh->VtxSize);
+    data += mesh->VtxSize;
+
+    mesh->ElementCount = (*(size_t *)data) / sizeof(NyDrawIdx); // *(((size_t *)data)++)
+    data += sizeof(size_t);
+    mesh->Indices = (NyDrawIdx *)NYAS_ALLOC(mesh->ElementCount * sizeof(NyDrawIdx));
+    memcpy(mesh->Indices, data, mesh->ElementCount * sizeof(NyDrawIdx));
+
+    NYAS_FREE(data - mesh->VtxSize - (2 * sizeof(size_t)));
+}
+
+void ReloadMesh(NyasHandle msh, const char *path)
+{
+    NyasMesh *m = &Meshes[msh];
+    size_t len = strlen(path);
+    const char *extension = path + len;
+    while (*--extension != '.')
+    {
+    }
+    extension++;
+    if (!strcmp(extension, "obj"))
+    {
+        _SetMeshObj(m, path);
+    }
+    else if (!strcmp(extension, "msh"))
+    {
+        _SetMeshMsh(m, path);
+    }
+    else
+    {
+        NYAS_LOG_ERR("Extension (%s) of file %s not recognised.", extension, path);
+    }
+
+    m->Resource.Flags |= NyasResourceFlags_Dirty;
+}
+
+static NyasHandle _NewMesh(void)
+{
+    NyasHandle mesh_handle = _CreateMeshHandle();
+    Meshes[mesh_handle].Resource.Id = 0;
+    Meshes[mesh_handle].Resource.Flags = NyasResourceFlags_Dirty;
+    Meshes[mesh_handle].Attribs = 0;
+    Meshes[mesh_handle].Vtx = NULL;
+    Meshes[mesh_handle].Indices = NULL;
+    Meshes[mesh_handle].VtxSize = 0;
+    Meshes[mesh_handle].ElementCount = 0;
+    Meshes[mesh_handle].ResVtx.Id = 0;
+    Meshes[mesh_handle].ResVtx.Flags = NyasResourceFlags_Dirty;
+    Meshes[mesh_handle].ResIdx.Id = 0;
+    Meshes[mesh_handle].ResIdx.Flags = NyasResourceFlags_Dirty;
+
+    return mesh_handle;
+}
+
+NyasHandle CreateMesh(void)
+{
+    return _NewMesh();
+}
+
+NyasHandle LoadMesh(const char *path)
+{
+    NyasHandle mesh_handle = _NewMesh();
+    ReloadMesh(mesh_handle, path);
+    return mesh_handle;
+}
+
+NyasHandle CreateFramebuffer(void)
+{
+    NyasHandle framebuffer = _CreateFramebufHandle();
+    Framebufs[framebuffer].Resource.Id = 0;
+    Framebufs[framebuffer].Resource.Flags = NyasResourceFlags_Dirty;
+    for (int i = 0; i < 8; ++i)
+    {
+        Framebufs[framebuffer].Target[i].Tex = NyasCode_None;
+    }
+    return framebuffer;
+}
+
+void SetFramebufferTarget(NyasHandle framebuffer, int index, struct NyasTexTarget target)
+{
+    Framebufs[framebuffer].Resource.Flags |= NyasResourceFlags_Dirty;
+    Framebufs[framebuffer].Target[index] = target;
+}
+
+NyasMaterial CreateMaterial(NyasHandle shader)
+{
+    NyasMaterial ret(shader);
+    NyasShader *s = &Shaders[shader];
+    int elements = s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap;
+    ret.Ptr = NYAS_ALLOC(elements * sizeof(float));
+    return ret;
+}
+
+NyasMaterial CreateMaterialTmp(NyasHandle shader)
+{
+    NyasMaterial ret(shader);
+    NyasShader *s = &Shaders[shader];
+    int elements = s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap;
+    ret.Ptr = NyFrameAllocator::Alloc(elements * sizeof(float));
+    return ret;
+}
+
+NyasMaterial CopyMaterialTmp(NyasMaterial mat)
+{
+    NyasMaterial ret(mat.Shader);
+    NyasShader *s = &Shaders[mat.Shader];
+    size_t size = (s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap) * 4;
+    ret.Ptr = NyFrameAllocator::Alloc(size);
+    memcpy(ret.Ptr, mat.Ptr, size);
+    return ret;
+}
+
+NyasMaterial CopyShaderMaterialTmp(NyasHandle shader)
+{
+    NyasMaterial ret(shader);
+    NyasShader *s = &Shaders[shader];
+    int elements = s->Count[1].Data + s->Count[1].Tex + s->Count[1].Cubemap;
+    ret.Ptr = NyFrameAllocator::Alloc(elements * sizeof(float));
+    memcpy(ret.Ptr, s->Shared, elements * sizeof(float));
+    return ret;
+}
+
+NyasHandle *GetMaterialTextures(NyasMaterial mat)
+{
+    return (NyasHandle *)mat.Ptr + Shaders[mat.Shader].Count[0].Data;
+}
+
+static void _SyncMesh(NyasHandle msh, NyasHandle shader)
+{
+    nyas__check_handle(msh, &Meshes);
+    // nypx__check_handle(shader, &shader_pool);
+    NyasMesh *m = &Meshes[msh];
+
+    if (!(m->Resource.Flags & NyasResourceFlags_Created))
+    {
+        nypx_mesh_create(&m->Resource.Id, &m->ResVtx.Id, &m->ResIdx.Id);
+        m->Resource.Flags |= NyasResourceFlags_Created;
+    }
+
+    if (m->Resource.Flags & NyasResourceFlags_Dirty)
+    {
+        nypx_mesh_set(m, Shaders[shader].Resource.Id);
+        m->Resource.Flags &= ~NyasResourceFlags_Dirty;
+    }
+}
+
+static NyasTexture *_SyncTex(NyasHandle texture)
+{
+    nyas__check_handle(texture, &Textures);
+    NyasTexture *t = &Textures[texture];
+    if (!(t->Resource.Flags & NyasResourceFlags_Created))
+    {
+        nypx_tex_create(t);
+        t->Resource.Flags |= (NyasResourceFlags_Created | NyasResourceFlags_Dirty);
+    }
+
+    if (t->Resource.Flags & NyasResourceFlags_Dirty)
+    {
+        nypx_tex_set(t);
+        t->Resource.Flags &= ~NyasResourceFlags_Dirty;
+    }
+    return t;
+}
+
+static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
+{
+    NYAS_ASSERT((common == 0 || common == 1) && "Invalid common value.");
+
+    int dc = s->Count[common].Data;
+    int tc = s->Count[common].Tex;
+    int cc = s->Count[common].Cubemap;
+    int dl = s->Location[common].Data;
+    int tl = s->Location[common].Tex;
+    int cl = s->Location[common].Cubemap;
+    int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
+
+    NYAS_ASSERT((dc >= 0) && (tc >= 0) && (cc >= 0));
+    NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
+
+    if (!(dc + tc + cc))
+    {
+        return;
+    }
+
+    // change texture handle for texture internal id
+    NyasHandle *data_tex = (NyasHandle *)srcdata + dc;
+    for (int i = 0; i < tc + cc; ++i)
+    {
+        NyasTexture *itx = _SyncTex(data_tex[i]);
+        data_tex[i] = (int)itx->Resource.Id;
+    }
+
+    // set opengl uniforms
+    if (dc)
+    {
+        nypx_shader_set_data(dl, (float *)srcdata, dc / 4);
+    }
+
+    if (tc)
+    {
+        nypx_shader_set_tex(tl, data_tex, tc, tex_unit);
+    }
+
+    if (cc)
+    {
+        nypx_shader_set_cube(cl, data_tex + tc, cc, tex_unit + tc);
+    }
+}
+
+void _SyncShader(NyasShader *s)
+{
+    static const char *uniforms[] = {"u_data", "u_tex", "u_cube", "u_shared_data", "u_common_tex", "u_common_cube"};
+
+    if (!(s->Resource.Flags & NyasResourceFlags_Created))
+    {
+        nypx_shader_create(&s->Resource.Id);
+        s->Resource.Flags |= NyasResourceFlags_Created;
+    }
+
+    if (s->Resource.Flags & NyasResourceFlags_Dirty)
+    {
+        NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
+        nypx_shader_compile(s->Resource.Id, s->Name);
+        nypx_shader_loc(s->Resource.Id, &s->Location[0].Data, &uniforms[0], 6);
+        s->Resource.Flags &= ~NyasResourceFlags_Dirty;
+    }
+}
+
+static void _SyncFramebuf(NyasHandle framebuffer)
+{
+    // nypx__check_handle(framebuffer, &Framebufs);
+    struct NyasFramebuffer *fb = &Framebufs[framebuffer];
+    if (!(fb->Resource.Flags & NyasResourceFlags_Created))
+    {
+        nypx_fb_create(fb);
+        fb->Resource.Flags |= NyasResourceFlags_Created;
+    }
+
+    nypx_fb_use(fb->Resource.Id);
+    if (fb->Resource.Flags & NyasResourceFlags_Dirty)
+    {
+        for (int i = 0; fb->Target[i].Tex != NyasCode_None; ++i)
+        {
+            struct NyasTexture *t = _SyncTex(fb->Target[i].Tex);
+            nypx_fb_set(fb->Resource.Id, t->Resource.Id, &fb->Target[i]);
+        }
+        fb->Resource.Flags &= ~NyasResourceFlags_Dirty;
+    }
+}
+
+void Draw(NyasDrawCmd *cmd)
+{
+    if (cmd->Framebuf != NyasCode_NoOp)
+    {
+        if (cmd->Framebuf == NyasCode_Default)
+        {
+            nypx_fb_use(0);
+        }
+        else
+        {
+            // nypx__check_handle(cmd->fb, &Framebufs);
+            _SyncFramebuf(cmd->Framebuf);
+        }
+    }
+    //_draw_target(cmd->fb);
+
+    if (cmd->ShaderMaterial.Shader != NyasCode_NoOp)
+    {
+        // nypx__check_handle(mat.shader, &shader_pool);
+        NyasShader *s = &Shaders[cmd->ShaderMaterial.Shader];
+        _SyncShader(s);
+        nypx_shader_use(s->Resource.Id);
+        _SyncShaderData(s, cmd->ShaderMaterial.Ptr, true);
+    }
+
+    NyasDrawState &s = cmd->State;
+    nypx_clear_color(s.BgColorR, s.BgColorG, s.BgColorB, s.BgColorA);
+    nypx_clear(s.EnableFlags & NyasDrawFlags_ColorClear, s.EnableFlags & NyasDrawFlags_DepthClear,
+               s.EnableFlags & NyasDrawFlags_StencilClear);
+
+    nypx_viewport({s.ViewportMinX, s.ViewportMinY, s.ViewportMaxX, s.ViewportMaxY});
+    nypx_scissor({s.ScissorMinX, s.ScissorMinY, s.ScissorMaxX, s.ScissorMaxY});
+
+    if (s.DisableFlags & NyasDrawFlags_DepthTest)
+    {
+        nypx_depth_disable_test();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_DepthTest)
+    {
+        nypx_depth_enable_test();
+    }
+
+    if (s.DisableFlags & NyasDrawFlags_DepthWrite)
+    {
+        nypx_depth_disable_mask();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_DepthWrite)
+    {
+        nypx_depth_enable_mask();
+    }
+
+    if (s.DisableFlags & NyasDrawFlags_StencilTest)
+    {
+        nypx_stencil_disable_test();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_StencilTest)
+    {
+        nypx_stencil_enable_test();
+    }
+
+    if (s.DisableFlags & NyasDrawFlags_StencilWrite)
+    {
+        nypx_stencil_disable_mask();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_StencilWrite)
+    {
+        nypx_stencil_enable_mask();
+    }
+
+    if (s.DisableFlags & NyasDrawFlags_Blend)
+    {
+        nypx_blend_disable();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_Blend)
+    {
+        nypx_blend_enable();
+    }
+
+    if (s.DisableFlags & NyasDrawFlags_FaceCulling)
+    {
+        nypx_cull_disable();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_FaceCulling)
+    {
+        nypx_cull_enable();
+    }
+
+    if (s.DisableFlags & NyasDrawFlags_Scissor)
+    {
+        nypx_scissor_disable();
+    }
+    else if (s.EnableFlags & NyasDrawFlags_Scissor)
+    {
+        nypx_scissor_enable();
+    }
+
+    nypx_depth_set(s.Depth);
+    nypx_blend_set(s.BlendSrc, s.BlendDst);
+    nypx_cull_set(s.FaceCulling);
+
+    for (int i = 0; i < cmd->UnitCount; ++i)
+    {
+        NyasMesh *imsh = &Meshes[cmd->Units[i].Mesh];
+        nyas__check_handle(cmd->Units[i].Mesh, &Meshes);
+        NYAS_ASSERT(imsh->ElementCount && "Attempt to draw an uninitialized mesh");
+
+        if (imsh->Resource.Flags & NyasResourceFlags_Dirty)
+        {
+            _SyncMesh(cmd->Units[i].Mesh, cmd->Units[i].Material.Shader);
+        }
+
+        NyasShader *s = &Shaders[cmd->Units[i].Material.Shader];
+        _SyncShaderData(s, cmd->Units[i].Material.Ptr, false);
+        nypx_mesh_use(imsh, s);
+        nypx_draw(imsh->ElementCount, sizeof(NyDrawIdx) == 4);
+    }
+}
 } // namespace Nyas
 
 NyasHandle NYAS_UTILS_SPHERE;
@@ -1083,1124 +1140,1179 @@ NyasHandle NYAS_UTILS_QUAD;
 
 void NyasCamera::Navigate()
 {
-	NyVec3 eye = Eye();
-	NyVec3 fwd = Fwd();
-	vec3_negative(fwd, vec3_normalize(fwd, fwd));
-	static NyVec2 mouse_down_pos;
-	float speed = Nyas::IO.NavCfg.Speed * Nyas::IO.DeltaTime;
+    NyVec3 eye = Eye();
+    NyVec3 fwd = Fwd();
+    vec3_negative(fwd, vec3_normalize(fwd, fwd));
+    static NyVec2 mouse_down_pos;
+    float speed = G_Ctx->Cfg.NavCfg.Speed * G_Ctx->Platform.DeltaTime;
 
-	// Rotation
-	if (Nyas::IO.MouseButton[NyasMouseButton_Right] == NyasKeyState_DOWN) {
-		mouse_down_pos = Nyas::IO.MousePosition;
-	}
+    // Rotation
+    if (G_Ctx->IO.MouseButton[NyasMouseButton_Right] == NyasKeyState_DOWN)
+    {
+        mouse_down_pos = G_Ctx->IO.MousePosition;
+    }
 
-	float tmp_vec[3];
-	if (Nyas::IO.MouseButton[NyasMouseButton_Right] == NyasKeyState_PRESSED) {
-		NyVec2 curr_pos = Nyas::IO.MousePosition;
-		NyVec2 offset = {
-			(curr_pos.X - mouse_down_pos.X) * Nyas::IO.NavCfg.Sensitivity,
-			(mouse_down_pos.Y - curr_pos.Y) * Nyas::IO.NavCfg.Sensitivity
-		};
+    float tmp_vec[3];
+    if (G_Ctx->IO.MouseButton[NyasMouseButton_Right] == NyasKeyState_PRESSED)
+    {
+        NyVec2 curr_pos = G_Ctx->IO.MousePosition;
+        NyVec2 offset = {(curr_pos.X - mouse_down_pos.X) * G_Ctx->Cfg.NavCfg.Sensitivity,
+                         (mouse_down_pos.Y - curr_pos.Y) * G_Ctx->Cfg.NavCfg.Sensitivity};
 
-		vec3_add(fwd, fwd, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), -offset.X));
-		vec3_add(fwd, fwd, vec3_multiply_f(tmp_vec, NyVec3::Up(), offset.Y));
+        vec3_add(fwd, fwd, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), -offset.X));
+        vec3_add(fwd, fwd, vec3_multiply_f(tmp_vec, NyVec3::Up(), offset.Y));
 
-		mouse_down_pos = curr_pos;
-	}
+        mouse_down_pos = curr_pos;
+    }
 
-	// Position
-	if (Nyas::IO.Keys[NyasKey_W] == NyasKeyState_PRESSED) {
-		vec3_add(eye, eye, vec3_multiply_f(tmp_vec, fwd, speed));
-	}
+    // Position
+    if (G_Ctx->IO.Keys[NyasKey_W] == NyasKeyState_PRESSED)
+    {
+        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, fwd, speed));
+    }
 
-	if (Nyas::IO.Keys[NyasKey_S] == NyasKeyState_PRESSED) {
-		vec3_add(eye, eye, vec3_multiply_f(tmp_vec, fwd, -speed));
-	}
+    if (G_Ctx->IO.Keys[NyasKey_S] == NyasKeyState_PRESSED)
+    {
+        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, fwd, -speed));
+    }
 
-	if (Nyas::IO.Keys[NyasKey_A] == NyasKeyState_PRESSED) {
-		vec3_add(eye, eye, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), speed));
-	}
+    if (G_Ctx->IO.Keys[NyasKey_A] == NyasKeyState_PRESSED)
+    {
+        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), speed));
+    }
 
-	if (Nyas::IO.Keys[NyasKey_D] == NyasKeyState_PRESSED) {
-		vec3_add(eye, eye, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), -speed));
-	}
+    if (G_Ctx->IO.Keys[NyasKey_D] == NyasKeyState_PRESSED)
+    {
+        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), -speed));
+    }
 
-	if (Nyas::IO.Keys[NyasKey_Space] == NyasKeyState_PRESSED) {
-		vec3_add(eye, eye, vec3_multiply_f(tmp_vec, NyVec3::Up(), speed));
-	}
+    if (G_Ctx->IO.Keys[NyasKey_Space] == NyasKeyState_PRESSED)
+    {
+        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, NyVec3::Up(), speed));
+    }
 
-	if (Nyas::IO.Keys[NyasKey_LeftShift] == NyasKeyState_PRESSED) {
-		vec3_add(eye, eye, vec3_multiply_f(tmp_vec, NyVec3::Up(), -speed));
-	}
+    if (G_Ctx->IO.Keys[NyasKey_LeftShift] == NyasKeyState_PRESSED)
+    {
+        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, NyVec3::Up(), -speed));
+    }
 
-	mat4_look_at(View, eye, vec3_add(tmp_vec, eye, fwd), NyVec3::Up());
+    mat4_look_at(View, eye, vec3_add(tmp_vec, eye, fwd), NyVec3::Up());
 
-	// Zoom
-	if (Nyas::IO.MouseScroll.Y != 0.0f) {
-		Fov -= Nyas::IO.MouseScroll.Y * Nyas::IO.NavCfg.ScrollSensitivity;
-		Fov = clampf(Fov, 1.0f, 120.0f);
-		mat4_perspective(
-		Proj, to_radians(Fov),
-		(float)Nyas::IO.WindowSize.X / (float)Nyas::IO.WindowSize.Y, 0.1f, Far);
-	}
-}
-
-static void
-_TexLoader(void *arg)
-{
-	TexLoaderArgs *a = (TexLoaderArgs*)arg;
-	Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path);
-}
-
-static void
-_MeshLoader(void *arg)
-{
-	MeshLoaderArgs *a = (MeshLoaderArgs*)arg;
-	*a->Mesh = Nyas::LoadMesh(a->Path); // TODO: separate create and load like textures in
-											// order to avoid concurrent writes in mesh_pool
-}
-
-static void
-_ShaderLoader(void *arg)
-{
-	struct ShaderLoaderArgs *a = (ShaderLoaderArgs*)arg;
-	*a->Shader = Nyas::CreateShader(&a->Descriptor);
-	// TODO: Shaders compilation and program linking.
-}
-
-static void
-_EnvLoader(void *args)
-{
-	struct EnvLoaderArgs *ea = (EnvLoaderArgs*)args;
-	NyUtil::nyut_env_load(ea->Path, ea->LUT, ea->Sky, ea->Irradiance, ea->Pref);
-}
-
-void
-AssetLoader::AddMesh(MeshLoaderArgs *args)
-{
-	Async.Push({_MeshLoader, args});
-}
-
-void
-AssetLoader::AddTex(TexLoaderArgs *args)
-{
-	Async.Push({_TexLoader, args});
-}
-
-void
-AssetLoader::AddShader(ShaderLoaderArgs *args)
-{
-	Sequential.Push({_ShaderLoader, args});
-}
-
-void
-AssetLoader::AddEnv(EnvLoaderArgs *args)
-{
-	Async.Push({_EnvLoader, args});
-}
-
-void
-AssetLoader::AddJob(NyJob j, bool async)
-{
-	if (async) {
-		Async.Push(j);
-	} else {
-		Sequential.Push(j);
-	}
-}
-
-void
-AssetLoader::Load(int threads)
-{
-	NySched *load_sched = NULL;
-	if (Async.Size) {
-		load_sched = NyUtil::CreateScheduler(threads);
-		for (int i = 0; i < Async.Size; ++i) {
-			NyUtil::DoJob(load_sched, Async[i]);
-		}
-	}
-
-	if (Sequential.Size) {
-		for (int i = 0; i < Sequential.Size; ++i) {
-			(*Sequential[i].Job)(Sequential[i].Args);
-		}
-	}
-
-	if (Async.Size) {
-		NyUtil::WaitJobs(load_sched); // TODO(Check): sched_destroy waits?
-		NyUtil::DestroySched(load_sched);
-	}
+    // Zoom
+    if (G_Ctx->IO.MouseScroll.Y != 0.0f)
+    {
+        Fov -= G_Ctx->IO.MouseScroll.Y * G_Ctx->Cfg.NavCfg.ScrollSensitivity;
+        Fov = clampf(Fov, 1.0f, 120.0f);
+        mat4_perspective(Proj, to_radians(Fov), (float)G_Ctx->IO.WindowSize.X / (float)G_Ctx->IO.WindowSize.Y, 0.1f,
+                         Far);
+    }
 }
 
 namespace NyUtil
 {
-	static NySched *scheds = NULL;
-	static pthread_mutex_t scheds_mtx;
-	static bool initialized = false;
+static NySched *scheds = NULL;
+static pthread_mutex_t scheds_mtx;
+static bool initialized = false;
 
-	static void *
-	_Worker(void *data)
-	{
-		NySched *s = (NySched*)data;
-		while (1) {
-			++s->waiting;
-			pthread_mutex_lock(&s->mtx);
-			while (!(s->queue.Size)) {
-				pthread_cond_wait(&s->cond, &s->mtx);
-				if (s->state == NyasSchedState_Closing) {
-					--s->waiting;
-					pthread_mutex_unlock(&s->mtx);
-					goto exit_worker;
-				}
-			}
+static void *_Worker(void *data)
+{
+    NySched *s = (NySched *)data;
+    while (1)
+    {
+        ++s->waiting;
+        pthread_mutex_lock(&s->mtx);
+        while (!(s->queue.Size))
+        {
+            pthread_cond_wait(&s->cond, &s->mtx);
+            if (s->state == NyasSchedState_Closing)
+            {
+                --s->waiting;
+                pthread_mutex_unlock(&s->mtx);
+                goto exit_worker;
+            }
+        }
 
-			--s->waiting;
-			NyJob job = s->queue.Back();
-			s->queue.Pop();
-			pthread_mutex_unlock(&s->mtx);
-			(*(job.Job))(job.Args);
-		}
+        --s->waiting;
+        NyJob job = s->queue.Back();
+        s->queue.Pop();
+        pthread_mutex_unlock(&s->mtx);
+        (*(job.Job))(job.Args);
+    }
 
-	exit_worker:
-		return NULL;
-	}
+exit_worker:
+    return NULL;
+}
 
-	NySched *
-	CreateScheduler(int thread_count)
-	{
-		if (!initialized) {
-			pthread_mutex_init(&scheds_mtx, NULL);
-			initialized = true;
-		}
+NySched *CreateScheduler(int thread_count)
+{
+    if (!initialized)
+    {
+        pthread_mutex_init(&scheds_mtx, NULL);
+        initialized = true;
+    }
 
-		NySched *s = (NySched*)NYAS_ALLOC(sizeof(struct NySched));
-		*s = NySched();
+    NySched *s = (NySched *)NYAS_ALLOC(sizeof(struct NySched));
+    *s = NySched();
 
-		pthread_mutex_init(&s->mtx, NULL);
-		pthread_cond_init(&s->cond, NULL);
+    pthread_mutex_init(&s->mtx, NULL);
+    pthread_cond_init(&s->cond, NULL);
 
-		for (int i = 0; i < thread_count; ++i) {
-			NyThread thread;
-			if (pthread_create(&thread, NULL, _Worker, s)) {
-				NYAS_LOG_ERR("Thread creation error.");
-				return NULL;
-			}
-			s->threads.Push(thread);
-		}
+    for (int i = 0; i < thread_count; ++i)
+    {
+        NyThread thread;
+        if (pthread_create(&thread, NULL, _Worker, s))
+        {
+            NYAS_LOG_ERR("Thread creation error.");
+            return NULL;
+        }
+        s->threads.Push(thread);
+    }
 
-		s->state = NyasSchedState_Running;
-		pthread_mutex_lock(&scheds_mtx);
-		s->next = scheds;
-		scheds = s;
-		pthread_mutex_unlock(&scheds_mtx);
-		return s;
-	}
+    s->state = NyasSchedState_Running;
+    pthread_mutex_lock(&scheds_mtx);
+    s->next = scheds;
+    scheds = s;
+    pthread_mutex_unlock(&scheds_mtx);
+    return s;
+}
 
-	void
-	DoJob(NySched *s, NyJob job)
-	{
-		if (!s->threads.Size) {
-			(*(job.Job))(job.Args);
-			return;
-		}
-		pthread_mutex_lock(&s->mtx);
-		s->queue.Push(job);
-		pthread_cond_signal(&s->cond);
-		pthread_mutex_unlock(&s->mtx);
-	}
+void DoJob(NySched *s, NyJob job)
+{
+    if (!s->threads.Size)
+    {
+        (*(job.Job))(job.Args);
+        return;
+    }
+    pthread_mutex_lock(&s->mtx);
+    s->queue.Push(job);
+    pthread_cond_signal(&s->cond);
+    pthread_mutex_unlock(&s->mtx);
+}
 
-	void
-	WaitJobs(NySched *s)
-	{
-		if (!s || !s->threads.Size) {
-			return;
-		}
+void WaitJobs(NySched *s)
+{
+    if (!s || !s->threads.Size)
+    {
+        return;
+    }
 
-		while (s->queue.Size || s->waiting != s->threads.Size) {
-			pthread_cond_broadcast(&s->cond);
-			const timespec sleep_time({ 0, 50000000L });
-			nanosleep(&sleep_time, NULL);
-		}
-	}
+    while (s->queue.Size || s->waiting != s->threads.Size)
+    {
+        pthread_cond_broadcast(&s->cond);
+        const timespec sleep_time({0, 50000000L});
+        nanosleep(&sleep_time, NULL);
+    }
+}
 
-	int
-	DestroySched(NySched *s)
-	{
-		pthread_mutex_lock(&s->mtx);
-		s->state = NyasSchedState_Closing;
-		pthread_cond_broadcast(&s->cond);
-		pthread_mutex_unlock(&s->mtx);
-		for (int i = 0; i < s->threads.Size; ++i) {
-			pthread_join(s->threads[i], NULL);
-		}
+int DestroySched(NySched *s)
+{
+    pthread_mutex_lock(&s->mtx);
+    s->state = NyasSchedState_Closing;
+    pthread_cond_broadcast(&s->cond);
+    pthread_mutex_unlock(&s->mtx);
+    for (int i = 0; i < s->threads.Size; ++i)
+    {
+        pthread_join(s->threads[i], NULL);
+    }
 
-		s->threads = {};
-		s->queue = {};
-		pthread_mutex_lock(&s->mtx);
-		pthread_mutex_unlock(&s->mtx);
-		pthread_mutex_destroy(&s->mtx);
-		pthread_cond_destroy(&s->cond);
-		s->state = NyasSchedState_Closed;
+    s->threads = {};
+    s->queue = {};
+    pthread_mutex_lock(&s->mtx);
+    pthread_mutex_unlock(&s->mtx);
+    pthread_mutex_destroy(&s->mtx);
+    pthread_cond_destroy(&s->cond);
+    s->state = NyasSchedState_Closed;
 
-		pthread_mutex_lock(&scheds_mtx);
-		if (s == scheds) {
-			scheds = scheds->next;
-		} else {
-			NySched *i = scheds;
-			while (i) {
-				if (s == i->next) {
-					i->next = s->next;
-					break;
-				}
-				i = i->next;
-			}
+    pthread_mutex_lock(&scheds_mtx);
+    if (s == scheds)
+    {
+        scheds = scheds->next;
+    }
+    else
+    {
+        NySched *i = scheds;
+        while (i)
+        {
+            if (s == i->next)
+            {
+                i->next = s->next;
+                break;
+            }
+            i = i->next;
+        }
 
-			if (!i) {
-				/* That scheduler does not exist in the schedulers list */
-				pthread_mutex_unlock(&scheds_mtx);
-				return NyasError_BadArg;
-			}
-		}
+        if (!i)
+        {
+            /* That scheduler does not exist in the schedulers list */
+            pthread_mutex_unlock(&scheds_mtx);
+            return NyasError_BadArg;
+        }
+    }
 
-		pthread_mutex_unlock(&scheds_mtx);
-		NYAS_FREE(s);
-		return NyasCode_Ok;
-	}
+    pthread_mutex_unlock(&scheds_mtx);
+    NYAS_FREE(s);
+    return NyasCode_Ok;
+}
 
-	AssetLoader *
-	nyut_assets_create(void)
-	{
-		struct AssetLoader *l = (AssetLoader*)NYAS_ALLOC(sizeof(struct AssetLoader));
-		l->Async = {};
-		l->Sequential = {};
-		return l;
-	}
+AssetLoader *nyut_assets_create(void)
+{
+    AssetLoader *l = (AssetLoader *)NYAS_ALLOC(sizeof(struct AssetLoader));
+    l->Async = {};
+    l->Sequential = {};
+    return l;
+}
+} // namespace NyUtil
 
-	static void
-	_MeshSetCube(NyasMesh *mesh)
-	{
-		static const float VERTICES[] = {
-		// positions          // normals           // uv
-		-0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.5f,  -0.5f, -0.5f,
-		0.0f,  0.0f,  -1.0f, 1.0f,  0.0f,  0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
-		1.0f,  1.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  1.0f,
+static void _TexLoader(void *arg)
+{
+    TexLoaderArgs *a = (TexLoaderArgs *)arg;
+    Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path);
+}
 
-		-0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, 0.5f,
-		0.0f,  0.0f,  1.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-		1.0f,  1.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+static void _MeshLoader(void *arg)
+{
+    MeshLoaderArgs *a = (MeshLoaderArgs *)arg;
+    *a->Mesh = Nyas::LoadMesh(a->Path); // TODO: separate create and load like textures in
+                                        // order to avoid concurrent writes in mesh_pool
+}
 
-		-0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  -0.5f,
-		-1.0f, 0.0f,  0.0f,  1.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
-		0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  0.0f,  0.0f,
+static void _ShaderLoader(void *arg)
+{
+    struct ShaderLoaderArgs *a = (ShaderLoaderArgs *)arg;
+    *a->Shader = Nyas::CreateShader(&a->Descriptor);
+    // TODO: Shaders compilation and program linking.
+}
 
-		0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
-		1.0f,  0.0f,  0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
-		0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+static void _EnvLoader(void *args)
+{
+    struct EnvLoaderArgs *ea = (EnvLoaderArgs *)args;
+    NyUtil::nyut_env_load(ea->Path, ea->LUT, ea->Sky, ea->Irradiance, ea->Pref);
+}
 
-		-0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, -0.5f,
-		0.0f,  -1.0f, 0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
-		1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.0f,
+void AssetLoader::AddMesh(MeshLoaderArgs *args)
+{
+    Async.Push({_MeshLoader, args});
+}
 
-		-0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.5f,  0.5f,  -0.5f,
-		0.0f,  1.0f,  0.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-		1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-		};
+void AssetLoader::AddTex(TexLoaderArgs *args)
+{
+    Async.Push({_TexLoader, args});
+}
 
-		static const NyDrawIdx INDICES[] = {
-		0,  2,  1,  2,  0,  3,  4,  5,  6,  6,  7,  4,  8,  9,  10, 10, 11, 8,
-		13, 12, 14, 12, 15, 14, 16, 17, 18, 18, 19, 16, 23, 22, 20, 22, 21, 20,
-		};
+void AssetLoader::AddShader(ShaderLoaderArgs *args)
+{
+    Sequential.Push({_ShaderLoader, args});
+}
 
-		NYAS_FREE(mesh->Vtx);
-		NYAS_FREE(mesh->Indices);
+void AssetLoader::AddEnv(EnvLoaderArgs *args)
+{
+    Async.Push({_EnvLoader, args});
+}
 
-		mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV;
-		mesh->Vtx = (float*)NYAS_ALLOC(sizeof(VERTICES));
-		memcpy(mesh->Vtx, VERTICES, sizeof(VERTICES));
-		mesh->Indices = (NyDrawIdx*)NYAS_ALLOC(sizeof(INDICES));
-		memcpy(mesh->Indices, INDICES, sizeof(INDICES));
-		mesh->VtxSize = sizeof(VERTICES);
-		mesh->ElementCount = sizeof(INDICES) / sizeof(*INDICES);
-	}
+void AssetLoader::AddJob(NyJob j, bool async)
+{
+    if (async)
+    {
+        Async.Push(j);
+    }
+    else
+    {
+        Sequential.Push(j);
+    }
+}
 
-	static void
-	_MeshSetSphere(NyasMesh *mesh, int x_segments, int y_segments)
-	{
-		NYAS_ASSERT(y_segments > 2 && x_segments > 2 && "Invalid number of segments");
+void AssetLoader::Load(int threads)
+{
+    NySched *load_sched = NULL;
+    if (Async.Size)
+    {
+        load_sched = NyUtil::CreateScheduler(threads);
+        for (int i = 0; i < Async.Size; ++i)
+        {
+            NyUtil::DoJob(load_sched, Async[i]);
+        }
+    }
 
-		const float x_step = 1.0f / (float)(y_segments - 1);
-		const float y_step = 1.0f / (float)(x_segments - 1);
+    if (Sequential.Size)
+    {
+        for (int i = 0; i < Sequential.Size; ++i)
+        {
+            (*Sequential[i].Job)(Sequential[i].Args);
+        }
+    }
 
-		NYAS_FREE(mesh->Vtx);
-		NYAS_FREE(mesh->Indices);
+    if (Async.Size)
+    {
+        NyUtil::WaitJobs(load_sched); // TODO(Check): sched_destroy waits?
+        NyUtil::DestroySched(load_sched);
+    }
+}
 
-		mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV;
-		mesh->VtxSize = y_segments * x_segments * 8 * sizeof(float);
-		mesh->ElementCount = y_segments * x_segments * 6;
-		mesh->Vtx = (float*)NYAS_ALLOC(mesh->VtxSize);
-		mesh->Indices = (NyDrawIdx*)NYAS_ALLOC(mesh->ElementCount * sizeof(NyDrawIdx));
+static void _MeshSetCube(NyasMesh *mesh)
+{
+    static const float VERTICES[] = {
+        // positions          // normals           // uv
+        -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f, 0.0f, 0.5f,  -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 1.0f, 0.0f,
+        0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 1.0f, 1.0f, -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f, 1.0f,
 
-		float *v = mesh->Vtx;
-		for (int y = 0; y < x_segments; ++y) {
-			float py = sinf((float)-M_PI_2 + (float)M_PI * (float)y * x_step);
-			for (int x = 0; x < y_segments; ++x) {
-				float px = cosf(M_PI * 2.0f * x * y_step) * sinf(M_PI * y * x_step);
-				float pz = sinf(M_PI * 2.0f * x * y_step) * sinf(M_PI * y * x_step);
+        -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.5f,  -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f, -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
 
-				*v++ = px;
-				*v++ = py;
-				*v++ = pz;
-				*v++ = px;
-				*v++ = py;
-				*v++ = pz;
-				*v++ = (float)x * y_step;
-				*v++ = (float)y * x_step;
-			}
-		}
+        -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f, 0.0f, -0.5f, 0.5f,  -0.5f, -1.0f, 0.0f,  0.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  0.0f, 1.0f, -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  0.0f, 0.0f,
 
-		NyDrawIdx *i = mesh->Indices;
-		for (int y = 0; y < x_segments; ++y) {
-			for (int x = 0; x < y_segments; ++x) {
-				*i++ = y * y_segments + x;
-				*i++ = y * y_segments + x + 1;
-				*i++ = (y + 1) * y_segments + x + 1;
-				*i++ = y * y_segments + x;
-				*i++ = (y + 1) * y_segments + x + 1;
-				*i++ = (y + 1) * y_segments + x;
-			}
-		}
-	}
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.5f,  0.5f,  -0.5f, 1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  0.0f, 1.0f, 0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
 
-	static void
-	_MeshSetQuad(NyasMesh *mesh)
-	{
-		static const float VERTICES[] = {
-		-1.0f, -1.0f, 0.0f,  0.0f, 0.0f, -1.0f, 0.0f, 0.0f,  1.0f, -1.0f, 0.0f,
-		0.0f,  0.0f,  -1.0f, 1.0f, 0.0f, 1.0f,  1.0f, 0.0f,  0.0f, 0.0f,  -1.0f,
-		1.0f,  1.0f,  -1.0f, 1.0f, 0.0f, 0.0f,  0.0f, -1.0f, 0.0f, 1.0f,
-		};
+        -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f, 1.0f, 0.5f,  -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  1.0f, 1.0f,
+        0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  1.0f, 0.0f, -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  0.0f, 0.0f,
 
-		static const NyDrawIdx INDICES[] = { 0, 1, 2, 0, 2, 3 };
+        -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.5f,  0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f, -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+    };
 
-		NYAS_FREE(mesh->Vtx);
-		NYAS_FREE(mesh->Indices);
+    static const NyDrawIdx INDICES[] = {
+        0,  2,  1,  2,  0,  3,  4,  5,  6,  6,  7,  4,  8,  9,  10, 10, 11, 8,
+        13, 12, 14, 12, 15, 14, 16, 17, 18, 18, 19, 16, 23, 22, 20, 22, 21, 20,
+    };
 
-		mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV;
-		mesh->Vtx = (float*)NYAS_ALLOC(sizeof(VERTICES));
-		memcpy(mesh->Vtx, VERTICES, sizeof(VERTICES));
-		mesh->Indices = (NyDrawIdx*)NYAS_ALLOC(sizeof(INDICES));
-		memcpy(mesh->Indices, INDICES, sizeof(INDICES));
-		mesh->VtxSize = sizeof(VERTICES);
-		mesh->ElementCount = sizeof(INDICES) / sizeof(*INDICES);
-	}
+    NYAS_FREE(mesh->Vtx);
+    NYAS_FREE(mesh->Indices);
 
-	void
-	nyut_mesh_init_geometry(void)
-	{
-		NYAS_UTILS_SPHERE = Nyas::CreateMesh();
-		NYAS_UTILS_CUBE = Nyas::CreateMesh();
-		NYAS_UTILS_QUAD = Nyas::CreateMesh();
-		nyut_mesh_set_geometry(NYAS_UTILS_SPHERE, NyasGeometry_Sphere);
-		nyut_mesh_set_geometry(NYAS_UTILS_CUBE, NyasGeometry_Cube);
-		nyut_mesh_set_geometry(NYAS_UTILS_QUAD, NyasGeometry_Quad);
-	}
+    mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV;
+    mesh->Vtx = (float *)NYAS_ALLOC(sizeof(VERTICES));
+    memcpy(mesh->Vtx, VERTICES, sizeof(VERTICES));
+    mesh->Indices = (NyDrawIdx *)NYAS_ALLOC(sizeof(INDICES));
+    memcpy(mesh->Indices, INDICES, sizeof(INDICES));
+    mesh->VtxSize = sizeof(VERTICES);
+    mesh->ElementCount = sizeof(INDICES) / sizeof(*INDICES);
+}
 
-	void
-	nyut_mesh_set_geometry(NyasHandle msh, NyasGeometry geo)
-	{
-		NyasMesh* m = &Nyas::Meshes[msh];
+static void _MeshSetSphere(NyasMesh *mesh, int x_segments, int y_segments)
+{
+    NYAS_ASSERT(y_segments > 2 && x_segments > 2 && "Invalid number of segments");
 
-		switch (geo) {
-		case NyasGeometry_Quad: _MeshSetQuad(m); break;
-		case NyasGeometry_Cube: _MeshSetCube(m); break;
-		case NyasGeometry_Sphere: _MeshSetSphere(m, 32, 32); break;
-		}
-		m->Resource.Flags |= NyasResourceFlags_Dirty;
-	}
+    const float x_step = 1.0f / (float)(y_segments - 1);
+    const float y_step = 1.0f / (float)(x_segments - 1);
 
-	void
-	nyut_env_load(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref)
-	{
-		FILE *f = fopen(path, "r");
-		char hdr[9];
-		fread(hdr, 8, 1, f);
-		hdr[8] = '\0';
-		if (strncmp("NYAS_ENV", hdr, 9) != 0) {
-			NYAS_LOG_ERR("Header of .env file is invalid. Aborting load_env of %s.", path);
-			return;
-		}
+    NYAS_FREE(mesh->Vtx);
+    NYAS_FREE(mesh->Indices);
 
-		*sky = Nyas::CreateTexture();
-		NyasTexture *t = &Nyas::Textures[*sky];
-		t->Resource.Id = 0;
-		t->Resource.Flags = NyasResourceFlags_Dirty;
-		t->Data.Type = NyasTexType_Cubemap;
-		t->Data.Format = NyasTexFmt_RGB_16F;
-		t->Data.Width = 1024;
-		t->Data.Height = 1024;
-		t->Data.MagFilter = NyasTexFilter_Linear;
-		t->Data.MinFilter = NyasTexFilter_Linear;
-		t->Data.WrapS = NyasTexWrap_Clamp;
-		t->Data.WrapT = NyasTexWrap_Clamp;
-		t->Data.WrapR = NyasTexWrap_Clamp;
+    mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV;
+    mesh->VtxSize = y_segments * x_segments * 8 * sizeof(float);
+    mesh->ElementCount = y_segments * x_segments * 6;
+    mesh->Vtx = (float *)NYAS_ALLOC(mesh->VtxSize);
+    mesh->Indices = (NyDrawIdx *)NYAS_ALLOC(mesh->ElementCount * sizeof(NyDrawIdx));
 
-		size_t size = 1024 * 1024 * 3 * 2; // size * nchannels * sizeof(channel)
-		for (int i = 0; i < 6; ++i) {
-			NyasTexImg img;
-			img.Face = i;
-			img.Pix = NYAS_ALLOC(size);
-			fread(img.Pix, size, 1, f);
-			NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-			t->Img.Push(img);
-		}
+    float *v = mesh->Vtx;
+    for (int y = 0; y < x_segments; ++y)
+    {
+        float py = sinf((float)-M_PI_2 + (float)M_PI * (float)y * x_step);
+        for (int x = 0; x < y_segments; ++x)
+        {
+            float px = cosf(M_PI * 2.0f * x * y_step) * sinf(M_PI * y * x_step);
+            float pz = sinf(M_PI * 2.0f * x * y_step) * sinf(M_PI * y * x_step);
 
-		*irr = Nyas::CreateTexture();
-		t = &Nyas::Textures[*irr];
-		t->Resource.Id = 0;
-		t->Resource.Flags = NyasResourceFlags_Dirty;
-		t->Data.Type = NyasTexType_Cubemap;
-		t->Data.Format = NyasTexFmt_RGB_16F;
-		t->Data.Width = 1024;
-		t->Data.Height = 1024;
-		t->Data.MagFilter = NyasTexFilter_Linear;
-		t->Data.MinFilter = NyasTexFilter_Linear;
-		t->Data.WrapS = NyasTexWrap_Clamp;
-		t->Data.WrapT = NyasTexWrap_Clamp;
-		t->Data.WrapR = NyasTexWrap_Clamp;
+            *v++ = px;
+            *v++ = py;
+            *v++ = pz;
+            *v++ = px;
+            *v++ = py;
+            *v++ = pz;
+            *v++ = (float)x * y_step;
+            *v++ = (float)y * x_step;
+        }
+    }
 
-		for (int i = 0; i < 6; ++i) {
-			NyasTexImg img;
-			img.Face = i;
-			img.Pix = NYAS_ALLOC(size);
-			fread(img.Pix, size, 1, f);
-			NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-			t->Img.Push(img);
-		}
+    NyDrawIdx *i = mesh->Indices;
+    for (int y = 0; y < x_segments; ++y)
+    {
+        for (int x = 0; x < y_segments; ++x)
+        {
+            *i++ = y * y_segments + x;
+            *i++ = y * y_segments + x + 1;
+            *i++ = (y + 1) * y_segments + x + 1;
+            *i++ = y * y_segments + x;
+            *i++ = (y + 1) * y_segments + x + 1;
+            *i++ = (y + 1) * y_segments + x;
+        }
+    }
+}
 
-		*pref = Nyas::CreateTexture();
-		t = &Nyas::Textures[*pref];
-		t->Resource.Id = 0;
-		t->Resource.Flags = NyasResourceFlags_Dirty;
-		t->Data.Type = NyasTexType_Cubemap;
-		t->Data.Format = NyasTexFmt_RGB_16F;
-		t->Data.Width = 256;
-		t->Data.Height = 256;
-		t->Data.MagFilter = NyasTexFilter_Linear;
-		t->Data.MinFilter = NyasTexFilter_LinearMipmapLinear;
-		t->Data.WrapS = NyasTexWrap_Clamp;
-		t->Data.WrapT = NyasTexWrap_Clamp;
-		t->Data.WrapR = NyasTexWrap_Clamp;
+static void _MeshSetQuad(NyasMesh *mesh)
+{
+    static const float VERTICES[] = {
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,  -1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+        1.0f,  1.0f,  0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f,  0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+    };
 
-		size = 256 * 256 * 3 * 2;
-		for (int lod = 0; lod < 9; ++lod) {
-			for (int face = 0; face < 6; ++face) {
-				NyasTexImg img;
-				img.MipLevel = lod;
-				img.Face = face;
-				img.Pix = NYAS_ALLOC(size);
-				fread(img.Pix, size, 1, f);
-				NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-				t->Img.Push(img);
-			}
-			size /= 4;
-		}
+    static const NyDrawIdx INDICES[] = {0, 1, 2, 0, 2, 3};
 
-		*lut = Nyas::CreateTexture();
-		t = &Nyas::Textures[*lut];
-		t->Resource.Id = 0;
-		t->Resource.Flags = NyasResourceFlags_Dirty;
-		t->Data.Type = NyasTexType_2D;
-		t->Data.Format = NyasTexFmt_RG_16F;
-		t->Data.Width = 512;
-		t->Data.Height = 512;
-		t->Data.MagFilter = NyasTexFilter_Linear;
-		t->Data.MinFilter = NyasTexFilter_Linear;
-		t->Data.WrapS = NyasTexWrap_Clamp;
-		t->Data.WrapT = NyasTexWrap_Clamp;
-		t->Data.WrapR = NyasTexWrap_Clamp;
+    NYAS_FREE(mesh->Vtx);
+    NYAS_FREE(mesh->Indices);
 
-		size = 512 * 512 * 2 * 2;
+    mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV;
+    mesh->Vtx = (float *)NYAS_ALLOC(sizeof(VERTICES));
+    memcpy(mesh->Vtx, VERTICES, sizeof(VERTICES));
+    mesh->Indices = (NyDrawIdx *)NYAS_ALLOC(sizeof(INDICES));
+    memcpy(mesh->Indices, INDICES, sizeof(INDICES));
+    mesh->VtxSize = sizeof(VERTICES);
+    mesh->ElementCount = sizeof(INDICES) / sizeof(*INDICES);
+}
 
-		NyasTexImg img;
-		img.Pix = NYAS_ALLOC(size);
-		fread(img.Pix, size, 1, f);
-		NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-		t->Img.Push(img);
-		fclose(f);
-	}
+namespace NyUtil
+{
+void nyut_mesh_init_geometry(void)
+{
+    NYAS_UTILS_SPHERE = Nyas::CreateMesh();
+    NYAS_UTILS_CUBE = Nyas::CreateMesh();
+    NYAS_UTILS_QUAD = Nyas::CreateMesh();
+    nyut_mesh_set_geometry(NYAS_UTILS_SPHERE, NyasGeometry_Sphere);
+    nyut_mesh_set_geometry(NYAS_UTILS_CUBE, NyasGeometry_Cube);
+    nyut_mesh_set_geometry(NYAS_UTILS_QUAD, NyasGeometry_Quad);
+}
+
+void nyut_mesh_set_geometry(NyasHandle msh, NyasGeometry geo)
+{
+    NyasMesh *m = &Nyas::Meshes[msh];
+
+    switch (geo)
+    {
+    case NyasGeometry_Quad:
+        _MeshSetQuad(m);
+        break;
+    case NyasGeometry_Cube:
+        _MeshSetCube(m);
+        break;
+    case NyasGeometry_Sphere:
+        _MeshSetSphere(m, 32, 32);
+        break;
+    default:
+        break;
+    }
+    m->Resource.Flags |= NyasResourceFlags_Dirty;
+}
+
+void nyut_env_load(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref)
+{
+    FILE *f = fopen(path, "r");
+    char hdr[9];
+    fread(hdr, 8, 1, f);
+    hdr[8] = '\0';
+    if (strncmp("NYAS_ENV", hdr, 9) != 0)
+    {
+        NYAS_LOG_ERR("Header of .env file is invalid. Aborting load_env of %s.", path);
+        return;
+    }
+
+    *sky = Nyas::CreateTexture();
+    NyasTexture *t = &Nyas::Textures[*sky];
+    t->Resource.Id = 0;
+    t->Resource.Flags = NyasResourceFlags_Dirty;
+    t->Data.Type = NyasTexType_Cubemap;
+    t->Data.Format = NyasTexFmt_RGB_16F;
+    t->Data.Width = 1024;
+    t->Data.Height = 1024;
+    t->Data.MagFilter = NyasTexFilter_Linear;
+    t->Data.MinFilter = NyasTexFilter_Linear;
+    t->Data.WrapS = NyasTexWrap_Clamp;
+    t->Data.WrapT = NyasTexWrap_Clamp;
+    t->Data.WrapR = NyasTexWrap_Clamp;
+
+    size_t size = 1024 * 1024 * 3 * 2; // size * nchannels * sizeof(channel)
+    for (int i = 0; i < 6; ++i)
+    {
+        NyasTexImg img;
+        img.Face = i;
+        img.Pix = NYAS_ALLOC(size);
+        fread(img.Pix, size, 1, f);
+        NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
+        t->Img.Push(img);
+    }
+
+    *irr = Nyas::CreateTexture();
+    t = &Nyas::Textures[*irr];
+    t->Resource.Id = 0;
+    t->Resource.Flags = NyasResourceFlags_Dirty;
+    t->Data.Type = NyasTexType_Cubemap;
+    t->Data.Format = NyasTexFmt_RGB_16F;
+    t->Data.Width = 1024;
+    t->Data.Height = 1024;
+    t->Data.MagFilter = NyasTexFilter_Linear;
+    t->Data.MinFilter = NyasTexFilter_Linear;
+    t->Data.WrapS = NyasTexWrap_Clamp;
+    t->Data.WrapT = NyasTexWrap_Clamp;
+    t->Data.WrapR = NyasTexWrap_Clamp;
+
+    for (int i = 0; i < 6; ++i)
+    {
+        NyasTexImg img;
+        img.Face = i;
+        img.Pix = NYAS_ALLOC(size);
+        fread(img.Pix, size, 1, f);
+        NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
+        t->Img.Push(img);
+    }
+
+    *pref = Nyas::CreateTexture();
+    t = &Nyas::Textures[*pref];
+    t->Resource.Id = 0;
+    t->Resource.Flags = NyasResourceFlags_Dirty;
+    t->Data.Type = NyasTexType_Cubemap;
+    t->Data.Format = NyasTexFmt_RGB_16F;
+    t->Data.Width = 256;
+    t->Data.Height = 256;
+    t->Data.MagFilter = NyasTexFilter_Linear;
+    t->Data.MinFilter = NyasTexFilter_LinearMipmapLinear;
+    t->Data.WrapS = NyasTexWrap_Clamp;
+    t->Data.WrapT = NyasTexWrap_Clamp;
+    t->Data.WrapR = NyasTexWrap_Clamp;
+
+    size = 256 * 256 * 3 * 2;
+    for (int lod = 0; lod < 9; ++lod)
+    {
+        for (int face = 0; face < 6; ++face)
+        {
+            NyasTexImg img;
+            img.MipLevel = lod;
+            img.Face = face;
+            img.Pix = NYAS_ALLOC(size);
+            fread(img.Pix, size, 1, f);
+            NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
+            t->Img.Push(img);
+        }
+        size /= 4;
+    }
+
+    *lut = Nyas::CreateTexture();
+    t = &Nyas::Textures[*lut];
+    t->Resource.Id = 0;
+    t->Resource.Flags = NyasResourceFlags_Dirty;
+    t->Data.Type = NyasTexType_2D;
+    t->Data.Format = NyasTexFmt_RG_16F;
+    t->Data.Width = 512;
+    t->Data.Height = 512;
+    t->Data.MagFilter = NyasTexFilter_Linear;
+    t->Data.MinFilter = NyasTexFilter_Linear;
+    t->Data.WrapS = NyasTexWrap_Clamp;
+    t->Data.WrapT = NyasTexWrap_Clamp;
+    t->Data.WrapR = NyasTexWrap_Clamp;
+
+    size = 512 * 512 * 2 * 2;
+
+    NyasTexImg img;
+    img.Pix = NYAS_ALLOC(size);
+    fread(img.Pix, size, 1, f);
+    NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
+    t->Img.Push(img);
+    fclose(f);
+}
 } // namespace NyUtil
 
 #if defined(NYAS_GL3)
 #include <glad/glad.h>
 
-static const GLint attrib_sizes[NyasVtxAttrib_COUNT] = { 3, 3, 3, 3, 2, 4 };
-static const char *attrib_names[NyasVtxAttrib_COUNT] = {
-	"a_position", "a_normal", "a_tangent", "a_bitangent", "a_uv", "a_color"
+static const GLint attrib_sizes[NyasVtxAttrib_COUNT] = {3, 3, 3, 3, 2, 4};
+static const char *attrib_names[NyasVtxAttrib_COUNT] = {"a_position",  "a_normal", "a_tangent",
+                                                        "a_bitangent", "a_uv",     "a_color"};
+
+struct NyGL_TexDesc
+{
+    GLenum target;
+    GLint min_f;
+    GLint mag_f;
+    GLint ws;
+    GLint wt;
+    GLint wr;
+    float br;
+    float bg;
+    float bb;
+    float ba;
+
+    NyGL_TexDesc(GLenum tg, GLint min, GLint mag, GLint ws, GLint wt, GLint wr, float br, float bg, float bb, float ba)
+        : target(tg), min_f(min), mag_f(mag), ws(ws), wt(wt), wr(wr), br(br), bg(bg), bb(bb), ba(ba)
+    {
+    }
 };
 
-struct NyGL_TexDesc {
-	GLenum target;
-	GLint min_f;
-	GLint mag_f;
-	GLint ws;
-	GLint wt;
-	GLint wr;
-	float br;
-	float bg;
-	float bb;
-	float ba;
+static GLenum glttarget(NyasTexType type)
+{
+    switch (type)
+    {
+    case NyasTexType_2D:
+        return GL_TEXTURE_2D;
+    case NyasTexType_Cubemap:
+        return GL_TEXTURE_CUBE_MAP;
+    case NyasTexType_Array2D:
+        return GL_TEXTURE_2D_ARRAY;
+    case NyasTexType_ArrayCubemap:
+        return GL_TEXTURE_CUBE_MAP_ARRAY;
+    default:
+        return 0;
+    }
+}
 
-	NyGL_TexDesc(GLenum tg, GLint min, GLint mag, GLint ws, GLint wt, GLint wr, float br, float bg, float bb, float ba) :
-		target(tg), min_f(min), mag_f(mag), ws(ws), wt(wt), wr(wr), br(br), bg(bg), bb(bb), ba(ba) {}
+static GLint gltfilter(NyasTexFilter f)
+{
+    switch (f)
+    {
+    case NyasTexFilter_Linear:
+        return GL_LINEAR;
+    case NyasTexFilter_LinearMipmapLinear:
+        return GL_LINEAR_MIPMAP_LINEAR;
+    case NyasTexFilter_LinearMipmapNearest:
+        return GL_LINEAR_MIPMAP_NEAREST;
+    case NyasTexFilter_Nearest:
+        return GL_NEAREST;
+    case NyasTexFilter_NearestMipmapNearest:
+        return GL_NEAREST_MIPMAP_NEAREST;
+    case NyasTexFilter_NearestMipmapLinear:
+        return GL_NEAREST_MIPMAP_LINEAR;
+    default:
+        return 0;
+    }
+}
+
+static GLint gltwrap(NyasTexWrap w)
+{
+    switch (w)
+    {
+    case NyasTexWrap_Repeat:
+        return GL_REPEAT;
+    case NyasTexWrap_Clamp:
+        return GL_CLAMP_TO_EDGE;
+    case NyasTexWrap_Mirror:
+        return GL_MIRRORED_REPEAT;
+    case NyasTexWrap_Black:
+        return GL_CLAMP_TO_BORDER;
+    default:
+        return 0;
+    }
+}
+
+static NyGL_TexDesc gltdesc(NyasTexDesc *d)
+{
+    return {glttarget(d->Type), gltfilter(d->MinFilter), gltfilter(d->MagFilter), gltwrap(d->WrapS), gltwrap(d->WrapT),
+            gltwrap(d->WrapR),  d->BorderColor[0],       d->BorderColor[1],       d->BorderColor[2], d->BorderColor[3]};
+}
+
+struct gltfmt_result
+{
+    GLint ifmt;
+    GLenum fmt;
+    GLenum type;
 };
 
-static GLenum
-glttarget(NyasTexType type)
+static struct gltfmt_result gltfmt(NyasTexFmt fmt)
 {
-	switch (type) {
-	case NyasTexType_2D: return GL_TEXTURE_2D;
-	case NyasTexType_Cubemap: return GL_TEXTURE_CUBE_MAP;
-	case NyasTexType_Array2D: return GL_TEXTURE_2D_ARRAY;
-	case NyasTexType_ArrayCubemap: return GL_TEXTURE_CUBE_MAP_ARRAY;
-	default: return 0;
-	}
+    switch (fmt)
+    {
+    case NyasTexFmt_R_8:
+        return {GL_R8, GL_RED, GL_UNSIGNED_BYTE};
+    case NyasTexFmt_RG_8:
+        return {GL_RG8, GL_RG, GL_UNSIGNED_BYTE};
+    case NyasTexFmt_RGB_8:
+        return {GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE};
+    case NyasTexFmt_RGBA_8:
+        return {GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE};
+    case NyasTexFmt_SRGB_8:
+        return {GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE};
+    case NyasTexFmt_R_16F:
+        return {GL_R16F, GL_RED, GL_HALF_FLOAT};
+    case NyasTexFmt_RG_16F:
+        return {GL_RG16F, GL_RG, GL_HALF_FLOAT};
+    case NyasTexFmt_RGB_16F:
+        return {GL_RGB16F, GL_RGB, GL_HALF_FLOAT};
+    case NyasTexFmt_RGBA_16F:
+        return {GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT};
+    case NyasTexFmt_RGB_32F:
+        return {GL_RGB32F, GL_RGB, GL_FLOAT};
+    case NyasTexFmt_Depth:
+        return {GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT};
+    default:
+        NYAS_LOG_ERR("Unrecognized texture format: (%d).", fmt);
+        return {0, 0, 0};
+    }
 }
 
-static GLint
-gltfilter(NyasTexFilter f)
+void nypx_tex_create(struct NyasTexture *t)
 {
-	switch (f) {
-	case NyasTexFilter_Linear: return GL_LINEAR;
-	case NyasTexFilter_LinearMipmapLinear: return GL_LINEAR_MIPMAP_LINEAR;
-	case NyasTexFilter_LinearMipmapNearest: return GL_LINEAR_MIPMAP_NEAREST;
-	case NyasTexFilter_Nearest: return GL_NEAREST;
-	case NyasTexFilter_NearestMipmapNearest: return GL_NEAREST_MIPMAP_NEAREST;
-	case NyasTexFilter_NearestMipmapLinear: return GL_NEAREST_MIPMAP_LINEAR;
-	default: return 0;
-	}
+    NyGL_TexDesc d = gltdesc(&t->Data);
+    glGenTextures(1, &t->Resource.Id);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(d.target, t->Resource.Id);
+    if (d.min_f)
+    {
+        glTexParameteri(d.target, GL_TEXTURE_MIN_FILTER, d.min_f);
+    }
+    if (d.mag_f)
+    {
+        glTexParameteri(d.target, GL_TEXTURE_MAG_FILTER, d.mag_f);
+    }
+    if (d.ws)
+    {
+        glTexParameteri(d.target, GL_TEXTURE_WRAP_S, d.ws);
+    }
+    if (d.wt)
+    {
+        glTexParameteri(d.target, GL_TEXTURE_WRAP_T, d.wt);
+    }
+    if (d.wr)
+    {
+        glTexParameteri(d.target, GL_TEXTURE_WRAP_R, d.wr);
+    }
+    if (d.ba > 0.0f)
+    {
+        glTexParameterfv(d.target, GL_TEXTURE_BORDER_COLOR, &d.br);
+    }
 }
 
-static GLint
-gltwrap(NyasTexWrap w)
+void nypx_tex_set(struct NyasTexture *t)
 {
-	switch (w) {
-	case NyasTexWrap_Repeat: return GL_REPEAT;
-	case NyasTexWrap_Clamp: return GL_CLAMP_TO_EDGE;
-	case NyasTexWrap_Mirror: return GL_MIRRORED_REPEAT;
-	case NyasTexWrap_Black: return GL_CLAMP_TO_BORDER;
-	default: return 0;
-	}
+    GLenum type = glttarget(t->Data.Type);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(type, t->Resource.Id);
+    struct gltfmt_result fmt = gltfmt(t->Data.Format);
+    for (int i = 0; i < t->Img.Size; ++i)
+    {
+        GLint target =
+            (t->Data.Type == NyasTexType_2D) ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP_POSITIVE_X + t->Img[i].Face;
+        int w = t->Data.Width >> t->Img[i].MipLevel;
+        int h = t->Data.Height >> t->Img[i].MipLevel;
+        glTexImage2D(target, t->Img[i].MipLevel, fmt.ifmt, w, h, 0, fmt.fmt, fmt.type, t->Img[i].Pix);
+    }
+
+    if (t->Data.Flags & NyasTexFlags_GenMipMaps)
+    {
+        glGenerateMipmap(type);
+    }
 }
 
-static NyGL_TexDesc
-gltdesc(NyasTexDesc *d)
+void nypx_tex_release(uint32_t *id)
 {
-	return {glttarget(d->Type), gltfilter(d->MinFilter), gltfilter(d->MagFilter),
-	gltwrap(d->WrapS), gltwrap(d->WrapT), gltwrap(d->WrapR), d->BorderColor[0], d->BorderColor[1], d->BorderColor[2], d->BorderColor[3]};
+    glDeleteTextures(1, id);
 }
 
-struct gltfmt_result {
-	GLint ifmt;
-	GLenum fmt;
-	GLenum type;
-};
-
-static struct gltfmt_result
-gltfmt(NyasTexFmt fmt)
+void nypx_mesh_create(uint32_t *id, uint32_t *vid, uint32_t *iid)
 {
-	switch (fmt) {
-	case NyasTexFmt_R_8: return { GL_R8, GL_RED, GL_UNSIGNED_BYTE };
-	case NyasTexFmt_RG_8: return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE };
-	case NyasTexFmt_RGB_8: return { GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE };
-	case NyasTexFmt_RGBA_8: return { GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE };
-	case NyasTexFmt_SRGB_8: return { GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE };
-	case NyasTexFmt_R_16F: return { GL_R16F, GL_RED, GL_HALF_FLOAT };
-	case NyasTexFmt_RG_16F: return { GL_RG16F, GL_RG, GL_HALF_FLOAT };
-	case NyasTexFmt_RGB_16F: return { GL_RGB16F, GL_RGB, GL_HALF_FLOAT };
-	case NyasTexFmt_RGBA_16F: return { GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT };
-	case NyasTexFmt_RGB_32F: return { GL_RGB32F, GL_RGB, GL_FLOAT };
-	case NyasTexFmt_Depth:
-		return { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT };
-	default:
-		NYAS_LOG_ERR("Unrecognized texture format: (%d).", fmt);
-		return { 0, 0, 0 };
-	}
+    glGenVertexArrays(1, id);
+    glGenBuffers(1, vid);
+    glGenBuffers(1, iid);
 }
 
-void
-nypx_tex_create(struct NyasTexture *t)
+void nypx_mesh_use(NyasMesh *m, NyasShader *s)
 {
-	NyGL_TexDesc d = gltdesc(&t->Data);
-	glGenTextures(1, &t->Resource.Id);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(d.target, t->Resource.Id);
-	if (d.min_f) {
-		glTexParameteri(d.target, GL_TEXTURE_MIN_FILTER, d.min_f);
-	}
-	if (d.mag_f) {
-		glTexParameteri(d.target, GL_TEXTURE_MAG_FILTER, d.mag_f);
-	}
-	if (d.ws) {
-		glTexParameteri(d.target, GL_TEXTURE_WRAP_S, d.ws);
-	}
-	if (d.wt) {
-		glTexParameteri(d.target, GL_TEXTURE_WRAP_T, d.wt);
-	}
-	if (d.wr) {
-		glTexParameteri(d.target, GL_TEXTURE_WRAP_R, d.wr);
-	}
-	if (d.ba > 0.0f) {
-		glTexParameterfv(d.target, GL_TEXTURE_BORDER_COLOR, &d.br);
-	}
+    (void)s;
+    if (m)
+    {
+        glBindVertexArray(m->Resource.Id);
+    }
+    else
+    {
+        glBindVertexArray(0);
+    }
 }
 
-void
-nypx_tex_set(struct NyasTexture *t)
+static GLsizei _GetAttribStride(int32_t attr_flags)
 {
-	GLenum type = glttarget(t->Data.Type);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(type, t->Resource.Id);
-	struct gltfmt_result fmt = gltfmt(t->Data.Format);
-	for (int i = 0; i < t->Img.Size; ++i) {
-		GLint target = (t->Data.Type == NyasTexType_2D) ?
-		GL_TEXTURE_2D :
-		GL_TEXTURE_CUBE_MAP_POSITIVE_X + t->Img[i].Face;
-		int w = t->Data.Width >> t->Img[i].MipLevel;
-		int h = t->Data.Height >> t->Img[i].MipLevel;
-		glTexImage2D(target, t->Img[i].MipLevel, fmt.ifmt, w, h, 0, fmt.fmt, fmt.type, t->Img[i].Pix);
-	}
-
-	if (t->Data.Flags & NyasTexFlags_GenMipMaps) {
-		glGenerateMipmap(type);
-	}
+    GLsizei stride = 0;
+    for (int i = 0; i < NyasVtxAttrib_COUNT; ++i)
+    {
+        if (attr_flags & (1 << i))
+        {
+            stride += attrib_sizes[i];
+        }
+    }
+    return stride * sizeof(float);
 }
 
-void
-nypx_tex_release(uint32_t *id)
+void nypx_mesh_set(NyasMesh *mesh, uint32_t shader_id)
 {
-	glDeleteTextures(1, id);
+    glBindVertexArray(mesh->Resource.Id);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->ResVtx.Id);
+    glBufferData(GL_ARRAY_BUFFER, mesh->VtxSize, mesh->Vtx, GL_STATIC_DRAW);
+
+    GLint offset = 0;
+    GLsizei stride = _GetAttribStride(mesh->Attribs);
+    for (int i = 0; i < NyasVtxAttrib_COUNT; ++i)
+    {
+        if (!(mesh->Attribs & (1 << i)))
+        {
+            continue;
+        }
+
+        GLint size = attrib_sizes[i];
+        GLint attrib_pos = glGetAttribLocation(shader_id, attrib_names[i]);
+        if (attrib_pos >= 0)
+        {
+            glEnableVertexAttribArray(attrib_pos);
+            glVertexAttribPointer(attrib_pos, size, GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
+        }
+        offset += size;
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ResIdx.Id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->ElementCount * sizeof(NyDrawIdx), (const void *)mesh->Indices,
+                 GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void
-nypx_mesh_create(uint32_t *id, uint32_t *vid, uint32_t *iid)
+void nypx_mesh_release(uint32_t *id, uint32_t *vid, uint32_t *iid)
 {
-	glGenVertexArrays(1, id);
-	glGenBuffers(1, vid);
-	glGenBuffers(1, iid);
+    glDeleteVertexArrays(1, id);
+    glDeleteBuffers(1, vid);
+    glDeleteBuffers(1, iid);
 }
 
-void
-nypx_mesh_use(NyasMesh *m, NyasShader *s)
+void nypx_shader_create(uint32_t *id)
 {
-	(void)s;
-	if (m) {
-		glBindVertexArray(m->Resource.Id);
-	} else {
-		glBindVertexArray(0);
-	}
+    *id = glCreateProgram();
 }
 
-static GLsizei
-_GetAttribStride(int32_t attr_flags)
+void nypx_shader_compile(uint32_t id, const char *name)
 {
-	GLsizei stride = 0;
-	for (int i = 0; i < NyasVtxAttrib_COUNT; ++i) {
-		if (attr_flags & (1 << i)) {
-			stride += attrib_sizes[i];
-		}
-	}
-	return stride * sizeof(float);
+    // For shader hot-recompilations
+    GLuint shaders[8];
+    GLsizei attach_count;
+    glGetAttachedShaders(id, 8, &attach_count, shaders);
+    for (int i = 0; i < attach_count; ++i)
+    {
+        glDetachShader(id, shaders[i]);
+    }
+
+    size_t shsrc_size; // Shader source size in bytes
+    char *shsrc;
+    char vert_path[256] = {'\0'};
+    char frag_path[256] = {'\0'};
+    strcpy(frag_path, "assets/shaders/");
+    strcat(frag_path, name);
+    strcpy(vert_path, frag_path);
+    strcat(vert_path, "-vert.glsl");
+    strcat(frag_path, "-frag.glsl");
+
+    GLint err;
+    GLchar output_log[1024];
+
+    GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+    GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+
+    if (Nyas::nyas_file_read(vert_path, &shsrc, &shsrc_size) != NyasCode_Ok)
+    {
+        NYAS_ASSERT(!"Error loading shader vert file.");
+    }
+
+    glShaderSource(vert, 1, (const char *const *)&shsrc, NULL);
+    glCompileShader(vert);
+    glGetShaderiv(vert, GL_COMPILE_STATUS, &err);
+    if (!err)
+    {
+        glGetShaderInfoLog(vert, 1024, NULL, output_log);
+        NYAS_LOG_ERR("%s vert:\n%s\n", name, output_log);
+    }
+    NYAS_FREE(shsrc);
+
+    if (Nyas::nyas_file_read(frag_path, &shsrc, &shsrc_size) != NyasCode_Ok)
+    {
+        NYAS_ASSERT(!"Error loading shader frag file.");
+    }
+
+    glShaderSource(frag, 1, (const char *const *)&shsrc, NULL);
+    glCompileShader(frag);
+    glGetShaderiv(frag, GL_COMPILE_STATUS, &err);
+    if (!err)
+    {
+        glGetShaderInfoLog(frag, 1024, NULL, output_log);
+        NYAS_LOG_ERR("%s frag:\n%s\n", name, output_log);
+    }
+    NYAS_FREE(shsrc);
+
+    glAttachShader(id, vert);
+    glAttachShader(id, frag);
+    glLinkProgram(id);
+    glGetProgramiv(id, GL_LINK_STATUS, &err);
+    if (!err)
+    {
+        glGetProgramInfoLog(id, 1024, NULL, output_log);
+        NYAS_LOG_ERR("%s program:\n%s\n", name, output_log);
+    }
+
+    glDeleteShader(vert);
+    glDeleteShader(frag);
 }
 
-void
-nypx_mesh_set(NyasMesh *mesh, uint32_t shader_id)
+void nypx_shader_loc(uint32_t id, int *o_loc, const char **i_unif, int count)
 {
-	glBindVertexArray(mesh->Resource.Id);
-	glBindBuffer(GL_ARRAY_BUFFER, mesh->ResVtx.Id);
-	glBufferData(GL_ARRAY_BUFFER, mesh->VtxSize, mesh->Vtx, GL_STATIC_DRAW);
-
-	GLint offset = 0;
-	GLsizei stride = _GetAttribStride(mesh->Attribs);
-	for (int i = 0; i < NyasVtxAttrib_COUNT; ++i) {
-		if (!(mesh->Attribs & (1 << i))) {
-			continue;
-		}
-
-		GLint size = attrib_sizes[i];
-		GLint attrib_pos = glGetAttribLocation(shader_id, attrib_names[i]);
-		if (attrib_pos >= 0) {
-			glEnableVertexAttribArray(attrib_pos);
-			glVertexAttribPointer(
-			attrib_pos, size, GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
-		}
-		offset += size;
-	}
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ResIdx.Id);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->ElementCount * sizeof(NyDrawIdx),
-				(const void *)mesh->Indices, GL_STATIC_DRAW);
-
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    for (int i = 0; i < count; ++i)
+    {
+        o_loc[i] = glGetUniformLocation(id, i_unif[i]);
+    }
 }
 
-void
-nypx_mesh_release(uint32_t *id, uint32_t *vid, uint32_t *iid)
+void nypx_shader_set_data(int loc, float *data, int v4count)
 {
-	glDeleteVertexArrays(1, id);
-	glDeleteBuffers(1, vid);
-	glDeleteBuffers(1, iid);
+    glUniform4fv(loc, v4count, data);
 }
 
-void
-nypx_shader_create(uint32_t *id)
+static void nypx__set_tex(int loc, int *t, int c, int unit, GLenum target)
 {
-	*id = glCreateProgram();
+    for (int i = 0; i < c; ++i)
+    {
+        glActiveTexture(GL_TEXTURE0 + unit + i);
+        glBindTexture(target, t[i]);
+        t[i] = unit + i;
+    }
+    glUniform1iv(loc, c, t);
 }
 
-void
-nypx_shader_compile(uint32_t id, const char *name)
+void nypx_shader_set_tex(int loc, int *tex, int count, int texunit_offset)
 {
-	// For shader hot-recompilations
-	GLuint shaders[8];
-	GLsizei attach_count;
-	glGetAttachedShaders(id, 8, &attach_count, shaders);
-	for (int i = 0; i < attach_count; ++i) {
-		glDetachShader(id, shaders[i]);
-	}
-
-	size_t shsrc_size; // Shader source size in bytes
-	char *shsrc;
-	char vert_path[256] = { '\0' };
-	char frag_path[256] = { '\0' };
-	strcpy(frag_path, "assets/shaders/");
-	strcat(frag_path, name);
-	strcpy(vert_path, frag_path);
-	strcat(vert_path, "-vert.glsl");
-	strcat(frag_path, "-frag.glsl");
-
-	GLint err;
-	GLchar output_log[1024];
-
-	GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-	GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-
-	if (Nyas::nyas_file_read(vert_path, &shsrc, &shsrc_size) != NyasCode_Ok) {
-		NYAS_ASSERT(!"Error loading shader vert file.");
-	}
-
-	glShaderSource(vert, 1, (const char *const *)&shsrc, NULL);
-	glCompileShader(vert);
-	glGetShaderiv(vert, GL_COMPILE_STATUS, &err);
-	if (!err) {
-		glGetShaderInfoLog(vert, 1024, NULL, output_log);
-		NYAS_LOG_ERR("%s vert:\n%s\n", name, output_log);
-	}
-	NYAS_FREE(shsrc);
-
-	if (Nyas::nyas_file_read(frag_path, &shsrc, &shsrc_size) != NyasCode_Ok) {
-		NYAS_ASSERT(!"Error loading shader frag file.");
-	}
-
-	glShaderSource(frag, 1, (const char *const *)&shsrc, NULL);
-	glCompileShader(frag);
-	glGetShaderiv(frag, GL_COMPILE_STATUS, &err);
-	if (!err) {
-		glGetShaderInfoLog(frag, 1024, NULL, output_log);
-		NYAS_LOG_ERR("%s frag:\n%s\n", name, output_log);
-	}
-	NYAS_FREE(shsrc);
-
-	glAttachShader(id, vert);
-	glAttachShader(id, frag);
-	glLinkProgram(id);
-	glGetProgramiv(id, GL_LINK_STATUS, &err);
-	if (!err) {
-		glGetProgramInfoLog(id, 1024, NULL, output_log);
-		NYAS_LOG_ERR("%s program:\n%s\n", name, output_log);
-	}
-
-	glDeleteShader(vert);
-	glDeleteShader(frag);
+    nypx__set_tex(loc, tex, count, texunit_offset, GL_TEXTURE_2D);
 }
 
-void
-nypx_shader_loc(uint32_t id, int *o_loc, const char **i_unif, int count)
+void nypx_shader_set_cube(int loc, int *tex, int count, int texunit_offset)
 {
-	for (int i = 0; i < count; ++i) {
-		o_loc[i] = glGetUniformLocation(id, i_unif[i]);
-	}
+    nypx__set_tex(loc, tex, count, texunit_offset, GL_TEXTURE_CUBE_MAP);
 }
 
-void
-nypx_shader_set_data(int loc, float *data, int v4count)
+void nypx_shader_use(uint32_t id)
 {
-	glUniform4fv(loc, v4count, data);
+    glUseProgram(id);
 }
 
-static void
-nypx__set_tex(int loc, int *t, int c, int unit, GLenum target)
+void nypx_shader_release(uint32_t id)
 {
-	for (int i = 0; i < c; ++i) {
-		glActiveTexture(GL_TEXTURE0 + unit + i);
-		glBindTexture(target, t[i]);
-		t[i] = unit + i;
-	}
-	glUniform1iv(loc, c, t);
+    glDeleteProgram(id);
 }
 
-void
-nypx_shader_set_tex(int loc, int *tex, int count, int texunit_offset)
+void nypx_fb_create(struct NyasFramebuffer *fb)
 {
-	nypx__set_tex(loc, tex, count, texunit_offset, GL_TEXTURE_2D);
+    glGenFramebuffers(1, &fb->Resource.Id);
 }
 
-void
-nypx_shader_set_cube(int loc, int *tex, int count, int texunit_offset)
+int nypx__fb_attach_gl(NyasFbAttach a)
 {
-	nypx__set_tex(loc, tex, count, texunit_offset, GL_TEXTURE_CUBE_MAP);
+    switch (a)
+    {
+    case NyasFbAttach_Depth:
+        return GL_DEPTH_ATTACHMENT;
+    case NyasFbAttach_Stencil:
+        return GL_STENCIL_ATTACHMENT;
+    case NyasFbAttach_DepthStencil:
+        return GL_DEPTH_STENCIL_ATTACHMENT;
+    default:
+        return GL_COLOR_ATTACHMENT0 + a;
+    }
 }
 
-void
-nypx_shader_use(uint32_t id)
+void nypx_fb_set(uint32_t fb_id, uint32_t tex_id, struct NyasTexTarget *tt)
 {
-	glUseProgram(id);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
+    GLenum face = tt->Face == NyasTexFace_2D ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP_POSITIVE_X + tt->Face;
+    GLint slot = nypx__fb_attach_gl(tt->Attach);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, slot, face, tex_id, tt->MipLevel);
 }
 
-void
-nypx_shader_release(uint32_t id)
+void nypx_fb_use(uint32_t id)
 {
-	glDeleteProgram(id);
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-void
-nypx_fb_create(struct NyasFramebuffer *fb)
+void nypx_fb_release(struct NyasFramebuffer *fb)
 {
-	glGenFramebuffers(1, &fb->Resource.Id);
+    glDeleteFramebuffers(1, &fb->Resource.Id);
 }
 
-int
-nypx__fb_attach_gl(NyasFbAttach a)
+void nypx_clear(bool color, bool depth, bool stencil)
 {
-	switch (a) {
-	case NyasFbAttach_Depth: return GL_DEPTH_ATTACHMENT;
-	case NyasFbAttach_Stencil: return GL_STENCIL_ATTACHMENT;
-	case NyasFbAttach_DepthStencil: return GL_DEPTH_STENCIL_ATTACHMENT;
-	default: return GL_COLOR_ATTACHMENT0 + a;
-	}
+    GLbitfield mask = 0;
+    mask |= (GL_COLOR_BUFFER_BIT * color);
+    mask |= (GL_DEPTH_BUFFER_BIT * depth);
+    mask |= (GL_STENCIL_BUFFER_BIT * stencil);
+    if (mask)
+    {
+        glClear(mask);
+    }
 }
 
-void
-nypx_fb_set(uint32_t fb_id, uint32_t tex_id, struct NyasTexTarget *tt)
+void nypx_draw(int elem_count, int index_type)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
-	GLenum face = tt->Face == NyasTexFace_2D ?
-	GL_TEXTURE_2D :
-	GL_TEXTURE_CUBE_MAP_POSITIVE_X + tt->Face;
-	GLint slot = nypx__fb_attach_gl(tt->Attach);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, slot, face, tex_id, tt->MipLevel);
+    glDrawElements(GL_TRIANGLES, elem_count, index_type ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0);
 }
 
-void
-nypx_fb_use(uint32_t id)
+void nypx_clear_color(float r, float g, float b, float a)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, id);
+    if (a >= 0.0f)
+    {
+        glClearColor(r, g, b, a);
+    }
 }
 
-void
-nypx_fb_release(struct NyasFramebuffer *fb)
+void nypx_blend_enable(void)
 {
-	glDeleteFramebuffers(1, &fb->Resource.Id);
+    glEnable(GL_BLEND);
 }
 
-void
-nypx_clear(bool color, bool depth, bool stencil)
+void nypx_blend_disable(void)
 {
-	GLbitfield mask = 0;
-	mask |= (GL_COLOR_BUFFER_BIT * color);
-	mask |= (GL_DEPTH_BUFFER_BIT * depth);
-	mask |= (GL_STENCIL_BUFFER_BIT * stencil);
-	if (mask) {
-		glClear(mask);
-	}
+    glDisable(GL_BLEND);
 }
 
-void
-nypx_draw(int elem_count, int index_type)
+void nypx_cull_enable(void)
 {
-	glDrawElements(GL_TRIANGLES, elem_count, index_type ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0);
+    glEnable(GL_CULL_FACE);
 }
 
-void
-nypx_clear_color(float r, float g, float b, float a)
+void nypx_cull_disable(void)
 {
-	if (a >= 0.0f) {
-		glClearColor(r, g, b, a);
-	}
+    glDisable(GL_CULL_FACE);
 }
 
-void
-nypx_blend_enable(void)
+void nypx_depth_enable_test(void)
 {
-	glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 }
 
-void
-nypx_blend_disable(void)
+void nypx_depth_disable_test(void)
 {
-	glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
 }
 
-void
-nypx_cull_enable(void)
+void nypx_depth_enable_mask(void)
 {
-	glEnable(GL_CULL_FACE);
+    glDepthMask(GL_TRUE);
 }
 
-void
-nypx_cull_disable(void)
+void nypx_depth_disable_mask(void)
 {
-	glDisable(GL_CULL_FACE);
+    glDepthMask(GL_FALSE);
 }
 
-void
-nypx_depth_enable_test(void)
+static GLenum nypx__gl_blend(int blend_func)
 {
-	glEnable(GL_DEPTH_TEST);
+    switch (blend_func)
+    {
+    case NyasBlendFunc_Default:
+        return 0xFFFF;
+    case NyasBlendFunc_One:
+        return GL_ONE;
+    case NyasBlendFunc_SrcAlpha:
+        return GL_SRC_ALPHA;
+    case NyasBlendFunc_OneMinusSrcAlpha:
+        return GL_ONE_MINUS_SRC_ALPHA;
+    case NyasBlendFunc_Zero:
+        return GL_ZERO;
+    default:
+        NYAS_ASSERT(false);
+        return -1;
+    }
 }
 
-void
-nypx_depth_disable_test(void)
+void nypx_blend_set(int blend_func_src, int blend_func_dst)
 {
-	glDisable(GL_DEPTH_TEST);
+    GLenum gl_src = nypx__gl_blend(blend_func_src);
+    if (gl_src != 0xFFFF)
+    {
+        glBlendFunc(gl_src, nypx__gl_blend(blend_func_dst));
+    }
 }
 
-void
-nypx_depth_enable_mask(void)
+static GLenum nypx__gl_cull(NyasFaceCull cull)
 {
-	glDepthMask(GL_TRUE);
+    switch (cull)
+    {
+    case NyasFaceCull_Back:
+        return GL_BACK;
+    case NyasFaceCull_Front:
+        return GL_FRONT;
+    case NyasFaceCull_FrontAndBack:
+        return GL_FRONT_AND_BACK;
+    case NyasFaceCull_Default:
+        return 0;
+    default:
+        return NyasError_SwitchBadLabel;
+    }
 }
 
-void
-nypx_depth_disable_mask(void)
+void nypx_cull_set(int cull_face)
 {
-	glDepthMask(GL_FALSE);
+    GLenum gl_value = nypx__gl_cull(cull_face);
+    if (gl_value)
+    {
+        glCullFace(nypx__gl_cull(cull_face));
+    }
 }
 
-static GLenum
-nypx__gl_blend(int blend_func)
+static GLenum nypx__gl_depth(NyasDepthFunc df)
 {
-	switch (blend_func) {
-	case NyasBlendFunc_Default: return 0xFFFF;
-	case NyasBlendFunc_One: return GL_ONE;
-	case NyasBlendFunc_SrcAlpha: return GL_SRC_ALPHA;
-	case NyasBlendFunc_OneMinusSrcAlpha: return GL_ONE_MINUS_SRC_ALPHA;
-	case NyasBlendFunc_Zero: return GL_ZERO;
-	default: NYAS_ASSERT(false); return -1;
-	}
+    switch (df)
+    {
+    case NyasDepthFunc_LessEqual:
+        return GL_LEQUAL;
+    case NyasDepthFunc_Less:
+        return GL_LESS;
+    case NyasDepthFunc_Default:
+        return 0;
+    default:
+        return NyasError_SwitchBadLabel;
+    }
 }
 
-void
-nypx_blend_set(int blend_func_src, int blend_func_dst)
+void nypx_depth_set(int depth_func)
 {
-	GLenum gl_src = nypx__gl_blend(blend_func_src);
-	if (gl_src != 0xFFFF) {
-		glBlendFunc(gl_src, nypx__gl_blend(blend_func_dst));
-	}
+    GLenum gl_value = nypx__gl_depth(depth_func);
+    if (gl_value)
+    {
+        glDepthFunc(gl_value);
+    }
 }
 
-static GLenum
-nypx__gl_cull(NyasFaceCull cull)
+void nypx_stencil_enable_test(void)
 {
-	switch (cull) {
-	case NyasFaceCull_Back: return GL_BACK;
-	case NyasFaceCull_Front: return GL_FRONT;
-	case NyasFaceCull_FrontAndBack: return GL_FRONT_AND_BACK;
-	case NyasFaceCull_Default: return 0;
-	default: return NyasError_SwitchBadLabel;
-	}
+    glEnable(GL_STENCIL);
 }
 
-void
-nypx_cull_set(int cull_face)
+void nypx_stencil_disable_test(void)
 {
-	GLenum gl_value = nypx__gl_cull(cull_face);
-	if (gl_value) {
-		glCullFace(nypx__gl_cull(cull_face));
-	}
+    glDisable(GL_STENCIL);
 }
 
-static GLenum
-nypx__gl_depth(NyasDepthFunc df)
+void nypx_stencil_enable_mask(void)
 {
-	switch (df) {
-	case NyasDepthFunc_LessEqual: return GL_LEQUAL;
-	case NyasDepthFunc_Less: return GL_LESS;
-	case NyasDepthFunc_Default: return 0;
-	default: return NyasError_SwitchBadLabel;
-	}
+    glStencilMask(GL_TRUE);
 }
 
-void
-nypx_depth_set(int depth_func)
+void nypx_stencil_disable_mask(void)
 {
-	GLenum gl_value = nypx__gl_depth(depth_func);
-	if (gl_value) {
-		glDepthFunc(gl_value);
-	}
+    glStencilMask(GL_FALSE);
 }
 
-void
-nypx_stencil_enable_test(void)
+void nypx_scissor_enable(void)
 {
-	glEnable(GL_STENCIL);
+    glEnable(GL_SCISSOR_TEST);
 }
 
-void
-nypx_stencil_disable_test(void)
+void nypx_scissor_disable(void)
 {
-	glDisable(GL_STENCIL);
+    glDisable(GL_SCISSOR_TEST);
 }
 
-void
-nypx_stencil_enable_mask(void)
+void nypx_viewport(NyRect rect)
 {
-	glStencilMask(GL_TRUE);
+    if (rect.X != rect.W)
+    {
+        glViewport(rect.X, rect.Y, rect.W, rect.H);
+    }
 }
 
-void
-nypx_stencil_disable_mask(void)
+void nypx_scissor(NyRect rect)
 {
-	glStencilMask(GL_FALSE);
-}
-
-void
-nypx_scissor_enable(void)
-{
-	glEnable(GL_SCISSOR_TEST);
-}
-
-void
-nypx_scissor_disable(void)
-{
-	glDisable(GL_SCISSOR_TEST);
-}
-
-void
-nypx_viewport(NyRect rect)
-{
-	if (rect.X != rect.W) {
-		glViewport(rect.X, rect.Y, rect.W, rect.H);
-	}
-}
-
-void
-nypx_scissor(NyRect rect)
-{
-	if (rect.X != rect.W) {
-		glScissor(rect.X, rect.Y, rect.W, rect.H);
-	}
+    if (rect.X != rect.W)
+    {
+        glScissor(rect.X, rect.Y, rect.W, rect.H);
+    }
 }
 
 #endif
