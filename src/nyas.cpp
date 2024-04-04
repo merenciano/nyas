@@ -22,13 +22,14 @@
 #define NYAS_MOUSE_BUTTON_UPDATE(MBTN)                                                             \
     G_Ctx->IO.MouseButton[(MBTN)] =                                                                \
         ((G_Ctx->IO.MouseButton[(MBTN)] << 1) |                                                    \
-            glfwGetMouseButton((GLFWwindow *)G_Ctx->IO.InternalWindow, (MBTN))) &                  \
+            glfwGetMouseButton((GLFWwindow *)G_Ctx->Platform.InternalWindow, (MBTN))) &            \
         3
 
 #define NYAS_KEY_UPDATE(KEY)                                                                       \
-    (G_Ctx->IO.Keys[(KEY)] = ((G_Ctx->IO.Keys[(KEY)] << 1) |                                       \
-                                 glfwGetKey((GLFWwindow *)G_Ctx->IO.InternalWindow, (KEY))) &      \
-                             3)
+    (G_Ctx->IO.Keys[(KEY)] =                                                                       \
+            ((G_Ctx->IO.Keys[(KEY)] << 1) |                                                        \
+                glfwGetKey((GLFWwindow *)G_Ctx->Platform.InternalWindow, (KEY))) &                 \
+            3)
 
 typedef int NyasSchedState;
 enum NyasSchedState_
@@ -243,7 +244,7 @@ static inline void _NyReadInput(void)
     NYAS_MOUSE_BUTTON_UPDATE(NyasMouseButton_Middle);
 
     double x, y;
-    glfwGetCursorPos((GLFWwindow *)G_Ctx->IO.InternalWindow, &x, &y);
+    glfwGetCursorPos((GLFWwindow *)G_Ctx->Platform.InternalWindow, &x, &y);
     G_Ctx->IO.MousePosition = { (float)x, (float)y };
 }
 
@@ -278,28 +279,28 @@ bool InitIO(const char *title, int win_w, int win_h)
         return false;
     }
 
-    G_Ctx->IO.InternalWindow = glfwCreateWindow(win_w, win_h, title, NULL, NULL);
-    if (!G_Ctx->IO.InternalWindow)
+    G_Ctx->Platform.InternalWindow = glfwCreateWindow(win_w, win_h, title, NULL, NULL);
+    if (!G_Ctx->Platform.InternalWindow)
     {
         glfwTerminate();
         return false;
     }
 
-    glfwMakeContextCurrent((GLFWwindow *)G_Ctx->IO.InternalWindow);
+    glfwMakeContextCurrent((GLFWwindow *)G_Ctx->Platform.InternalWindow);
 #ifndef __EMSCRIPTEN__
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 #endif
 
     glfwSwapInterval(1);
-    glfwSetScrollCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, _NyScrollCallback);
-    glfwSetCursorEnterCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, _NyCursorEnterCallback);
-    glfwSetWindowFocusCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, _NyWindowFocusCallback);
-    glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_STICKY_KEYS, GLFW_TRUE);
-    glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+    glfwSetScrollCallback((GLFWwindow *)G_Ctx->Platform.InternalWindow, _NyScrollCallback);
+    glfwSetCursorEnterCallback((GLFWwindow *)G_Ctx->Platform.InternalWindow, _NyCursorEnterCallback);
+    glfwSetWindowFocusCallback((GLFWwindow *)G_Ctx->Platform.InternalWindow, _NyWindowFocusCallback);
+    glfwSetInputMode((GLFWwindow *)G_Ctx->Platform.InternalWindow, GLFW_STICKY_KEYS, GLFW_TRUE);
+    glfwSetInputMode((GLFWwindow *)G_Ctx->Platform.InternalWindow, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 
-    G_Ctx->IO.ShowCursor = true;
-    G_Ctx->IO.CaptureMouse = true;
-    G_Ctx->IO.CaptureKeyboard = true;
+    G_Ctx->Platform.ShowCursor = true;
+    G_Ctx->Platform.CaptureMouse = true;
+    G_Ctx->Platform.CaptureKeyboard = true;
 
     G_Ctx->Cfg.Navigation.Speed = 10.0f;
     G_Ctx->Cfg.Navigation.DragSensibility = 0.001f;
@@ -345,28 +346,28 @@ int ReadFile(const char *path, char **dst, size_t *size)
 
 void PollIO(void)
 {
-    NYAS_ASSERT(G_Ctx->IO.InternalWindow && "The IO system is uninitalized");
+    NYAS_ASSERT(G_Ctx->Platform.InternalWindow && "The IO system is uninitalized");
     G_Ctx->IO.MouseScroll = { 0.0f, 0.0f };
     glfwPollEvents();
     _NyReadInput();
-    G_Ctx->Platform.WindowClosed = glfwWindowShouldClose((GLFWwindow *)G_Ctx->IO.InternalWindow);
+    G_Ctx->Platform.WindowClosed = glfwWindowShouldClose((GLFWwindow *)G_Ctx->Platform.InternalWindow);
     glfwGetWindowSize(
-        (GLFWwindow *)G_Ctx->IO.InternalWindow, &G_Ctx->IO.WindowSize.X, &G_Ctx->IO.WindowSize.Y);
+        (GLFWwindow *)G_Ctx->Platform.InternalWindow, &G_Ctx->Platform.WindowSize.X, &G_Ctx->Platform.WindowSize.Y);
 
-    if (G_Ctx->IO.ShowCursor)
+    if (G_Ctx->Platform.ShowCursor)
     {
-        glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        glfwSetInputMode((GLFWwindow *)G_Ctx->Platform.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
     else
     {
-        glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetInputMode((GLFWwindow *)G_Ctx->Platform.InternalWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 }
 
 void WindowSwap(void)
 {
-    NYAS_ASSERT(G_Ctx->IO.InternalWindow && "The IO system is uninitalized");
-    glfwSwapBuffers((GLFWwindow *)G_Ctx->IO.InternalWindow);
+    NYAS_ASSERT(G_Ctx->Platform.InternalWindow && "The IO system is uninitalized");
+    glfwSwapBuffers((GLFWwindow *)G_Ctx->Platform.InternalWindow);
 }
 
 template<typename T> static inline void _NyCheckHandle(NyasHandle h, const NyPool<T> &pool)
@@ -1184,7 +1185,7 @@ void NyasCamera::Navigate()
         Fov -= G_Ctx->IO.MouseScroll.Y * G_Ctx->Cfg.Navigation.ScrollSensibility;
         Fov = clampf(Fov, 1.0f, 120.0f);
         mat4_perspective(Proj, to_radians(Fov),
-            (float)G_Ctx->IO.WindowSize.X / (float)G_Ctx->IO.WindowSize.Y, 0.1f, Far);
+            (float)G_Ctx->Platform.WindowSize.X / (float)G_Ctx->Platform.WindowSize.Y, 0.1f, Far);
     }
 }
 

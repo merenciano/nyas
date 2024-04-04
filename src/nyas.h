@@ -667,11 +667,20 @@ typedef struct NyasPlatform
     void *(*Alloc)(size_t size);
     void (*Free)(void *ptr);
     int64_t (*GetTime)(); // Get system time in nanoseconds.
+	int (*ReadFile)(const char *path, char **out_dst, size_t *out_size);
 
     float DeltaTime;
+	void *InternalWindow;
+    NyVec2i WindowSize; // In pixels
     bool WindowClosed;
     bool WindowHovered;
     bool WindowFocused;
+
+	bool ShowCursor;
+    bool CaptureMouse;
+    bool CaptureKeyboard;
+
+	NyasPlatform() : DeltaTime(1.0f / 60.0f), InternalWindow(NULL), WindowClosed(false), ShowCursor(true) {}
 } NyasPlatform;
 
 typedef struct NyasConfig
@@ -688,21 +697,14 @@ typedef struct NyasIO
 {
     NyasKeyState Keys[348 + 1]; // TODO: Get last key value from the enum.
     NyasKeyState MouseButton[3];
-    void *InternalWindow;
-    NyVec2i WindowSize; // In pixels
     NyVec2 MousePosition;
     NyVec2 MouseScroll; // x horizontal and y vertical scrolls
-    bool ShowCursor;
-    bool CaptureMouse;
-    bool CaptureKeyboard;
-
-    NyasIO() : InternalWindow(NULL) {}
 } NyasIO;
 
 typedef struct NyasCtx
 {
-    NyasConfig Cfg;
     NyasPlatform Platform;
+    NyasConfig Cfg;
     NyasIO IO;
 } NyasCtx;
 
@@ -912,13 +914,13 @@ typedef struct NyasCamera
         return mat4_multiply(out, Proj, out);
     }
 
-    inline void Init(const NyasIO &io, NyVec3 pos = { 0.0f, 2.0f, 2.0f },
+    inline void Init(const NyasCtx& ctx, NyVec3 pos = { 0.0f, 2.0f, 2.0f },
         NyVec3 target = { 0.0f, 0.0f, -1.0f }, float far = 300.0f, float fov = 70.0f)
     {
         Far = far;
         Fov = fov;
         mat4_look_at(View, pos, target, NyVec3::Up());
-        mat4_perspective_fov(Proj, to_radians(Fov), io.WindowSize.X, io.WindowSize.Y, 0.01f, Far);
+        mat4_perspective_fov(Proj, to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
     }
 } NyasCamera;
 
