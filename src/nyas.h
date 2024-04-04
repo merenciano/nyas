@@ -146,7 +146,7 @@ NyasCtx *GetCurrentCtx();
 bool InitIO(const char *title, int win_w, int win_h);
 void PollIO(void);
 void WindowSwap(void);
-int nyas_file_read(const char *path, char **dst, size_t *size);
+int ReadFile(const char *path, char **dst, size_t *size);
 } // namespace Nyas
 
 struct NyAllocator

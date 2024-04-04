@@ -114,7 +114,7 @@ NyPool<NyasFramebuffer> Framebufs;
 NyPool<NyasEntity> Entities;
 NyasCamera Camera;
 
-static inline void ReadInput(void)
+static inline void _NyReadInput(void)
 {
     NYAS_KEY_UPDATE(NyasKey_Invalid);
     NYAS_KEY_UPDATE(NyasKey_Space);
@@ -247,19 +247,19 @@ static inline void ReadInput(void)
     G_Ctx->IO.MousePosition = { (float)x, (float)y };
 }
 
-static void nyas__scrollcallback(GLFWwindow *window, double x_offset, double y_offset)
+static void _NyScrollCallback(GLFWwindow *window, double x_offset, double y_offset)
 {
     NY_UNUSED(window);
     G_Ctx->IO.MouseScroll = { (float)x_offset, (float)y_offset };
 }
 
-static void nyas__cursor_enter_callback(GLFWwindow *window, int entered)
+static void _NyCursorEnterCallback(GLFWwindow *window, int entered)
 {
     NY_UNUSED(window);
     G_Ctx->Platform.WindowHovered = entered;
 }
 
-static void nyas__window_focus_callback(GLFWwindow *window, int focused)
+static void _NyWindowFocusCallback(GLFWwindow *window, int focused)
 {
     NY_UNUSED(window);
     G_Ctx->Platform.WindowFocused = focused;
@@ -291,9 +291,9 @@ bool InitIO(const char *title, int win_w, int win_h)
 #endif
 
     glfwSwapInterval(1);
-    glfwSetScrollCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, nyas__scrollcallback);
-    glfwSetCursorEnterCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, nyas__cursor_enter_callback);
-    glfwSetWindowFocusCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, nyas__window_focus_callback);
+    glfwSetScrollCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, _NyScrollCallback);
+    glfwSetCursorEnterCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, _NyCursorEnterCallback);
+    glfwSetWindowFocusCallback((GLFWwindow *)G_Ctx->IO.InternalWindow, _NyWindowFocusCallback);
     glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_STICKY_KEYS, GLFW_TRUE);
     glfwSetInputMode((GLFWwindow *)G_Ctx->IO.InternalWindow, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 
@@ -309,7 +309,7 @@ bool InitIO(const char *title, int win_w, int win_h)
     return true;
 }
 
-int nyas_file_read(const char *path, char **dst, size_t *size)
+int ReadFile(const char *path, char **dst, size_t *size)
 {
     FILE *f = fopen(path, "rb");
     if (!f)
@@ -348,7 +348,7 @@ void PollIO(void)
     NYAS_ASSERT(G_Ctx->IO.InternalWindow && "The IO system is uninitalized");
     G_Ctx->IO.MouseScroll = { 0.0f, 0.0f };
     glfwPollEvents();
-    ReadInput();
+    _NyReadInput();
     G_Ctx->Platform.WindowClosed = glfwWindowShouldClose((GLFWwindow *)G_Ctx->IO.InternalWindow);
     glfwGetWindowSize(
         (GLFWwindow *)G_Ctx->IO.InternalWindow, &G_Ctx->IO.WindowSize.X, &G_Ctx->IO.WindowSize.Y);
@@ -376,10 +376,10 @@ template<typename T> static inline void _NyCheckHandle(NyasHandle h, const NyPoo
 }
 
 static void
-nyas__file_reader(void *_1, const char *path, int _2, const char *_3, char **buf, size_t *size)
+_NyReadFile(void *_1, const char *path, int _2, const char *_3, char **buf, size_t *size)
 {
     (void)_1, (void)_2, (void)_3;
-    nyas_file_read(path, buf, size);
+    ReadFile(path, buf, size);
 }
 
 static NyasHandle _CreateMeshHandle(void)
@@ -586,7 +586,7 @@ static void _SetMeshObj(NyasMesh *mesh, const char *path)
     size_t mats_count;
 
     int result = tinyobj_parse_obj(&attrib, &shapes, &shape_count, &mats, &mats_count, path,
-        nyas__file_reader, NULL, TINYOBJ_FLAG_TRIANGULATE);
+        _NyReadFile, NULL, TINYOBJ_FLAG_TRIANGULATE);
 
     NYAS_ASSERT(result == TINYOBJ_SUCCESS && "Obj loader failed.");
     if (result != TINYOBJ_SUCCESS)
@@ -725,7 +725,7 @@ static void _SetMeshMsh(NyasMesh *mesh, const char *path)
 {
     char *data;
     size_t sz;
-    nyas__file_reader(NULL, path, 0, NULL, &data, &sz);
+    _NyReadFile(NULL, path, 0, NULL, &data, &sz);
     if (!data || !sz)
     {
         NYAS_LOG_ERR("Problem reading file %s", path);
@@ -2123,7 +2123,7 @@ void _NyCompileShader(uint32_t id, const char *name)
     GLuint vert = glCreateShader(GL_VERTEX_SHADER);
     GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
 
-    if (Nyas::nyas_file_read(vert_path, &shsrc, &shsrc_size) != NyasCode_Ok)
+    if (Nyas::ReadFile(vert_path, &shsrc, &shsrc_size) != NyasCode_Ok)
     {
         NYAS_ASSERT(!"Error loading shader vert file.");
     }
@@ -2138,7 +2138,7 @@ void _NyCompileShader(uint32_t id, const char *name)
     }
     NYAS_FREE(shsrc);
 
-    if (Nyas::nyas_file_read(frag_path, &shsrc, &shsrc_size) != NyasCode_Ok)
+    if (Nyas::ReadFile(frag_path, &shsrc, &shsrc_size) != NyasCode_Ok)
     {
         NYAS_ASSERT(!"Error loading shader frag file.");
     }
