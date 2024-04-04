@@ -41,25 +41,25 @@
 
 #define NYAS__LOG_LOC NYAS_PRINT("%s(%u)", __FILE__, __LINE__)
 
-#define NYAS_LOG(...)                                                                                                  \
-    NYAS_PRINT("Nyas [Log] ");                                                                                         \
-    NYAS__LOG_LOC;                                                                                                     \
-    NYAS_PRINT(":\n\t");                                                                                               \
-    NYAS_PRINT(__VA_ARGS__);                                                                                           \
+#define NYAS_LOG(...)                                                                              \
+    NYAS_PRINT("Nyas [Log] ");                                                                     \
+    NYAS__LOG_LOC;                                                                                 \
+    NYAS_PRINT(":\n\t");                                                                           \
+    NYAS_PRINT(__VA_ARGS__);                                                                       \
     NYAS_PRINT("\n")
 
-#define NYAS_LOG_WARN(...)                                                                                             \
-    NYAS_PRINT("Nyas [Warning] ");                                                                                     \
-    NYAS__LOG_LOC;                                                                                                     \
-    NYAS_PRINT(":\n\t");                                                                                               \
-    NYAS_PRINT(__VA_ARGS__);                                                                                           \
+#define NYAS_LOG_WARN(...)                                                                         \
+    NYAS_PRINT("Nyas [Warning] ");                                                                 \
+    NYAS__LOG_LOC;                                                                                 \
+    NYAS_PRINT(":\n\t");                                                                           \
+    NYAS_PRINT(__VA_ARGS__);                                                                       \
     NYAS_PRINT("\n")
 
-#define NYAS_LOG_ERR(...)                                                                                              \
-    NYAS_PRINT("Nyas [Error] ");                                                                                       \
-    NYAS__LOG_LOC;                                                                                                     \
-    NYAS_PRINT(":\n\t");                                                                                               \
-    NYAS_PRINT(__VA_ARGS__);                                                                                           \
+#define NYAS_LOG_ERR(...)                                                                          \
+    NYAS_PRINT("Nyas [Error] ");                                                                   \
+    NYAS__LOG_LOC;                                                                                 \
+    NYAS_PRINT(":\n\t");                                                                           \
+    NYAS_PRINT(__VA_ARGS__);                                                                       \
     NYAS_PRINT("\n")
 
 #ifndef NyDrawIdx
@@ -70,6 +70,7 @@ typedef int NyasHandle;
 
 // Basic data types
 struct NyasCtx;
+struct NyasPlatform;
 struct NyasIO;
 struct NyasResource;
 struct NyasTexDesc;
@@ -88,27 +89,27 @@ struct NyasCamera;
 struct NyasEntity;
 
 // Flags
-typedef int NyasResourceFlags;  // enum NyasResourceFlags_
-typedef int NyasTexFlags;       // enum NyasTexFlags_
+typedef int NyasResourceFlags; // enum NyasResourceFlags_
+typedef int NyasTexFlags; // enum NyasTexFlags_
 typedef int NyasVtxAttribFlags; // enum NyasVtxAttribFlags_
-typedef int NyasDrawFlags;      // enum NyasDrawFlags_
+typedef int NyasDrawFlags; // enum NyasDrawFlags_
 
 // Enum
-typedef int NyasTexType;     // enum NyasTexType_
-typedef int NyasTexFmt;      // enum NyasTexFmt_
-typedef int NyasTexFilter;   // enum NyasTexFilter_
-typedef int NyasTexWrap;     // enum NyasTexWrap_
-typedef int NyasTexFace;     // enum NyasTexFace_
-typedef int NyasVtxAttrib;   // enum NyasVtxAttrib_
-typedef int NyasFbAttach;    // enum NyasFbAttach_
-typedef int NyasBlendFunc;   // enum NyasBlendFunc_
-typedef int NyasDepthFunc;   // enum NyasDepthFunc_
-typedef int NyasFaceCull;    // enum NyasFaceCull_
-typedef int NyasKey;         // enum NyasKey_
-typedef int NyasKeyState;    // enum NyasKeyState_
+typedef int NyasTexType; // enum NyasTexType_
+typedef int NyasTexFmt; // enum NyasTexFmt_
+typedef int NyasTexFilter; // enum NyasTexFilter_
+typedef int NyasTexWrap; // enum NyasTexWrap_
+typedef int NyasTexFace; // enum NyasTexFace_
+typedef int NyasVtxAttrib; // enum NyasVtxAttrib_
+typedef int NyasFbAttach; // enum NyasFbAttach_
+typedef int NyasBlendFunc; // enum NyasBlendFunc_
+typedef int NyasDepthFunc; // enum NyasDepthFunc_
+typedef int NyasFaceCull; // enum NyasFaceCull_
+typedef int NyasKey; // enum NyasKey_
+typedef int NyasKeyState; // enum NyasKeyState_
 typedef int NyasMouseButton; // enum NyasMouseButton_
-typedef int NyasCode;        // enum NyasCode_
-typedef int NyasError;       // enum NyasError_
+typedef int NyasCode; // enum NyasCode_
+typedef int NyasError; // enum NyasError_
 
 namespace Nyas
 {
@@ -140,7 +141,7 @@ NyasHandle *GetMaterialTextures(NyasMaterial mat); // Ptr to first texture.
 
 void Draw(NyasDrawCmd *command);
 
-NyasCtx* GetCurrentCtx();
+NyasCtx *GetCurrentCtx();
 
 bool InitIO(const char *title, int win_w, int win_h);
 void PollIO(void);
@@ -162,7 +163,7 @@ struct NyAllocator
     }
 };
 
-template <size_t CAP> struct NyCircularAllocator
+template<size_t CAP> struct NyCircularAllocator
 {
     static char Arena[CAP];
     static ptrdiff_t Offset;
@@ -187,22 +188,17 @@ template <size_t CAP> struct NyCircularAllocator
     }
 };
 
-template <size_t CAP> char NyCircularAllocator<CAP>::Arena[CAP] = {0};
-template <size_t CAP> ptrdiff_t NyCircularAllocator<CAP>::Offset = {0};
+template<size_t CAP> char NyCircularAllocator<CAP>::Arena[CAP] = { 0 };
+template<size_t CAP> ptrdiff_t NyCircularAllocator<CAP>::Offset = { 0 };
 typedef NyCircularAllocator<NYAS_FRAME_ALLOCATOR_ARENA_SIZE> NyFrameAllocator;
 
-template <typename T, typename A = NyAllocator> struct NyBuffer
+template<typename T, typename A = NyAllocator> struct NyBuffer
 {
     T *Data;
     int Capacity;
 
-    inline NyBuffer() : Data(NULL), Capacity(0)
-    {
-    }
-    inline NyBuffer(int capacity)
-    {
-        Reserve(capacity);
-    }
+    inline NyBuffer() : Data(NULL), Capacity(0) {}
+    inline NyBuffer(int capacity) { Reserve(capacity); }
     inline ~NyBuffer()
     {
         A::Free(Data);
@@ -223,32 +219,19 @@ template <typename T, typename A = NyAllocator> struct NyBuffer
         Capacity = capacity;
     }
 
-    inline const T &operator[](int i) const
-    {
-        return Data[i];
-    }
-    inline T &operator[](int i)
-    {
-        return Data[i];
-    }
+    inline const T &operator[](int i) const { return Data[i]; }
+    inline T &operator[](int i) { return Data[i]; }
 };
 
 // Dynamic array.
-template <typename T, typename A = NyAllocator> struct NyArray
+template<typename T, typename A = NyAllocator> struct NyArray
 {
     NyBuffer<T, A> Buf;
     int Size;
 
-    inline NyArray() : Buf(), Size(0)
-    {
-    }
-    inline NyArray(int capacity) : Buf(capacity), Size(0)
-    {
-    }
-    inline ~NyArray()
-    {
-        Size = 0;
-    }
+    inline NyArray() : Buf(), Size(0) {}
+    inline NyArray(int capacity) : Buf(capacity), Size(0) {}
+    inline ~NyArray() { Size = 0; }
     inline void Push(const T &value)
     {
         if (Buf.Capacity == Size)
@@ -263,47 +246,28 @@ template <typename T, typename A = NyAllocator> struct NyArray
         NYAS_ASSERT(Size > 0);
         --Size;
     }
-    inline const T &Back()
-    {
-        return Buf[Size - 1];
-    }
-    inline const T &operator[](int i) const
-    {
-        return Buf[i];
-    }
-    inline T &operator[](int i)
-    {
-        return Buf[i];
-    }
+    inline const T &Back() { return Buf[Size - 1]; }
+    inline const T &operator[](int i) const { return Buf[i]; }
+    inline T &operator[](int i) { return Buf[i]; }
 };
 
 // Basic pool, uses internal array index as id (key).
-template <typename T, typename A = NyAllocator> struct NyPool
+template<typename T, typename A = NyAllocator> struct NyPool
 {
     NyArray<T, A> Arr;
     int Count;
     int Next;
 
-    inline NyPool() : Arr(), Count(0), Next(0)
-    {
-    }
-    inline NyPool(int capacity) : Arr(capacity), Count(0), Next(0)
-    {
-    }
+    inline NyPool() : Arr(), Count(0), Next(0) {}
+    inline NyPool(int capacity) : Arr(capacity), Count(0), Next(0) {}
     inline ~NyPool()
     {
         Count = 0;
         Next = 0;
     }
 
-    inline const T &operator[](int i) const
-    {
-        return Arr[i];
-    }
-    inline T &operator[](int i)
-    {
-        return Arr[i];
-    }
+    inline const T &operator[](int i) const { return Arr[i]; }
+    inline T &operator[](int i) { return Arr[i]; }
 
     inline int Add(const T &value = T())
     {
@@ -333,74 +297,40 @@ template <typename T, typename A = NyAllocator> struct NyPool
 struct NyVec2i
 {
     int X, Y;
-    NyVec2i() : X(0), Y(0)
-    {
-    }
-    NyVec2i(int x, int y) : X(x), Y(y)
-    {
-    }
-    inline operator int *()
-    {
-        return &X;
-    }
+    NyVec2i() : X(0), Y(0) {}
+    NyVec2i(int x, int y) : X(x), Y(y) {}
+    inline operator int *() { return &X; }
 };
 
 struct NyVec2
 {
     float X, Y;
-    NyVec2() : X(0.0f), Y(0.0f)
-    {
-    }
-    NyVec2(float x, float y) : X(x), Y(y)
-    {
-    }
-    NyVec2(const NyVec2 &other)
-    {
-        *this = other;
-    }
+    NyVec2() : X(0.0f), Y(0.0f) {}
+    NyVec2(float x, float y) : X(x), Y(y) {}
+    NyVec2(const NyVec2 &other) { *this = other; }
     inline void operator=(const NyVec2 &other)
     {
         X = other.X;
         Y = other.Y;
     }
-    inline operator float *()
-    {
-        return &X;
-    }
+    inline operator float *() { return &X; }
 };
 
 struct NyVec3
 {
     float X, Y, Z;
-    static inline NyVec3 Up()
-    {
-        return {0.0f, 1.0f, 0.0f};
-    }
-    NyVec3() : X(0.0f), Y(0.0f), Z(0.0f)
-    {
-    }
-    NyVec3(float x, float y, float z) : X(x), Y(y), Z(z)
-    {
-    }
-    inline operator float *()
-    {
-        return &X;
-    }
+    static inline NyVec3 Up() { return { 0.0f, 1.0f, 0.0f }; }
+    NyVec3() : X(0.0f), Y(0.0f), Z(0.0f) {}
+    NyVec3(float x, float y, float z) : X(x), Y(y), Z(z) {}
+    inline operator float *() { return &X; }
 };
 
 struct NyRect
 {
     int X, Y, W, H;
-    NyRect() : X(0), Y(0), W(0), H(0)
-    {
-    }
-    NyRect(int x, int y, int w, int h) : X(x), Y(y), W(w), H(h)
-    {
-    }
-    inline operator int *()
-    {
-        return &X;
-    }
+    NyRect() : X(0), Y(0), W(0), H(0) {}
+    NyRect(int x, int y, int w, int h) : X(x), Y(y), W(w), H(h) {}
+    inline operator int *() { return &X; }
 };
 
 enum NyasTexType_
@@ -532,7 +462,7 @@ enum NyasTexFlags_
 
 enum NyasDrawFlags_
 {
-    NyasDrawFlags_None,
+    NyasDrawFlags_None = 0,
     NyasDrawFlags_ColorClear = 1,
     NyasDrawFlags_DepthClear = 1 << 1,
     NyasDrawFlags_StencilClear = 1 << 2,
@@ -570,10 +500,10 @@ enum NyasKey_
     NyasKey_Invalid = 0,
     NyasKey_Space = 32,
     NyasKey_Apostrophe = 39, /* ' */
-    NyasKey_Comma = 44,      /* , */
-    NyasKey_Minus = 45,      /* - */
-    NyasKey_Period = 46,     /* . */
-    NyasKey_Slash = 47,      /* / */
+    NyasKey_Comma = 44, /* , */
+    NyasKey_Minus = 45, /* - */
+    NyasKey_Period = 46, /* . */
+    NyasKey_Slash = 47, /* / */
     NyasKey_0 = 48,
     NyasKey_1 = 49,
     NyasKey_2 = 50,
@@ -585,7 +515,7 @@ enum NyasKey_
     NyasKey_8 = 56,
     NyasKey_9 = 57,
     NyasKey_Semicolon = 59, /* ; */
-    NyasKey_Equal = 61,     /* = */
+    NyasKey_Equal = 61, /* = */
     NyasKey_A = 65,
     NyasKey_B = 66,
     NyasKey_C = 67,
@@ -612,12 +542,12 @@ enum NyasKey_
     NyasKey_X = 88,
     NyasKey_Y = 89,
     NyasKey_Z = 90,
-    NyasKey_LeftBracket = 91,  /* [ */
-    NyasKey_Backslash = 92,    /* \ */
+    NyasKey_LeftBracket = 91, /* [ */
+    NyasKey_Backslash = 92, /* \ */
     NyasKey_RightBracket = 93, /* ] */
-    NyasKey_GraveAccent = 96,  /* ` */
-    NyasKey_World1 = 161,      /* non-US #1 */
-    NyasKey_World2 = 162,      /* non-US #2 */
+    NyasKey_GraveAccent = 96, /* ` */
+    NyasKey_World1 = 161, /* non-US #1 */
+    NyasKey_World2 = 162, /* non-US #2 */
     NyasKey_Escape = 256,
     NyasKey_Enter = 257,
     NyasKey_Tab = 258,
@@ -693,9 +623,9 @@ enum NyasKey_
 enum NyasKeyState_
 {
     NyasKeyState_RELEASED = 0, /* Not pressed */
-    NyasKeyState_DOWN = 1,     /* From released to pressed this frame */
-    NyasKeyState_UP = 2,       /* From pressed to released this frame */
-    NyasKeyState_PRESSED = 3,  /* Pressed */
+    NyasKeyState_DOWN = 1, /* From released to pressed this frame */
+    NyasKeyState_UP = 2, /* From pressed to released this frame */
+    NyasKeyState_PRESSED = 3, /* Pressed */
 };
 
 enum NyasMouseButton_
@@ -744,16 +674,14 @@ typedef struct NyasPlatform
     bool WindowFocused;
 } NyasPlatform;
 
-struct NyNavigationConfig
-{
-    float Speed;
-    float Sensitivity;
-    float ScrollSensitivity;
-};
-
 typedef struct NyasConfig
 {
-    NyNavigationConfig NavCfg;
+    struct
+	{
+		float Speed;
+		float DragSensibility;
+		float ScrollSensibility;
+	} Navigation;
 } NyasConfig;
 
 typedef struct NyasIO
@@ -768,9 +696,7 @@ typedef struct NyasIO
     bool CaptureMouse;
     bool CaptureKeyboard;
 
-    NyasIO() : InternalWindow(NULL)
-    {
-    }
+    NyasIO() : InternalWindow(NULL) {}
 } NyasIO;
 
 typedef struct NyasCtx
@@ -794,10 +720,10 @@ typedef struct NyasTexDesc
     NyasTexWrap WrapR;
     float BorderColor[4];
 
-    NyasTexDesc()
-        : Width(0), Height(0), Flags(NyasTexFlags_None), Type(NyasTexType_2D), Format(NyasTexFmt_SRGB_8),
-          MinFilter(NyasTexFilter_Linear), MagFilter(NyasTexFilter_Linear), WrapS(NyasTexWrap_Repeat),
-          WrapT(NyasTexWrap_Repeat), WrapR(NyasTexWrap_Repeat)
+    NyasTexDesc() :
+        Width(0), Height(0), Flags(NyasTexFlags_None), Type(NyasTexType_2D),
+        Format(NyasTexFmt_SRGB_8), MinFilter(NyasTexFilter_Linear), MagFilter(NyasTexFilter_Linear),
+        WrapS(NyasTexWrap_Repeat), WrapT(NyasTexWrap_Repeat), WrapR(NyasTexWrap_Repeat)
     {
         BorderColor[0] = 1.0f;
         BorderColor[1] = 1.0f;
@@ -805,10 +731,10 @@ typedef struct NyasTexDesc
         BorderColor[3] = 1.0f;
     }
 
-    NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h)
-        : Width(w), Height(h), Flags(NyasTexFlags_None), Type(type), Format(fmt), MinFilter(NyasTexFilter_Linear),
-          MagFilter(NyasTexFilter_Linear), WrapS(NyasTexWrap_Repeat), WrapT(NyasTexWrap_Repeat),
-          WrapR(NyasTexWrap_Repeat)
+    NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h) :
+        Width(w), Height(h), Flags(NyasTexFlags_None), Type(type), Format(fmt),
+        MinFilter(NyasTexFilter_Linear), MagFilter(NyasTexFilter_Linear), WrapS(NyasTexWrap_Repeat),
+        WrapT(NyasTexWrap_Repeat), WrapR(NyasTexWrap_Repeat)
     {
         BorderColor[0] = 1.0f;
         BorderColor[1] = 1.0f;
@@ -830,21 +756,15 @@ typedef struct NyasTexImg
     void *Pix;
     NyasTexFace Face;
     int MipLevel;
-    NyasTexImg() : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0)
-    {
-    }
+    NyasTexImg() : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0) {}
 } NyasTexImg;
 
 typedef struct NyasMaterial
 {
     void *Ptr; // TODO deprecar
     NyasHandle Shader;
-    NyasMaterial() : Ptr(NULL), Shader(NyasCode_NoOp)
-    {
-    }
-    NyasMaterial(NyasHandle shader) : Ptr(NULL), Shader(shader)
-    {
-    }
+    NyasMaterial() : Ptr(NULL), Shader(NyasCode_NoOp) {}
+    NyasMaterial(NyasHandle shader) : Ptr(NULL), Shader(shader) {}
 } NyasMaterial;
 
 typedef struct NyasResource
@@ -852,9 +772,7 @@ typedef struct NyasResource
     uint32_t Id;
     NyasResourceFlags Flags;
 
-    NyasResource() : Id(0), Flags(0)
-    {
-    }
+    NyasResource() : Id(0), Flags(0) {}
 } NyasResource;
 
 typedef struct NyasShaderDesc
@@ -867,9 +785,11 @@ typedef struct NyasShaderDesc
     int SharedTexCount;
     int SharedCubemapCount;
 
-    NyasShaderDesc(const char *id, int dcount, int tcount, int cmcount, int sdcount, int stcount, int scmcount)
-        : Name(id), DataCount(dcount), TexCount(tcount), CubemapCount(cmcount), SharedDataCount(sdcount),
-          SharedTexCount(stcount), SharedCubemapCount(scmcount)
+    NyasShaderDesc(const char *id, int dcount, int tcount, int cmcount, int sdcount, int stcount,
+        int scmcount) :
+        Name(id),
+        DataCount(dcount), TexCount(tcount), CubemapCount(cmcount), SharedDataCount(sdcount),
+        SharedTexCount(stcount), SharedCubemapCount(scmcount)
     {
     }
 } NyasShaderDesc;
@@ -913,10 +833,10 @@ typedef struct NyasFramebuffer
 
 typedef struct NyasDrawState
 {
-    NyasBlendFunc BlendSrc;   // NYAS_DRAW_BLEND_
-    NyasBlendFunc BlendDst;   // NYAS_DRAW_BLEND_
-    NyasDepthFunc Depth;      // NYAS_DRAW_DEPTH_
-    NyasFaceCull FaceCulling; // NYAS_DRAW_CULL_
+    NyasBlendFunc BlendSrc;
+    NyasBlendFunc BlendDst;
+    NyasDepthFunc Depth;
+    NyasFaceCull FaceCulling;
     NyasDrawFlags EnableFlags;
     NyasDrawFlags DisableFlags;
     int ViewportMinX; // if (viewport_min_x == viewport_max_x): no-op
@@ -932,11 +852,13 @@ typedef struct NyasDrawState
     float BgColorB;
     float BgColorA;
 
-    NyasDrawState()
-        : BlendSrc(NyasBlendFunc_Default), BlendDst(NyasBlendFunc_Default), Depth(NyasDepthFunc_Default),
-          FaceCulling(NyasFaceCull_Default), EnableFlags(NyasDrawFlags_None), DisableFlags(NyasDrawFlags_None),
-          ViewportMinX(0), ViewportMinY(0), ViewportMaxX(0), ViewportMaxY(0), ScissorMinX(0), ScissorMinY(0),
-          ScissorMaxX(0), ScissorMaxY(0), BgColorR(0.0f), BgColorG(0.0f), BgColorB(0.0f), BgColorA(-1.0f)
+    NyasDrawState() :
+        BlendSrc(NyasBlendFunc_Default), BlendDst(NyasBlendFunc_Default),
+        Depth(NyasDepthFunc_Default), FaceCulling(NyasFaceCull_Default),
+        EnableFlags(NyasDrawFlags_None), DisableFlags(NyasDrawFlags_None), ViewportMinX(0),
+        ViewportMinY(0), ViewportMaxX(0), ViewportMaxY(0), ScissorMinX(0), ScissorMinY(0),
+        ScissorMaxX(0), ScissorMaxY(0), BgColorR(0.0f), BgColorG(0.0f), BgColorB(0.0f),
+        BgColorA(-1.0f)
     {
     }
 } NyasDrawState;
@@ -954,9 +876,7 @@ typedef struct NyasDrawCmd
     int UnitCount;
     NyasHandle Framebuf;
     NyasMaterial ShaderMaterial;
-    NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp)
-    {
-    }
+    NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp) {}
 } NyasDrawCmd;
 
 typedef struct NyasCamera
@@ -965,23 +885,20 @@ typedef struct NyasCamera
     float Proj[16];
     float Far;
     float Fov;
-    NyasCamera()
-    {
-        memset(this, 0, sizeof(*this));
-    }
+    NyasCamera() { memset(this, 0, sizeof(*this)); }
     void Navigate();
+
+    // Position.
     inline NyVec3 Eye() const
     {
         float inv[16];
         mat4_inverse(inv, View);
-        return {inv[12], inv[13], inv[14]};
-    } // Position.
-    inline NyVec3 Fwd() const
-    {
-        return {View[2], View[6], View[10]};
-    } // Forward vector.
-    // Matrix with zeroed translation (i.e., projection * vec4(vec3(view)). For
-    // skybox.
+        return { inv[12], inv[13], inv[14] };
+    }
+
+    inline NyVec3 Fwd() const { return { View[2], View[6], View[10] }; } // Forward vector.
+
+    // Matrix with zeroed translation (i.e., projection * vec4(vec3(view)). For skybox.
     inline float *OriginViewProj(float out[16])
     {
         mat4_assign(out, View);
@@ -994,8 +911,9 @@ typedef struct NyasCamera
         out[15] = 0.0f;
         return mat4_multiply(out, Proj, out);
     }
-    inline void Init(const NyasIO &io, NyVec3 pos = {0.0f, 2.0f, 2.0f}, NyVec3 target = {0.0f, 0.0f, -1.0f},
-                     float far = 300.0f, float fov = 70.0f)
+
+    inline void Init(const NyasIO &io, NyVec3 pos = { 0.0f, 2.0f, 2.0f },
+        NyVec3 target = { 0.0f, 0.0f, -1.0f }, float far = 300.0f, float fov = 70.0f)
     {
         Far = far;
         Fov = fov;
@@ -1024,85 +942,81 @@ extern NyasCamera Camera;
 // ---
 // [UTILS]
 // ---
+
 // Nanosecond timer
 struct NyChrono
 {
-    int64_t Start{0};
+    int64_t Start { 0 };
 
-    static inline int64_t GetTime()
-    {
-        return NYAS_GET_TIME_NS;
-    } // Current time in nanoseconds.
-    static constexpr int64_t MicroSeconds(int64_t ns)
-    {
-        return ns / 1000;
-    }
-    static constexpr int64_t MilliSeconds(int64_t ns)
-    {
-        return MicroSeconds(ns) / 1000;
-    }
-    static constexpr int64_t Seconds(int64_t ns)
-    {
-        return MilliSeconds(ns) / 1000;
-    }
+    static inline int64_t GetTime() { return NYAS_GET_TIME_NS; } // Current time in nanoseconds.
+    static constexpr int64_t MicroSeconds(int64_t ns) { return ns / 1000; }
+    static constexpr int64_t MilliSeconds(int64_t ns) { return MicroSeconds(ns) / 1000; }
+    static constexpr int64_t Seconds(int64_t ns) { return MilliSeconds(ns) / 1000; }
+    static constexpr double MicroSeconds(double ns) { return ns / 1000.0; }
+    static constexpr double MilliSeconds(double ns) { return MicroSeconds(ns) / 1000.0; }
+    static constexpr double Seconds(double ns) { return MilliSeconds(ns) / 1000.0; }
 
-    static constexpr double MicroSeconds(double ns)
-    {
-        return ns / 1000.0;
-    }
-    static constexpr double MilliSeconds(double ns)
-    {
-        return MicroSeconds(ns) / 1000.0;
-    }
-    static constexpr double Seconds(double ns)
-    {
-        return MilliSeconds(ns) / 1000.0;
-    }
-
-    NyChrono() : Start(GetTime())
-    {
-    }
-    NyChrono(int64_t start_ns) : Start(start_ns)
-    {
-    }
-    void Restart()
-    {
-        Start = GetTime();
-    }
-    int64_t Elapsed()
-    {
-        return GetTime() - Start;
-    }
+    NyChrono() : Start(GetTime()) {}
+    NyChrono(int64_t start_ns) : Start(start_ns) {}
+    void Restart() { Start = GetTime(); }
+    int64_t Elapsed() { return GetTime() - Start; }
 };
 
-struct NyJob
+struct NySched
 {
-    void (*Job)(void *);
-    void *Args;
-    NyJob() : Job(NULL), Args(NULL)
+    struct Job
     {
-    }
-    NyJob(void (*job)(void *), void *args) : Job(job), Args(args)
-    {
-    }
+        void (*Func)(void *);
+        void *Args;
+        Job() : Func(NULL), Args(NULL) {}
+        Job(void (*func)(void *), void *args) : Func(func), Args(args) {}
+    };
+
+    struct _NyScheduler *_Sched;
+
+    NySched(int thread_count);
+    ~NySched();
+    void Do(Job job);
+    void Wait();
 };
 
-struct NySched;
-struct NyAssetLoader;
-struct TexLoaderArgs;
-struct MeshLoaderArgs;
-struct ShaderLoaderArgs;
-struct EnvLoaderArgs;
-
-struct AssetLoader
+struct NyAssetLoader
 {
-    NyArray<NyJob> Sequential;
-    NyArray<NyJob> Async;
-    void AddMesh(MeshLoaderArgs *args);
-    void AddTex(TexLoaderArgs *args);
-    void AddShader(ShaderLoaderArgs *args);
-    void AddEnv(EnvLoaderArgs *args);
-    void AddJob(NyJob job, bool async);
+    struct TexArgs
+    {
+        NyasTexDesc Descriptor;
+        const char *Path;
+        NyasHandle Tex;
+    };
+
+    struct MeshArgs
+    {
+        const char *Path;
+        NyasHandle *Mesh;
+    };
+
+    struct ShaderArgs
+    {
+        NyasShaderDesc Descriptor;
+        NyasHandle *Shader;
+    };
+
+    struct EnvArgs
+    {
+        const char *Path;
+        NyasHandle *Sky;
+        NyasHandle *Irradiance;
+        NyasHandle *Pref;
+        NyasHandle *LUT;
+    };
+
+    NyArray<NySched::Job> Sequential;
+    NyArray<NySched::Job> Async;
+    void AddMesh(MeshArgs *args);
+    void AddTex(TexArgs *args);
+    void AddShader(ShaderArgs *args);
+    void AddEnv(EnvArgs *args);
+    void AddJob(NySched::Job job, bool async);
     void Load(int threads);
 };
 
@@ -1116,58 +1030,16 @@ enum NyasGeometry
 
 namespace NyUtil
 {
-NySched *CreateScheduler(int thread_count);
-void DoJob(NySched *s, NyJob job);
-void WaitJobs(NySched *s);
-int DestroySched(NySched *s);
-
-AssetLoader *nyut_assets_create(void);
-void nyut_assets_add_mesh(AssetLoader *l, MeshLoaderArgs *args);
-void nyut_assets_add_tex(AssetLoader *l, TexLoaderArgs *args);
-void nyut_assets_add_shader(AssetLoader *l, ShaderLoaderArgs *args);
-void nyut_assets_add_env(AssetLoader *l, EnvLoaderArgs *args);
-void nyut_assets_add_job(AssetLoader *l, NyJob j, bool async);
-void nyut_assets_load(AssetLoader *l, int threads);
-
-void nyut_mesh_init_geometry(void);
-void nyut_mesh_set_geometry(NyasHandle mesh, NyasGeometry geo);
+void LoadBasicGeometries(void);
 
 // Environment maps
-void nyut_env_load(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref);
+void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref);
+
 } // namespace NyUtil
 
-// Asset loader
-struct TexLoaderArgs
-{
-    struct NyasTexDesc Descriptor;
-    const char *Path;
-    NyasHandle Tex;
-};
-
-struct MeshLoaderArgs
-{
-    const char *Path;
-    NyasHandle *Mesh;
-};
-
-struct ShaderLoaderArgs
-{
-    struct NyasShaderDesc Descriptor;
-    NyasHandle *Shader;
-};
-
-struct EnvLoaderArgs
-{
-    const char *Path;
-    NyasHandle *Sky;
-    NyasHandle *Irradiance;
-    NyasHandle *Pref;
-    NyasHandle *LUT;
-};
-
 // Geometry
-extern NyasHandle NYAS_UTILS_SPHERE;
-extern NyasHandle NYAS_UTILS_CUBE;
-extern NyasHandle NYAS_UTILS_QUAD;
+extern NyasHandle NYAS_SPHERE;
+extern NyasHandle NYAS_CUBE;
+extern NyasHandle NYAS_QUAD;
 
 #endif // NYAS_H

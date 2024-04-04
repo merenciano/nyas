@@ -18,4 +18,12 @@ target_sources(nyas PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/GLFW/linux_joystick.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/GLFW/egl_context.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/GLFW/x11_monitor.c
+
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_demo.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_draw.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_tables.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_widgets.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_glfw.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_impl_opengl3.cpp
 )

@@ -12,7 +12,6 @@ set_target_properties(nyas PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_S
 
 target_compile_definitions(nyas PUBLIC
 	_GLFW_X11
-	NYAS_ELEM_SIZE_16
 	NYAS_GL3
 )
 
