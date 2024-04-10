@@ -73,6 +73,7 @@ void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count)
 void _NySetShaderData(int loc, float *data, int v4count);
 void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset);
 void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset);
+void _NySetShaderUniformBuffer(uint32_t id, void *data, int size, int location);
 
 void _NyCreateFramebuf(NyasFramebuffer *fb);
 void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, NyasTexTarget *tt);
@@ -538,6 +539,12 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
     Shaders[ret].Count[1].Cubemap = desc->SharedCubemapCount;
     Shaders[ret].Shared = NYAS_ALLOC(
         (desc->SharedDataCount + desc->SharedTexCount + desc->SharedCubemapCount) * sizeof(float));
+    Shaders[ret].MaxUnits = desc->MaxUnits;
+    if (!desc->UseBlocks)
+    {
+        Shaders[ret].ResUnif.Flags |= NyasResourceFlags_Unused;
+        Shaders[ret].ResSharedUnif.Flags |= NyasResourceFlags_Unused;
+    }
     return ret;
 }
 
@@ -967,8 +974,10 @@ void _SyncShader(NyasShader *s)
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
         _NyCompileShader(s->Resource.Id, s->Name);
         _NyShaderLocations(s->Resource.Id, &s->Location[0].Data, &uniforms[0], 6);
+        //_NySetShaderUniformBuffer(s);
         s->Resource.Flags &= ~NyasResourceFlags_Dirty;
     }
+    _NySetShaderUniformBuffer(s);
 }
 
 static void _SyncFramebuf(NyasHandle framebuffer)
@@ -2097,7 +2106,7 @@ void _NyCreateShader(uint32_t *id)
     *id = glCreateProgram();
 }
 
-void _NyCompileShader(uint32_t id, const char *name)
+void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader)
 {
     // For shader hot-recompilations
     GLuint shaders[8];
@@ -2166,6 +2175,22 @@ void _NyCompileShader(uint32_t id, const char *name)
 
     glDeleteShader(vert);
     glDeleteShader(frag);
+
+    if (!(shader->ResUnif.Flags & NyasResourceFlags_Unused))
+    {
+        glGenBuffers(1, &shader->ResUnif.Id);
+        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
+        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * shader->MaxUnits, shader->UnitBlock, GL_DYNAMIC_DRAW);
+        glUniformBlockBinding(id, 30, 0);
+    }
+
+    if (!(shader->ResSharedUnif.Flags & NyasResourceFlags_Unused))
+    {
+        glGenBuffers(1, &shader->ResSharedUnif.Id);
+        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResSharedUnif.Id);
+        glBufferData(GL_UNIFORM_BUFFER, shader->SharedSize, shader->SharedBlock, GL_DYNAMIC_DRAW);
+        glUniformBlockBinding(id, 10, 0);
+    }
 }
 
 void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count)
@@ -2200,6 +2225,24 @@ void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset)
 void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset)
 {
     _SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_CUBE_MAP);
+}
+
+void _NySetShaderUniformBuffer(NyasShader* shader)
+{
+    if (!(shader->ResUnif.Flags & NyasResourceFlags_Unused))
+    {
+        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
+        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * shader->MaxUnits, shader->UnitBlock, GL_DYNAMIC_DRAW);
+        glBindBufferRange(GL_UNIFORM_BUFFER, 0, shader->ResUnif.Id, 0, shader->UnitSize * shader->MaxUnits);
+    }
+    
+
+    if (!(shader->ResSharedUnif.Flags & NyasResourceFlags_Unused))
+    {
+        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResSharedUnif.Id);
+        glBufferData(GL_UNIFORM_BUFFER, shader->SharedSize, shader->SharedBlock, GL_DYNAMIC_DRAW);
+        glBindBufferRange(GL_UNIFORM_BUFFER, 0, shader->ResSharedUnif.Id, 0, shader->SharedSize);
+    }  
 }
 
 void _NyUseShader(uint32_t id)

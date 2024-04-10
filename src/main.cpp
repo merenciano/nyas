@@ -35,8 +35,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 7 * 4, 4, 0, 6 * 4, 1, 2 },
-    { "fullscreen-img", 0, 0, 0, 0, 1, 0 }, { "skybox", 0, 0, 0, 4 * 4, 0, 1 } };
+} G_ShaderDescriptors = { { "pbr", 7 * 4, 4, 0, 6 * 4, 1, 2, 1024, true },
+    { "fullscreen-img", 0, 0, 0, 0, 1, 0, 0, false}, { "skybox", 0, 0, 0, 4 * 4, 0, 1, 0, false } };
 
 struct
 {

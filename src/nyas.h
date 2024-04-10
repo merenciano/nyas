@@ -492,6 +492,7 @@ enum NyasResourceFlags_
     NyasResourceFlags_Dirty = 1 << 3,
     NyasResourceFlags_Created = 1 << 4,
     NyasResourceFlags_ReleaseAppStorage = 1 << 5,
+    NyasResourceFlags_Unused = 1 << 6,
     NyasResourceFlags_Mapped = 1 << 7,
 };
 
@@ -786,12 +787,14 @@ typedef struct NyasShaderDesc
     int SharedDataCount;
     int SharedTexCount;
     int SharedCubemapCount;
+    int MaxUnits;
+    bool UseBlocks;
 
     NyasShaderDesc(const char *id, int dcount, int tcount, int cmcount, int sdcount, int stcount,
-        int scmcount) :
+        int scmcount, int maxunits, bool useblocks) :
         Name(id),
         DataCount(dcount), TexCount(tcount), CubemapCount(cmcount), SharedDataCount(sdcount),
-        SharedTexCount(stcount), SharedCubemapCount(scmcount)
+        SharedTexCount(stcount), SharedCubemapCount(scmcount), MaxUnits(maxunits), UseBlocks(useblocks)
     {
     }
 } NyasShaderDesc;
@@ -818,6 +821,8 @@ typedef struct NyasMesh
 typedef struct NyasShader
 {
     NyasResource Resource;
+    NyasResource ResUnif;
+    NyasResource ResSharedUnif;
     const char *Name;
     struct
     {
@@ -825,6 +830,12 @@ typedef struct NyasShader
     } Location[2], Count[2]; // 0: unit, 1: common
     void *Shared;
     void **Unit;
+    void *UnitBlock;
+    void *SharedBlock;
+    int UnitSize;
+    int SharedSize;
+    int MaxUnits;
+    bool UseBlocks;
 } NyasShader;
 
 typedef struct NyasFramebuffer
