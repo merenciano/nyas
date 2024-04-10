@@ -35,8 +35,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 7 * 4, 4, 0, 6 * 4, 1, 2, 1024, true },
-    { "fullscreen-img", 0, 0, 0, 0, 1, 0, 0, false}, { "skybox", 0, 0, 0, 4 * 4, 0, 1, 0, false } };
+} G_ShaderDescriptors = { { "pbr", 7 * 4, 4, 0, 6 * 4, 1, 2, true, sizeof(PbrDataDesc), sizeof(PbrSharedDesc) },
+    { "fullscreen-img", 0, 0, 0, 0, 1, 0, false, 0, 0}, { "skybox", 0, 0, 0, 4 * 4, 0, 1, false, 0, 0 } };
 
 struct
 {
@@ -126,11 +126,14 @@ void Init(void)
 
     ldr.Load(24);
 
-    struct PbrSharedDesc *common_pbr = (PbrSharedDesc *)Nyas::GetMaterialSharedData(G_Shaders.Pbr);
-    common_pbr->Sunlight[0] = 0.0f;
-    common_pbr->Sunlight[1] = -1.0f;
-    common_pbr->Sunlight[2] = -0.1f;
-    common_pbr->Sunlight[3] = 0.0f;
+    Nyas::Shaders[G_Shaders.Pbr].UnitBlock = malloc(sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS);
+    Nyas::Shaders[G_Shaders.Pbr].SharedBlock = malloc(sizeof(PbrSharedDesc));
+    PbrSharedDesc *shared = (PbrSharedDesc*)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
+    //PbrSharedDesc *common_pbr = (PbrSharedDesc *)Nyas::GetMaterialSharedData(G_Shaders.Pbr);
+    shared->Sunlight[0] = 0.0f;
+    shared->Sunlight[1] = -1.0f;
+    shared->Sunlight[2] = -0.1f;
+    shared->Sunlight[3] = 0.0f;
 
     NyasHandle *pbr_scene_tex = Nyas::GetMaterialSharedTextures(G_Shaders.Pbr);
     pbr_scene_tex[0] = lut;
@@ -152,7 +155,7 @@ void Init(void)
     Nyas::SetFramebufferTarget(G_Framebuf, 0, color);
     Nyas::SetFramebufferTarget(G_Framebuf, 1, depth);
 
-    struct PbrDataDesc pbr;
+    PbrDataDesc pbr;
     pbr.Color[0] = 1.0f;
     pbr.Color[1] = 1.0f;
     pbr.Color[2] = 1.0f;
@@ -167,6 +170,7 @@ void Init(void)
 
     float position[3] = { -2.0f, 0.0f, 0.0f };
 
+    auto *pbr_uniform_block = (PbrDataDesc*)Nyas::Shaders[G_Shaders.Pbr].UnitBlock;
     // CelticGold
     {
         int eidx = Nyas::Entities.Add();
@@ -175,7 +179,8 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        *(PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Gold.Alb;
         t[1] = G_Tex.Gold.Met;
@@ -196,6 +201,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Shore.Alb;
         t[1] = G_Tex.Shore.Met;
@@ -216,6 +222,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Peeled.Alb;
         t[1] = G_Tex.Peeled.Met;
@@ -237,6 +244,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Rusted.Alb;
         t[1] = G_Tex.Rusted.Met;
@@ -257,6 +265,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Tiles.Alb;
         t[1] = G_Tex.Tiles.Met;
@@ -277,6 +286,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Plastic.Alb;
         t[1] = G_Tex.Plastic.Met;
@@ -298,6 +308,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Cliff.Alb;
         t[1] = G_Tex.Cliff.Met;
@@ -318,6 +329,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Granite.Alb;
         t[1] = G_Tex.Granite.Met;
@@ -338,6 +350,7 @@ void Init(void)
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
         *(struct PbrDataDesc *)e->Material.Ptr = pbr;
+        pbr_uniform_block[eidx] = pbr;
         NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
         t[0] = G_Tex.Foam.Alb;
         t[1] = G_Tex.Foam.Met;

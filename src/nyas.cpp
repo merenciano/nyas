@@ -73,7 +73,7 @@ void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count)
 void _NySetShaderData(int loc, float *data, int v4count);
 void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset);
 void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset);
-void _NySetShaderUniformBuffer(uint32_t id, void *data, int size, int location);
+void _NySetShaderUniformBuffer(NyasShader *shader);
 
 void _NyCreateFramebuf(NyasFramebuffer *fb);
 void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, NyasTexTarget *tt);
@@ -539,7 +539,6 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
     Shaders[ret].Count[1].Cubemap = desc->SharedCubemapCount;
     Shaders[ret].Shared = NYAS_ALLOC(
         (desc->SharedDataCount + desc->SharedTexCount + desc->SharedCubemapCount) * sizeof(float));
-    Shaders[ret].MaxUnits = desc->MaxUnits;
     if (!desc->UseBlocks)
     {
         Shaders[ret].ResUnif.Flags |= NyasResourceFlags_Unused;
@@ -551,6 +550,16 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
 void *GetMaterialSharedData(NyasHandle shader)
 {
     return Shaders[shader].Shared;
+}
+
+void *GetUniformData(NyasHandle shader)
+{
+    return Shaders[shader].UnitBlock;
+}
+
+void *GetUniformShared(NyasHandle shader)
+{
+    return Shaders[shader].SharedBlock;
 }
 
 NyasHandle *GetMaterialSharedTextures(NyasHandle shader)
@@ -2180,7 +2189,7 @@ void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader)
     {
         glGenBuffers(1, &shader->ResUnif.Id);
         glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
-        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * shader->MaxUnits, shader->UnitBlock, GL_DYNAMIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * NYAS_PIPELINE_MAX_UNITS, shader->UnitBlock, GL_DYNAMIC_DRAW);
         glUniformBlockBinding(id, 30, 0);
     }
 
@@ -2232,8 +2241,8 @@ void _NySetShaderUniformBuffer(NyasShader* shader)
     if (!(shader->ResUnif.Flags & NyasResourceFlags_Unused))
     {
         glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
-        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * shader->MaxUnits, shader->UnitBlock, GL_DYNAMIC_DRAW);
-        glBindBufferRange(GL_UNIFORM_BUFFER, 0, shader->ResUnif.Id, 0, shader->UnitSize * shader->MaxUnits);
+        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * NYAS_PIPELINE_MAX_UNITS, shader->UnitBlock, GL_DYNAMIC_DRAW);
+        glBindBufferRange(GL_UNIFORM_BUFFER, 0, shader->ResUnif.Id, 0, shader->UnitSize * NYAS_PIPELINE_MAX_UNITS);
     }
     
 
@@ -2255,7 +2264,7 @@ void _NyReleaseShader(uint32_t id)
     glDeleteProgram(id);
 }
 
-void _NyCreateFramebuf(struct NyasFramebuffer *fb)
+void _NyCreateFramebuf(NyasFramebuffer *fb)
 {
     glGenFramebuffers(1, &fb->Resource.Id);
 }
@@ -2271,7 +2280,7 @@ int _GL_FramebufAttach(NyasFbAttach a)
     }
 }
 
-void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, struct NyasTexTarget *tt)
+void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, NyasTexTarget *tt)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
     GLenum face =
@@ -2285,7 +2294,7 @@ void _NyUseFramebuf(uint32_t id)
     glBindFramebuffer(GL_FRAMEBUFFER, id);
 }
 
-void _NyReleaseFramebuf(struct NyasFramebuffer *fb)
+void _NyReleaseFramebuf(NyasFramebuffer *fb)
 {
     glDeleteFramebuffers(1, &fb->Resource.Id);
 }

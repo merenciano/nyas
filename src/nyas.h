@@ -12,6 +12,8 @@
 
 #include <mathc.h>
 
+#include <vector>
+
 #ifndef NYAS_ASSERT
 #include <assert.h>
 #define NYAS_ASSERT(_COND) assert(_COND)
@@ -113,21 +115,23 @@ typedef int NyasError; // enum NyasError_
 
 namespace Nyas
 {
-NyasHandle CreateTexture(void);
-void SetTexture(NyasHandle tex, struct NyasTexDesc *desc);
-void LoadTexture(NyasHandle tex, struct NyasTexDesc *desc, const char *path);
+NyasHandle CreateTexture();
+void SetTexture(NyasHandle tex, NyasTexDesc *desc);
+void LoadTexture(NyasHandle tex, NyasTexDesc *desc, const char *path);
 
-NyasHandle CreateFramebuffer(void);
-void SetFramebufferTarget(NyasHandle fb, int index, struct NyasTexTarget target);
+NyasHandle CreateFramebuffer();
+void SetFramebufferTarget(NyasHandle fb, int index, NyasTexTarget target);
 
 // TODO(Renderer): Unificar load y reload
-NyasHandle CreateMesh(void);
+NyasHandle CreateMesh();
 NyasHandle LoadMesh(const char *path);
 void ReloadMesh(NyasHandle mesh, const char *path);
 
-NyasHandle CreateShader(const struct NyasShaderDesc *desc);
+NyasHandle CreateShader(const NyasShaderDesc *desc);
 void *GetMaterialSharedData(NyasHandle shader);
 void ReloadShader(NyasHandle shader);
+void *GetUniformData(NyasHandle shader);
+void *GetUniformShared(NyasHandle shader);
 NyasHandle *GetMaterialSharedTextures(NyasHandle shader);
 NyasHandle *GetMaterialSharedCubemaps(NyasHandle shader);
 
@@ -144,8 +148,8 @@ void Draw(NyasDrawCmd *command);
 NyasCtx *GetCurrentCtx();
 
 bool InitIO(const char *title, int win_w, int win_h);
-void PollIO(void);
-void WindowSwap(void);
+void PollIO();
+void WindowSwap();
 int ReadFile(const char *path, char **dst, size_t *size);
 } // namespace Nyas
 
@@ -787,14 +791,16 @@ typedef struct NyasShaderDesc
     int SharedDataCount;
     int SharedTexCount;
     int SharedCubemapCount;
-    int MaxUnits;
     bool UseBlocks;
+    int UnitSize;
+    int SharedSize;
 
     NyasShaderDesc(const char *id, int dcount, int tcount, int cmcount, int sdcount, int stcount,
-        int scmcount, int maxunits, bool useblocks) :
+        int scmcount, bool useblocks, int unitsz, int sharedsz) :
         Name(id),
         DataCount(dcount), TexCount(tcount), CubemapCount(cmcount), SharedDataCount(sdcount),
-        SharedTexCount(stcount), SharedCubemapCount(scmcount), MaxUnits(maxunits), UseBlocks(useblocks)
+        SharedTexCount(stcount), SharedCubemapCount(scmcount), UseBlocks(useblocks),
+        UnitSize(unitsz), SharedSize(sharedsz)
     {
     }
 } NyasShaderDesc;
@@ -834,7 +840,6 @@ typedef struct NyasShader
     void *SharedBlock;
     int UnitSize;
     int SharedSize;
-    int MaxUnits;
     bool UseBlocks;
 } NyasShader;
 
