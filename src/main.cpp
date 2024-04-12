@@ -35,8 +35,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 0, 0, 0, 0, 1, 2, true, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc), 4},
-    { "fullscreen-img", 0, 0, 0, 0, 1, 0, false, 0, 0}, { "skybox", 0, 0, 0, 0, 0, 1, true, 16 * sizeof(float), 0 } };
+} G_ShaderDescriptors = { { "pbr", 1, 2, 4, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc)},
+    { "fullscreen-img", 1 }, { "skybox", 0, 1, 0, 16 * sizeof(float), 0 } };
 
 struct
 {
@@ -121,23 +121,14 @@ void Init(void)
 
     ldr.Load(24);
 
-    Nyas::Shaders[G_Shaders.Skybox].UnitSize = sizeof(float) * 16;
-    Nyas::Shaders[G_Shaders.Skybox].UnitBlock = malloc(Nyas::Shaders[G_Shaders.Skybox].UnitSize);
-
-    Nyas::Shaders[G_Shaders.Pbr].Count[1].TexArr = 4;
     Nyas::Shaders[G_Shaders.Pbr].TexArrays = (NyasHandle*)malloc(4 * sizeof(NyasHandle));
-    Nyas::Shaders[G_Shaders.Pbr].UnitSize = sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS;
-    Nyas::Shaders[G_Shaders.Pbr].UnitBlock = malloc(Nyas::Shaders[G_Shaders.Pbr].UnitSize);
-    Nyas::Shaders[G_Shaders.Pbr].SharedSize = sizeof(PbrSharedDesc);
-    Nyas::Shaders[G_Shaders.Pbr].SharedBlock = malloc(Nyas::Shaders[G_Shaders.Pbr].SharedSize);
     PbrSharedDesc *shared = (PbrSharedDesc*)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
-    //PbrSharedDesc *common_pbr = (PbrSharedDesc *)Nyas::GetMaterialSharedData(G_Shaders.Pbr);
     shared->Sunlight[0] = 0.0f;
     shared->Sunlight[1] = -1.0f;
     shared->Sunlight[2] = -0.1f;
     shared->Sunlight[3] = 0.0f;
 
-    NyasHandle *pbr_scene_tex = Nyas::GetMaterialSharedTextures(G_Shaders.Pbr);
+    NyasHandle *pbr_scene_tex = Nyas::Shaders[G_Shaders.Pbr].Shared;
     pbr_scene_tex[0] = lut;
     pbr_scene_tex[1] = irradiance;
     pbr_scene_tex[2] = prefilter;
@@ -180,7 +171,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -195,7 +186,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -210,7 +201,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -226,7 +217,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -241,7 +232,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -256,7 +247,7 @@ void Init(void)
         position[0] = 2.0f;
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -272,7 +263,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -287,7 +278,7 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -302,12 +293,12 @@ void Init(void)
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        e->Shader = G_Shaders.Pbr;
         pbr_uniform_block[eidx] = pbr;
     }
 
-    *Nyas::GetMaterialSharedTextures(G_Shaders.Skybox) = G_Tex.Sky;
-    *Nyas::GetMaterialSharedTextures(G_Shaders.FullscreenImg) = G_FbTex;
+    *Nyas::Shaders[G_Shaders.Skybox].Shared = G_Tex.Sky;
+    *Nyas::Shaders[G_Shaders.FullscreenImg].Shared = G_FbTex;
     Nyas::Shaders[G_Shaders.Pbr].TexArrays[0] = G_Tex.PbrMaps.Alb;
     Nyas::Shaders[G_Shaders.Pbr].TexArrays[1] = G_Tex.PbrMaps.Met;
     Nyas::Shaders[G_Shaders.Pbr].TexArrays[2] = G_Tex.PbrMaps.Rou;
@@ -329,7 +320,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     {
         NyasDrawCmd draw;
         draw.Framebuf = G_Framebuf;
-        draw.ShaderMaterial = Nyas::CopyShaderMaterialTmp(G_Shaders.Pbr);
+        draw.Shader = G_Shaders.Pbr;
         draw.State.BgColorR = 0.2f;
         draw.State.BgColorG = 0.2f;
         draw.State.BgColorB = 0.2f;
@@ -355,11 +346,8 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         {
             auto *pbr_uniform_block = (PbrDataDesc*)Nyas::Shaders[G_Shaders.Pbr].UnitBlock;
             mat4_assign(pbr_uniform_block[i].Model, Nyas::Entities[i].Transform);
-            //draw.Units[i].Material = Nyas::CopyMaterialTmp(Nyas::Entities[i].Material);
-            //draw.Units[i].Mesh = Nyas::Entities[i].Mesh;
-            //draw.Units[i].Instances = Nyas::Entities.Count;
         }
-        draw.Units->Material = Nyas::CopyMaterialTmp(Nyas::Entities[0].Material);
+        draw.Units->Shader = Nyas::Entities[0].Shader;
         draw.Units->Mesh = Nyas::Entities[0].Mesh;
         draw.Units->Instances = Nyas::Entities.Count;
 
@@ -370,12 +358,12 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     {
         NyasDrawCmd draw;
         Nyas::Camera.OriginViewProj((float *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock);
-        draw.ShaderMaterial = Nyas::CopyShaderMaterialTmp(G_Shaders.Skybox);
+        draw.Shader = G_Shaders.Skybox;
         draw.State.DisableFlags |= NyasDrawFlags_FaceCulling;
         draw.State.Depth = NyasDepthFunc_LessEqual;
         draw.UnitCount = 1;
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Material.Shader = G_Shaders.Skybox;
+        draw.Units->Shader = G_Shaders.Skybox;
         draw.Units->Mesh = NYAS_CUBE;
         draw.Units->Instances = 1;
         new_frame.Push(draw);
@@ -385,7 +373,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     {
         NyasDrawCmd draw;
         draw.Framebuf = NyasCode_Default;
-        draw.ShaderMaterial = Nyas::CopyShaderMaterialTmp(G_Shaders.FullscreenImg);
+        draw.Shader = G_Shaders.FullscreenImg;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
         draw.State.ViewportMaxX = vp.X;
@@ -393,7 +381,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.State.DisableFlags |= NyasDrawFlags_DepthTest;
         draw.UnitCount = 1;
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Material.Shader = G_Shaders.FullscreenImg;
+        draw.Units->Shader = G_Shaders.FullscreenImg;
         draw.Units->Mesh = NYAS_QUAD;
         draw.Units->Instances = 1;
         new_frame.Push(draw);

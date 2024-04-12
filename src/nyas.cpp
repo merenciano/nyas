@@ -542,49 +542,17 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
     Shaders[ret].Name = desc->Name;
     Shaders[ret].Resource.Id = 0;
     Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
-    Shaders[ret].Count[0].Data = desc->DataCount;
-    Shaders[ret].Count[0].Tex = desc->TexCount;
-    Shaders[ret].Count[0].Cubemap = desc->CubemapCount;
-    Shaders[ret].Count[0].TexArr = 0;
-    Shaders[ret].Count[1].Data = desc->SharedDataCount;
-    Shaders[ret].Count[1].Tex = desc->SharedTexCount;
-    Shaders[ret].Count[1].Cubemap = desc->SharedCubemapCount;
-    Shaders[ret].Count[1].TexArr = desc->TexArrCount;
-    Shaders[ret].Shared = NYAS_ALLOC(
-        (desc->SharedDataCount + desc->SharedTexCount + desc->SharedCubemapCount) * sizeof(float));
-    if (!desc->UseBlocks)
-    {
-        Shaders[ret].ResUnif.Flags |= NyasResourceFlags_Unused;
-        Shaders[ret].ResSharedUnif.Flags |= NyasResourceFlags_Unused;
-    }
+    Shaders[ret].TexArrCount = desc->TexArrCount;
+    Shaders[ret].SharedTexCount = desc->SharedTexCount;
+    Shaders[ret].SharedCubemapCount = desc->SharedCubemapCount;
+    Shaders[ret].Shared = (NyasHandle*)NYAS_ALLOC(
+        (desc->SharedTexCount + desc->SharedCubemapCount) * sizeof(NyasHandle));
+    Shaders[ret].UnitBlock = NYAS_ALLOC(desc->UnitSize);
+    Shaders[ret].SharedBlock = NYAS_ALLOC(desc->SharedSize);
+    Shaders[ret].UnitSize = desc->UnitSize;
+    Shaders[ret].SharedSize = desc->SharedSize;
+    Shaders[ret].TexArrays = (NyasHandle*)NYAS_ALLOC(desc->TexArrCount * sizeof(NyasHandle));
     return ret;
-}
-
-void *GetMaterialSharedData(NyasHandle shader)
-{
-    return Shaders[shader].Shared;
-}
-
-void *GetUniformData(NyasHandle shader)
-{
-    return Shaders[shader].UnitBlock;
-}
-
-void *GetUniformShared(NyasHandle shader)
-{
-    return Shaders[shader].SharedBlock;
-}
-
-NyasHandle *GetMaterialSharedTextures(NyasHandle shader)
-{
-    NyasShader *shdr = &Shaders[shader];
-    return (NyasHandle *)shdr->Shared + shdr->Count[1].Data;
-}
-
-NyasHandle *GetMaterialSharedCubemaps(NyasHandle shader)
-{
-    NyasShader *shdr = &Shaders[shader];
-    return GetMaterialSharedTextures(shader) + shdr->Count[1].Tex;
 }
 
 void ReloadShader(NyasHandle shader)
@@ -855,49 +823,6 @@ void SetFramebufferTarget(NyasHandle framebuffer, int index, struct NyasTexTarge
     Framebufs[framebuffer].Target[index] = target;
 }
 
-NyasMaterial CreateMaterial(NyasHandle shader)
-{
-    NyasMaterial ret(shader);
-    NyasShader *s = &Shaders[shader];
-    int elements = s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap;
-    ret.Ptr = NYAS_ALLOC(elements * sizeof(float));
-    return ret;
-}
-
-NyasMaterial CreateMaterialTmp(NyasHandle shader)
-{
-    NyasMaterial ret(shader);
-    NyasShader *s = &Shaders[shader];
-    int elements = s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap;
-    ret.Ptr = NyFrameAllocator::Alloc(elements * sizeof(float));
-    return ret;
-}
-
-NyasMaterial CopyMaterialTmp(NyasMaterial mat)
-{
-    NyasMaterial ret(mat.Shader);
-    NyasShader *s = &Shaders[mat.Shader];
-    size_t size = (s->Count[0].Data + s->Count[0].Tex + s->Count[0].Cubemap) * 4;
-    ret.Ptr = NyFrameAllocator::Alloc(size);
-    memcpy(ret.Ptr, mat.Ptr, size);
-    return ret;
-}
-
-NyasMaterial CopyShaderMaterialTmp(NyasHandle shader)
-{
-    NyasMaterial ret(shader);
-    NyasShader *s = &Shaders[shader];
-    int elements = s->Count[1].Data + s->Count[1].Tex + s->Count[1].Cubemap;
-    ret.Ptr = NyFrameAllocator::Alloc(elements * sizeof(float));
-    memcpy(ret.Ptr, s->Shared, elements * sizeof(float));
-    return ret;
-}
-
-NyasHandle *GetMaterialTextures(NyasMaterial mat)
-{
-    return (NyasHandle *)mat.Ptr + Shaders[mat.Shader].Count[0].Data;
-}
-
 static void _SyncMesh(NyasHandle msh, NyasHandle shader)
 {
     _NyCheckHandle(msh, Meshes);
@@ -935,30 +860,27 @@ static NyasTexture *_SyncTex(NyasHandle texture)
     return t;
 }
 
-static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
+static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
 {
     NYAS_ASSERT((common == 0 || common == 1) && "Invalid common value.");
 
-    int dc = s->Count[common].Data;
-    int tc = s->Count[common].Tex;
-    int cc = s->Count[common].Cubemap;
-    int tac = s->Count[common].TexArr;
-    int dl = s->Location[common].Data;
-    int tl = s->Location[common].Tex;
-    int cl = s->Location[common].Cubemap;
-    int tal = s->Location[common].TexArr;
+    int tc = s->SharedTexCount;
+    int cc = s->SharedCubemapCount;
+    int tac = s->TexArrCount;
+    int tl = s->SharedTexLocation;
+    int cl = s->SharedCubemapLocation;
+    int tal = s->TexArrLocation;
     int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
 
-    NYAS_ASSERT((dc >= 0) && (tc >= 0) && (cc >= 0) && (tac >= 0));
+    NYAS_ASSERT((tc >= 0) && (cc >= 0) && (tac >= 0));
     NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
 
-    if (!(dc + tc + cc + tac))
+    if (!(tc | cc | tac))
     {
         return;
     }
 
     // change texture handle for texture internal id
-    NyasHandle *data_tex = (NyasHandle *)srcdata + dc;
     for (int i = 0; i < tc + cc; ++i)
     {
         NyasTexture *itx = _SyncTex(data_tex[i]);
@@ -973,11 +895,6 @@ static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
     }
 
     // set opengl uniforms
-    if (dc)
-    {
-        _NySetShaderData(dl, (float *)srcdata, dc / 4);
-    }
-
     if (tc)
     {
         _NySetShaderTex(tl, data_tex, tc, tex_unit);
@@ -996,7 +913,7 @@ static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
 
 void _SyncShader(NyasShader *s)
 {
-    static const char *uniforms[] = { "u_data", "u_tex", "u_cube", "mierda", "u_shared_data", "u_common_tex",
+    static const char *uniforms[] = { "u_common_tex",
         "u_common_cube", "u_textures" };
 
     if (!(s->Resource.Flags & NyasResourceFlags_Created))
@@ -1009,8 +926,7 @@ void _SyncShader(NyasShader *s)
     {
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
         _NyCompileShader(s->Resource.Id, s->Name, s);
-        _NyShaderLocations(s->Resource.Id, &s->Location[0].Data, &uniforms[0], 8);
-        //_NySetShaderUniformBuffer(s);
+        _NyShaderLocations(s->Resource.Id, &s->SharedTexLocation, &uniforms[0], 3);
         s->Resource.Flags &= ~NyasResourceFlags_Dirty;
     }
     _NySetShaderUniformBuffer(s);
@@ -1018,7 +934,6 @@ void _SyncShader(NyasShader *s)
 
 static void _SyncFramebuf(NyasHandle framebuffer)
 {
-    // nypx__check_handle(framebuffer, &Framebufs);
     struct NyasFramebuffer *fb = &Framebufs[framebuffer];
     if (!(fb->Resource.Flags & NyasResourceFlags_Created))
     {
@@ -1048,20 +963,19 @@ void Draw(NyasDrawCmd *cmd)
         }
         else
         {
-            // nypx__check_handle(cmd->fb, &Framebufs);
             _SyncFramebuf(cmd->Framebuf);
         }
     }
-    //_draw_target(cmd->fb);
 
-    if (cmd->ShaderMaterial.Shader != NyasCode_NoOp)
+    if (cmd->Shader != NyasCode_NoOp)
     {
-        // nypx__check_handle(mat.shader, &shader_pool);
-        _NyCheckHandle(cmd->ShaderMaterial.Shader, Shaders);
-        NyasShader *s = &Shaders[cmd->ShaderMaterial.Shader];
+        _NyCheckHandle(cmd->Shader, Shaders);
+        NyasShader *s = &Shaders[cmd->Shader];
+        NyasHandle *SharedTex = (NyasHandle*)NyFrameAllocator::Alloc((s->SharedTexCount + s->SharedCubemapCount) * sizeof(NyasHandle));
+        memcpy(SharedTex, s->Shared, (s->SharedTexCount + s->SharedCubemapCount) * sizeof(NyasHandle));
         _SyncShader(s);
         _NyUseShader(s->Resource.Id);
-        _SyncShaderData(s, cmd->ShaderMaterial.Ptr, true);
+        _SyncShaderData(s, SharedTex, true);
     }
 
     NyasDrawState &s = cmd->State;
@@ -1147,11 +1061,10 @@ void Draw(NyasDrawCmd *cmd)
 
         if (imsh->Resource.Flags & NyasResourceFlags_Dirty)
         {
-            _SyncMesh(cmd->Units[i].Mesh, cmd->Units[i].Material.Shader);
+            _SyncMesh(cmd->Units[i].Mesh, cmd->Units[i].Shader);
         }
 
-        NyasShader *s = &Shaders[cmd->Units[i].Material.Shader];
-        _SyncShaderData(s, cmd->Units[i].Material.Ptr, false);
+        NyasShader *s = &Shaders[cmd->Units[i].Shader];
         _NyUseMesh(imsh, s);
         _NyDraw(imsh->ElementCount, sizeof(NyDrawIdx) == 4, cmd->Units[i].Instances);
     }
