@@ -66,13 +66,14 @@ void _NySetMesh(NyasMesh *mesh, uint32_t shader_id);
 void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
 
 void _NyCreateShader(uint32_t *id);
-void _NyCompileShader(uint32_t id, const char *name);
+void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader);
 void _NyUseShader(uint32_t id);
 void _NyReleaseShader(uint32_t id);
 void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count);
 void _NySetShaderData(int loc, float *data, int v4count);
 void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset);
 void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset);
+void _NySetShaderTexArray(int loc, int *tex, int count, int texunit_offset);
 void _NySetShaderUniformBuffer(NyasShader *shader);
 
 void _NyCreateFramebuf(NyasFramebuffer *fb);
@@ -81,7 +82,7 @@ void _NyUseFramebuf(uint32_t id);
 void _NyReleaseFramebuf(NyasFramebuffer *fb);
 
 void _NyClear(bool color = true, bool depth = true, bool stencil = false);
-void _NyDraw(int elem_count, int index_type);
+void _NyDraw(int elem_count, int index_type, int instances = 1);
 void _NyClearColor(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f);
 void _NyEnableScissor();
 void _NyDisableScissor();
@@ -466,19 +467,28 @@ static bool _TexFmtFloat(NyasTexFmt fmt)
     }
 }
 
-NyasHandle CreateTexture(void)
+NyasHandle CreateTexture()
 {
-    int tex = Textures.Add(NyasTexture());
+    int tex = Textures.Add({});
     return tex;
 }
 
-void LoadTexture(NyasHandle texture, struct NyasTexDesc *desc, const char *path)
+NyasHandle CreateTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count)
+{
+    int tex = Textures.Add(NyasTexture(f, t, w, h, count));
+    return tex;
+}
+
+void LoadTexture(NyasHandle texture, NyasTexDesc *desc, const char *path, int index)
 {
     NYAS_ASSERT(*path != '\0' && "For empty textures use nyas_tex_set");
     NyasTexture *t = &Textures[texture];
     t->Resource.Id = 0;
     t->Resource.Flags = NyasResourceFlags_Dirty;
-    t->Data = *desc;
+    if (desc)
+    {
+        t->Data = *desc;
+    }
 
     int fmt_ch = _TexChannels(t->Data.Format);
     stbi_set_flip_vertically_on_load(t->Data.Flags & NyasTexFlags_FlipVerticallyOnLoad);
@@ -490,6 +500,7 @@ void LoadTexture(NyasHandle texture, struct NyasTexDesc *desc, const char *path)
         NyasTexImg img;
         const char *p = _GetImgFacePath(path, i, face_count);
         img.Face = i;
+        img.Index = index;
         if (_TexFmtFloat(t->Data.Format))
         {
             img.Pix = stbi_loadf(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
@@ -534,9 +545,11 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
     Shaders[ret].Count[0].Data = desc->DataCount;
     Shaders[ret].Count[0].Tex = desc->TexCount;
     Shaders[ret].Count[0].Cubemap = desc->CubemapCount;
+    Shaders[ret].Count[0].TexArr = 0;
     Shaders[ret].Count[1].Data = desc->SharedDataCount;
     Shaders[ret].Count[1].Tex = desc->SharedTexCount;
     Shaders[ret].Count[1].Cubemap = desc->SharedCubemapCount;
+    Shaders[ret].Count[1].TexArr = desc->TexArrCount;
     Shaders[ret].Shared = NYAS_ALLOC(
         (desc->SharedDataCount + desc->SharedTexCount + desc->SharedCubemapCount) * sizeof(float));
     if (!desc->UseBlocks)
@@ -929,15 +942,17 @@ static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
     int dc = s->Count[common].Data;
     int tc = s->Count[common].Tex;
     int cc = s->Count[common].Cubemap;
+    int tac = s->Count[common].TexArr;
     int dl = s->Location[common].Data;
     int tl = s->Location[common].Tex;
     int cl = s->Location[common].Cubemap;
+    int tal = s->Location[common].TexArr;
     int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
 
-    NYAS_ASSERT((dc >= 0) && (tc >= 0) && (cc >= 0));
+    NYAS_ASSERT((dc >= 0) && (tc >= 0) && (cc >= 0) && (tac >= 0));
     NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
 
-    if (!(dc + tc + cc))
+    if (!(dc + tc + cc + tac))
     {
         return;
     }
@@ -948,6 +963,13 @@ static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
     {
         NyasTexture *itx = _SyncTex(data_tex[i]);
         data_tex[i] = (int)itx->Resource.Id;
+    }
+
+    NyasHandle data_texarr[4];
+    for (int i = 0; i < tac; ++i)
+    {
+        NyasTexture *itx = _SyncTex(s->TexArrays[i]);
+        data_texarr[i] = (int)itx->Resource.Id;
     }
 
     // set opengl uniforms
@@ -965,12 +987,17 @@ static void _SyncShaderData(NyasShader *s, void *srcdata, int common)
     {
         _NySetShaderCubemap(cl, data_tex + tc, cc, tex_unit + tc);
     }
+
+    if (tac)
+    {
+        _NySetShaderTexArray(tal, data_texarr, tac, tex_unit + tc + cc);
+    }
 }
 
 void _SyncShader(NyasShader *s)
 {
-    static const char *uniforms[] = { "u_data", "u_tex", "u_cube", "u_shared_data", "u_common_tex",
-        "u_common_cube" };
+    static const char *uniforms[] = { "u_data", "u_tex", "u_cube", "mierda", "u_shared_data", "u_common_tex",
+        "u_common_cube", "u_textures" };
 
     if (!(s->Resource.Flags & NyasResourceFlags_Created))
     {
@@ -981,8 +1008,8 @@ void _SyncShader(NyasShader *s)
     if (s->Resource.Flags & NyasResourceFlags_Dirty)
     {
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
-        _NyCompileShader(s->Resource.Id, s->Name);
-        _NyShaderLocations(s->Resource.Id, &s->Location[0].Data, &uniforms[0], 6);
+        _NyCompileShader(s->Resource.Id, s->Name, s);
+        _NyShaderLocations(s->Resource.Id, &s->Location[0].Data, &uniforms[0], 8);
         //_NySetShaderUniformBuffer(s);
         s->Resource.Flags &= ~NyasResourceFlags_Dirty;
     }
@@ -1126,7 +1153,7 @@ void Draw(NyasDrawCmd *cmd)
         NyasShader *s = &Shaders[cmd->Units[i].Material.Shader];
         _SyncShaderData(s, cmd->Units[i].Material.Ptr, false);
         _NyUseMesh(imsh, s);
-        _NyDraw(imsh->ElementCount, sizeof(NyDrawIdx) == 4);
+        _NyDraw(imsh->ElementCount, sizeof(NyDrawIdx) == 4, cmd->Units[i].Instances);
     }
 }
 } // namespace Nyas
@@ -1309,7 +1336,10 @@ void NySched::Wait()
 static void _TexLoader(void *arg)
 {
     NyAssetLoader::TexArgs *a = (NyAssetLoader::TexArgs *)arg;
-    Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path);
+    for (int i = 0; i < a->Descriptor.Count; ++i)
+    {
+        Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path[i], i);
+    }
 }
 
 static void _MeshLoader(void *arg)
@@ -1975,9 +2005,10 @@ static struct _GL_TexFmtResult _GL_TexFmt(NyasTexFmt fmt)
     }
 }
 
-void _NyCreateTex(struct NyasTexture *t)
+void _NyCreateTex(NyasTexture *t)
 {
     NyGL_TexDesc d = _GL_TexDesc(&t->Data);
+    _GL_TexFmtResult fmt = _GL_TexFmt(t->Data.Format);
     glGenTextures(1, &t->Resource.Id);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(d.target, t->Resource.Id);
@@ -2005,23 +2036,42 @@ void _NyCreateTex(struct NyasTexture *t)
     {
         glTexParameterfv(d.target, GL_TEXTURE_BORDER_COLOR, &d.br);
     }
+
+    if (t->Data.Type == NyasTexType_Array2D)
+    {
+        glTexImage3D(d.target, 0, fmt.ifmt, t->Data.Width, t->Data.Height, t->Data.Count, 0, fmt.fmt, fmt.type, 0);
+    }
 }
 
 void _NySetTex(struct NyasTexture *t)
 {
     GLenum type = _GL_TexTarget(t->Data.Type);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(type, t->Resource.Id);
     struct _GL_TexFmtResult fmt = _GL_TexFmt(t->Data.Format);
-    for (int i = 0; i < t->Img.Size; ++i)
+
+    if (type == GL_TEXTURE_2D_ARRAY)
     {
-        GLint target = (t->Data.Type == NyasTexType_2D) ?
-                           GL_TEXTURE_2D :
-                           GL_TEXTURE_CUBE_MAP_POSITIVE_X + t->Img[i].Face;
-        int w = t->Data.Width >> t->Img[i].MipLevel;
-        int h = t->Data.Height >> t->Img[i].MipLevel;
-        glTexImage2D(
-            target, t->Img[i].MipLevel, fmt.ifmt, w, h, 0, fmt.fmt, fmt.type, t->Img[i].Pix);
+        for (int i = 0; i < t->Img.Size; ++i)
+        {
+            int w = t->Data.Width >> t->Img[i].MipLevel;
+            int h = t->Data.Height >> t->Img[i].MipLevel;
+            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, t->Img[i].MipLevel, 0, 0, t->Img[i].Index, w, h, 1, fmt.fmt, fmt.type, t->Img[i].Pix);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < t->Img.Size; ++i)
+        {
+            GLint target = (t->Data.Type == NyasTexType_2D) ?
+                            GL_TEXTURE_2D :
+                            GL_TEXTURE_CUBE_MAP_POSITIVE_X + t->Img[i].Face;
+            int w = t->Data.Width >> t->Img[i].MipLevel;
+            int h = t->Data.Height >> t->Img[i].MipLevel;
+            glTexImage2D(
+                target, t->Img[i].MipLevel, fmt.ifmt, w, h, 0, fmt.fmt, fmt.type, t->Img[i].Pix);
+        }
     }
 
     if (t->Data.Flags & NyasTexFlags_GenMipMaps)
@@ -2185,15 +2235,15 @@ void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader)
     glDeleteShader(vert);
     glDeleteShader(frag);
 
-    if (!(shader->ResUnif.Flags & NyasResourceFlags_Unused))
+    if (!shader->UnitSize || !(shader->ResUnif.Flags & NyasResourceFlags_Unused))
     {
         glGenBuffers(1, &shader->ResUnif.Id);
         glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
-        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * NYAS_PIPELINE_MAX_UNITS, shader->UnitBlock, GL_DYNAMIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize, shader->UnitBlock, GL_DYNAMIC_DRAW);
         glUniformBlockBinding(id, 30, 0);
     }
 
-    if (!(shader->ResSharedUnif.Flags & NyasResourceFlags_Unused))
+    if (!shader->SharedSize || !(shader->ResSharedUnif.Flags & NyasResourceFlags_Unused))
     {
         glGenBuffers(1, &shader->ResSharedUnif.Id);
         glBindBuffer(GL_UNIFORM_BUFFER, shader->ResSharedUnif.Id);
@@ -2236,22 +2286,27 @@ void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset)
     _SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_CUBE_MAP);
 }
 
+void _NySetShaderTexArray(int loc, int *tex, int count, int texunit_offset)
+{
+    _SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_2D_ARRAY);
+}
+
 void _NySetShaderUniformBuffer(NyasShader* shader)
 {
-    if (!(shader->ResUnif.Flags & NyasResourceFlags_Unused))
+    if (!shader->UnitSize || !(shader->ResUnif.Flags & NyasResourceFlags_Unused))
     {
         glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
-        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize * NYAS_PIPELINE_MAX_UNITS, shader->UnitBlock, GL_DYNAMIC_DRAW);
-        glBindBufferRange(GL_UNIFORM_BUFFER, 0, shader->ResUnif.Id, 0, shader->UnitSize * NYAS_PIPELINE_MAX_UNITS);
+        glBufferData(GL_UNIFORM_BUFFER, shader->UnitSize, shader->UnitBlock, GL_DYNAMIC_DRAW);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 30, shader->ResUnif.Id);
     }
     
 
-    if (!(shader->ResSharedUnif.Flags & NyasResourceFlags_Unused))
+    if (!shader->SharedSize || !(shader->ResSharedUnif.Flags & NyasResourceFlags_Unused))
     {
         glBindBuffer(GL_UNIFORM_BUFFER, shader->ResSharedUnif.Id);
         glBufferData(GL_UNIFORM_BUFFER, shader->SharedSize, shader->SharedBlock, GL_DYNAMIC_DRAW);
-        glBindBufferRange(GL_UNIFORM_BUFFER, 0, shader->ResSharedUnif.Id, 0, shader->SharedSize);
-    }  
+        glBindBufferBase(GL_UNIFORM_BUFFER, 10, shader->ResSharedUnif.Id);
+    }
 }
 
 void _NyUseShader(uint32_t id)
@@ -2311,9 +2366,9 @@ void _NyClear(bool color, bool depth, bool stencil)
     }
 }
 
-void _NyDraw(int elem_count, int index_type)
+void _NyDraw(int elem_count, int index_type, int instances)
 {
-    glDrawElements(GL_TRIANGLES, elem_count, index_type ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0);
+    glDrawElementsInstanced(GL_TRIANGLES, elem_count, index_type ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, instances);
 }
 
 void _NyClearColor(float r, float g, float b, float a)

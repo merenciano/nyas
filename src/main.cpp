@@ -7,9 +7,9 @@ struct PbrDataDesc
     float Model[16];
     float Color[3];
     float UseAlbedo;
-    float UseRougAndMetal;
     float TilingX;
     float TilingY;
+    float UseRougAndMetal;
     float Reflectance;
     float Roughness;
     float Metallic;
@@ -35,8 +35,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 7 * 4, 4, 0, 6 * 4, 1, 2, true, sizeof(PbrDataDesc), sizeof(PbrSharedDesc) },
-    { "fullscreen-img", 0, 0, 0, 0, 1, 0, false, 0, 0}, { "skybox", 0, 0, 0, 4 * 4, 0, 1, false, 0, 0 } };
+} G_ShaderDescriptors = { { "pbr", 0, 0, 0, 0, 1, 2, true, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc), 4},
+    { "fullscreen-img", 0, 0, 0, 0, 1, 0, false, 0, 0}, { "skybox", 0, 0, 0, 0, 0, 1, true, 16 * sizeof(float), 0 } };
 
 struct
 {
@@ -48,15 +48,7 @@ struct
 struct
 {
     NyasHandle Sky;
-    PbrMaps Gold;
-    PbrMaps Peeled;
-    PbrMaps Rusted;
-    PbrMaps Tiles;
-    PbrMaps Plastic;
-    PbrMaps Shore;
-    PbrMaps Cliff;
-    PbrMaps Granite;
-    PbrMaps Foam;
+    PbrMaps PbrMaps;
 } G_Tex;
 
 NyasHandle G_Framebuf;
@@ -85,10 +77,10 @@ void Init(void)
     ldr.AddMesh(&mesh);
     ldr.AddEnv(&envargs);
 
-    NyasTexDesc texdesc[] = { NyasTexDesc(NyasTexType_2D, NyasTexFmt_SRGB_8, 0, 0),
-        NyasTexDesc(NyasTexType_2D, NyasTexFmt_RGB_8, 0, 0),
-        NyasTexDesc(NyasTexType_2D, NyasTexFmt_R_8, 0, 0),
-        NyasTexDesc(NyasTexType_2D, NyasTexFmt_R_8, 0, 0) };
+    NyasTexDesc texdesc[] = { NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_SRGB_8, 0, 0, 9),
+        NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_RGB_8, 0, 0, 9),
+        NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_R_8, 0, 0, 9),
+        NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_R_8, 0, 0, 9) };
 
     const char *texpaths[] = { "assets/tex/celtic-gold/celtic-gold_A.png",
         "assets/tex/celtic-gold/celtic-gold_N.png", "assets/tex/celtic-gold/celtic-gold_R.png",
@@ -109,25 +101,35 @@ void Init(void)
         "assets/tex/granite/granite_M.png", "assets/tex/foam/foam_A.png",
         "assets/tex/foam/foam_N.png", "assets/tex/foam/foam_R.png", "assets/tex/foam/foam_M.png" };
 
-    NyAssetLoader::TexArgs loadtexargs[9 * 4];
-    NyasHandle *tex_begin = &G_Tex.Gold.Alb;
-    for (int i = 0; i < 9 * 4; ++i)
+    NyAssetLoader::TexArgs loadtexargs[4];
+    NyasHandle *tex_begin = &G_Tex.PbrMaps.Alb;
+    for (int i = 0; i < 4; ++i)
     {
-        *tex_begin = Nyas::CreateTexture();
+        *tex_begin = Nyas::CreateTexture(0, 0, texdesc[i].Type, texdesc[i].Format, 9);
         loadtexargs[i].Tex = *tex_begin++;
-        loadtexargs[i].Descriptor = texdesc[i & 3];
-        loadtexargs[i].Path = texpaths[i];
+        loadtexargs[i].Descriptor = texdesc[i];
+        for (int t = 0; t < 9; ++t)
+        {
+            loadtexargs[i].Path[t] = texpaths[t * 4 + i];
+        }
     }
 
-    for (int i = 0; i < 9 * 4; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         ldr.AddTex(&loadtexargs[i]);
     }
 
     ldr.Load(24);
 
-    Nyas::Shaders[G_Shaders.Pbr].UnitBlock = malloc(sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS);
-    Nyas::Shaders[G_Shaders.Pbr].SharedBlock = malloc(sizeof(PbrSharedDesc));
+    Nyas::Shaders[G_Shaders.Skybox].UnitSize = sizeof(float) * 16;
+    Nyas::Shaders[G_Shaders.Skybox].UnitBlock = malloc(Nyas::Shaders[G_Shaders.Skybox].UnitSize);
+
+    Nyas::Shaders[G_Shaders.Pbr].Count[1].TexArr = 4;
+    Nyas::Shaders[G_Shaders.Pbr].TexArrays = (NyasHandle*)malloc(4 * sizeof(NyasHandle));
+    Nyas::Shaders[G_Shaders.Pbr].UnitSize = sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS;
+    Nyas::Shaders[G_Shaders.Pbr].UnitBlock = malloc(Nyas::Shaders[G_Shaders.Pbr].UnitSize);
+    Nyas::Shaders[G_Shaders.Pbr].SharedSize = sizeof(PbrSharedDesc);
+    Nyas::Shaders[G_Shaders.Pbr].SharedBlock = malloc(Nyas::Shaders[G_Shaders.Pbr].SharedSize);
     PbrSharedDesc *shared = (PbrSharedDesc*)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
     //PbrSharedDesc *common_pbr = (PbrSharedDesc *)Nyas::GetMaterialSharedData(G_Shaders.Pbr);
     shared->Sunlight[0] = 0.0f;
@@ -179,34 +181,7 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Gold.Alb;
-        t[1] = G_Tex.Gold.Met;
-        t[2] = G_Tex.Gold.Rou;
-        t[3] = G_Tex.Gold.Nor;
-    }
-
-    // Shore
-    {
-        pbr.TilingX = 2.0f;
-        pbr.TilingY = 2.0f;
-        pbr.UseNormalMap = 0.5f;
-        int eidx = Nyas::Entities.Add();
-        struct NyasEntity *e = &Nyas::Entities[eidx];
-        mat4_identity(e->Transform);
-        position[0] = 0.0f;
-        mat4_translation(e->Transform, e->Transform, position);
-        e->Mesh = G_Mesh;
-        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
-        pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Shore.Alb;
-        t[1] = G_Tex.Shore.Met;
-        t[2] = G_Tex.Shore.Rou;
-        t[3] = G_Tex.Shore.Nor;
     }
 
     // Peeling
@@ -214,20 +189,14 @@ void Init(void)
         pbr.TilingX = 1.0f;
         pbr.TilingY = 1.0f;
         pbr.UseNormalMap = 0.7f;
-        position[0] = 2.0f;
+        position[0] = 0.0f;
         int eidx = Nyas::Entities.Add();
         struct NyasEntity *e = &Nyas::Entities[eidx];
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Peeled.Alb;
-        t[1] = G_Tex.Peeled.Met;
-        t[2] = G_Tex.Peeled.Rou;
-        t[3] = G_Tex.Peeled.Nor;
     }
 
     // Rusted
@@ -235,6 +204,21 @@ void Init(void)
         pbr.TilingX = 1.0f;
         pbr.TilingY = 1.0f;
         pbr.UseNormalMap = 0.2f;
+        position[0] = 2.0f;
+        int eidx = Nyas::Entities.Add();
+        struct NyasEntity *e = &Nyas::Entities[eidx];
+        mat4_identity(e->Transform);
+        mat4_translation(e->Transform, e->Transform, position);
+        e->Mesh = G_Mesh;
+        e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
+        pbr_uniform_block[eidx] = pbr;
+    }
+
+    // Tiles
+    {
+        pbr.TilingX = 4.0f;
+        pbr.TilingY = 4.0f;
+        pbr.UseNormalMap = 1.0f;
         position[0] = -2.0f;
         position[2] = -2.0f;
         int eidx = Nyas::Entities.Add();
@@ -243,19 +227,13 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Rusted.Alb;
-        t[1] = G_Tex.Rusted.Met;
-        t[2] = G_Tex.Rusted.Rou;
-        t[3] = G_Tex.Rusted.Nor;
     }
 
-    // Tiles
+    // Ship Panels
     {
-        pbr.TilingX = 4.0f;
-        pbr.TilingY = 4.0f;
+        pbr.TilingX = 1.0f;
+        pbr.TilingY = 1.0f;
         pbr.UseNormalMap = 1.0f;
         position[0] = 0.0f;
         int eidx = Nyas::Entities.Add();
@@ -264,34 +242,22 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Tiles.Alb;
-        t[1] = G_Tex.Tiles.Met;
-        t[2] = G_Tex.Tiles.Rou;
-        t[3] = G_Tex.Tiles.Nor;
     }
 
-    // Ship Panels
+     // Shore
     {
-        pbr.TilingX = 1.0f;
-        pbr.TilingY = 1.0f;
-        pbr.UseNormalMap = 1.0f;
-        position[0] = 2.0f;
+        pbr.TilingX = 2.0f;
+        pbr.TilingY = 2.0f;
+        pbr.UseNormalMap = 0.5f;
         int eidx = Nyas::Entities.Add();
         struct NyasEntity *e = &Nyas::Entities[eidx];
         mat4_identity(e->Transform);
+        position[0] = 2.0f;
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Plastic.Alb;
-        t[1] = G_Tex.Plastic.Met;
-        t[2] = G_Tex.Plastic.Rou;
-        t[3] = G_Tex.Plastic.Nor;
     }
 
     // Cliff
@@ -307,13 +273,7 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Cliff.Alb;
-        t[1] = G_Tex.Cliff.Met;
-        t[2] = G_Tex.Cliff.Rou;
-        t[3] = G_Tex.Cliff.Nor;
     }
 
     // Granite
@@ -328,13 +288,7 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Granite.Alb;
-        t[1] = G_Tex.Granite.Met;
-        t[2] = G_Tex.Granite.Rou;
-        t[3] = G_Tex.Granite.Nor;
     }
 
     // Foam
@@ -349,17 +303,15 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Material = Nyas::CreateMaterial(G_Shaders.Pbr);
-        *(struct PbrDataDesc *)e->Material.Ptr = pbr;
         pbr_uniform_block[eidx] = pbr;
-        NyasHandle *t = Nyas::GetMaterialTextures(e->Material);
-        t[0] = G_Tex.Foam.Alb;
-        t[1] = G_Tex.Foam.Met;
-        t[2] = G_Tex.Foam.Rou;
-        t[3] = G_Tex.Foam.Nor;
     }
 
     *Nyas::GetMaterialSharedTextures(G_Shaders.Skybox) = G_Tex.Sky;
     *Nyas::GetMaterialSharedTextures(G_Shaders.FullscreenImg) = G_FbTex;
+    Nyas::Shaders[G_Shaders.Pbr].TexArrays[0] = G_Tex.PbrMaps.Alb;
+    Nyas::Shaders[G_Shaders.Pbr].TexArrays[1] = G_Tex.PbrMaps.Met;
+    Nyas::Shaders[G_Shaders.Pbr].TexArrays[2] = G_Tex.PbrMaps.Rou;
+    Nyas::Shaders[G_Shaders.Pbr].TexArrays[3] = G_Tex.PbrMaps.Nor;
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
@@ -369,9 +321,9 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     Nyas::Camera.Navigate();
 
     /* PBR common shader data. */
-    struct PbrSharedDesc *common_pbr = (PbrSharedDesc *)Nyas::GetMaterialSharedData(G_Shaders.Pbr);
-    mat4_multiply(common_pbr->ViewProj, Nyas::Camera.Proj, Nyas::Camera.View);
-    common_pbr->CameraEye = Nyas::Camera.Eye();
+    auto *pbr_shared_block = (PbrSharedDesc*)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
+    mat4_multiply(pbr_shared_block->ViewProj, Nyas::Camera.Proj, Nyas::Camera.View);
+    pbr_shared_block->CameraEye = Nyas::Camera.Eye();
 
     // Scene entities
     {
@@ -396,15 +348,20 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.State.Depth = NyasDepthFunc_Less;
         draw.State.FaceCulling = NyasFaceCull_Back;
 
-        draw.UnitCount = Nyas::Entities.Count;
+        draw.UnitCount = 1;
         draw.Units =
-            (NyasDrawUnit *)NyFrameAllocator::Alloc(Nyas::Entities.Count * sizeof(NyasDrawUnit));
+            (NyasDrawUnit *)NyFrameAllocator::Alloc(1 * sizeof(NyasDrawUnit));
         for (int i = 0; i < Nyas::Entities.Count; ++i)
         {
-            mat4_assign((float *)Nyas::Entities[i].Material.Ptr, Nyas::Entities[i].Transform);
-            draw.Units[i].Material = Nyas::CopyMaterialTmp(Nyas::Entities[i].Material);
-            draw.Units[i].Mesh = Nyas::Entities[i].Mesh;
+            auto *pbr_uniform_block = (PbrDataDesc*)Nyas::Shaders[G_Shaders.Pbr].UnitBlock;
+            mat4_assign(pbr_uniform_block[i].Model, Nyas::Entities[i].Transform);
+            //draw.Units[i].Material = Nyas::CopyMaterialTmp(Nyas::Entities[i].Material);
+            //draw.Units[i].Mesh = Nyas::Entities[i].Mesh;
+            //draw.Units[i].Instances = Nyas::Entities.Count;
         }
+        draw.Units->Material = Nyas::CopyMaterialTmp(Nyas::Entities[0].Material);
+        draw.Units->Mesh = Nyas::Entities[0].Mesh;
+        draw.Units->Instances = Nyas::Entities.Count;
 
         new_frame.Push(draw);
     }
@@ -412,7 +369,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Skybox
     {
         NyasDrawCmd draw;
-        Nyas::Camera.OriginViewProj((float *)Nyas::GetMaterialSharedData(G_Shaders.Skybox));
+        Nyas::Camera.OriginViewProj((float *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock);
         draw.ShaderMaterial = Nyas::CopyShaderMaterialTmp(G_Shaders.Skybox);
         draw.State.DisableFlags |= NyasDrawFlags_FaceCulling;
         draw.State.Depth = NyasDepthFunc_LessEqual;
@@ -420,6 +377,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
         draw.Units->Material.Shader = G_Shaders.Skybox;
         draw.Units->Mesh = NYAS_CUBE;
+        draw.Units->Instances = 1;
         new_frame.Push(draw);
     }
 
@@ -437,6 +395,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
         draw.Units->Material.Shader = G_Shaders.FullscreenImg;
         draw.Units->Mesh = NYAS_QUAD;
+        draw.Units->Instances = 1;
         new_frame.Push(draw);
     }
 }

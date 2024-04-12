@@ -116,8 +116,9 @@ typedef int NyasError; // enum NyasError_
 namespace Nyas
 {
 NyasHandle CreateTexture();
+NyasHandle CreateTexture(int w, int h, NyasTexType t, NyasTexFmt f, int count = 1);
 void SetTexture(NyasHandle tex, NyasTexDesc *desc);
-void LoadTexture(NyasHandle tex, NyasTexDesc *desc, const char *path);
+void LoadTexture(NyasHandle tex, NyasTexDesc *desc, const char *path, int index = 0);
 
 NyasHandle CreateFramebuffer();
 void SetFramebufferTarget(NyasHandle fb, int index, NyasTexTarget target);
@@ -717,6 +718,7 @@ typedef struct NyasTexDesc
 {
     int Width;
     int Height;
+    int Count; // TexArrays
     NyasTexFlags Flags;
     NyasTexType Type;
     NyasTexFmt Format;
@@ -728,7 +730,7 @@ typedef struct NyasTexDesc
     float BorderColor[4];
 
     NyasTexDesc() :
-        Width(0), Height(0), Flags(NyasTexFlags_None), Type(NyasTexType_2D),
+        Width(0), Height(0), Count(1), Flags(NyasTexFlags_None), Type(NyasTexType_2D),
         Format(NyasTexFmt_SRGB_8), MinFilter(NyasTexFilter_Linear), MagFilter(NyasTexFilter_Linear),
         WrapS(NyasTexWrap_Repeat), WrapT(NyasTexWrap_Repeat), WrapR(NyasTexWrap_Repeat)
     {
@@ -738,8 +740,8 @@ typedef struct NyasTexDesc
         BorderColor[3] = 1.0f;
     }
 
-    NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h) :
-        Width(w), Height(h), Flags(NyasTexFlags_None), Type(type), Format(fmt),
+    NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h, int count = 1) :
+        Width(w), Height(h), Count(count), Flags(NyasTexFlags_None), Type(type), Format(fmt),
         MinFilter(NyasTexFilter_Linear), MagFilter(NyasTexFilter_Linear), WrapS(NyasTexWrap_Repeat),
         WrapT(NyasTexWrap_Repeat), WrapR(NyasTexWrap_Repeat)
     {
@@ -763,7 +765,9 @@ typedef struct NyasTexImg
     void *Pix;
     NyasTexFace Face;
     int MipLevel;
-    NyasTexImg() : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0) {}
+    int Index;
+    NyasTexImg() : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0), Index(0) {}
+    NyasTexImg(int aIndex) : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0), Index(aIndex) {}
 } NyasTexImg;
 
 typedef struct NyasMaterial
@@ -794,13 +798,14 @@ typedef struct NyasShaderDesc
     bool UseBlocks;
     int UnitSize;
     int SharedSize;
+    int TexArrCount;
 
     NyasShaderDesc(const char *id, int dcount, int tcount, int cmcount, int sdcount, int stcount,
-        int scmcount, bool useblocks, int unitsz, int sharedsz) :
+        int scmcount, bool useblocks, int unitsz, int sharedsz, int tacount = 0) :
         Name(id),
         DataCount(dcount), TexCount(tcount), CubemapCount(cmcount), SharedDataCount(sdcount),
         SharedTexCount(stcount), SharedCubemapCount(scmcount), UseBlocks(useblocks),
-        UnitSize(unitsz), SharedSize(sharedsz)
+        UnitSize(unitsz), SharedSize(sharedsz), TexArrCount(tacount)
     {
     }
 } NyasShaderDesc;
@@ -810,6 +815,10 @@ typedef struct NyasTexture
     NyasResource Resource;
     NyasTexDesc Data;
     NyArray<NyasTexImg> Img;
+
+    NyasTexture() = default;
+    NyasTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count = 1) : Data(t, f, w, h, count) {}
+    NyasTexture(NyasTexDesc desc) : Data(desc) {}
 } NyasTexture;
 
 typedef struct NyasMesh
@@ -832,7 +841,7 @@ typedef struct NyasShader
     const char *Name;
     struct
     {
-        int Data, Tex, Cubemap;
+        int Data, Tex, Cubemap, TexArr;
     } Location[2], Count[2]; // 0: unit, 1: common
     void *Shared;
     void **Unit;
@@ -841,6 +850,14 @@ typedef struct NyasShader
     int UnitSize;
     int SharedSize;
     bool UseBlocks;
+    NyasHandle *TexArrays;
+
+    NyasShader()
+    {
+        Count[0].TexArr = 0;
+        Count[1].TexArr = 0;
+        TexArrays = NULL;
+    }
 } NyasShader;
 
 typedef struct NyasFramebuffer
@@ -885,6 +902,9 @@ typedef struct NyasDrawUnit
 {
     NyasMaterial Material;
     NyasHandle Mesh;
+    int Instances;
+
+    NyasDrawUnit() : Instances(1) {}
 } NyasDrawUnit;
 
 typedef struct NyasDrawCmd
@@ -1003,7 +1023,7 @@ struct NyAssetLoader
     struct TexArgs
     {
         NyasTexDesc Descriptor;
-        const char *Path;
+        const char *Path[9];
         NyasHandle Tex;
     };
 
