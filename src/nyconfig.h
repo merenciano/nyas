@@ -7,6 +7,7 @@
 #define NYAS_TEX_ARRAY_SIZE 256
 
 // #define NyDrawIdx unsigned int
+// #define NyResourceID void*
 // #define NYAS_ASSERT(_COND) assert(_COND)
 
 #endif // NYAS_CONFIG_H

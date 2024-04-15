@@ -26,6 +26,7 @@ target_include_directories(nyas PUBLIC
 )
 
 target_sources(nyas PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 )

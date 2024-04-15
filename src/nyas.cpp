@@ -56,53 +56,7 @@ struct _NyScheduler
 // ---
 // [PRIVATE]
 // ---
-void _NyCreateTex(NyasTexture *t);
-void _NySetTex(NyasTexture *t);
-void _NyReleaseTex(uint32_t *id);
-
-void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
-void _NyUseMesh(NyasMesh *m, NyasShader *s);
-void _NySetMesh(NyasMesh *mesh, uint32_t shader_id);
-void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
-
-void _NyCreateShader(uint32_t *id);
-void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader);
-void _NyUseShader(uint32_t id);
-void _NyReleaseShader(uint32_t id);
-void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count);
-void _NySetShaderData(int loc, float *data, int v4count);
-void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset);
-void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset);
-void _NySetShaderTexArray(int loc, int *tex, int count, int texunit_offset);
-void _NySetShaderUniformBuffer(NyasShader *shader);
-
-void _NyCreateFramebuf(NyasFramebuffer *fb);
-void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, NyasTexTarget *tt);
-void _NyUseFramebuf(uint32_t id);
-void _NyReleaseFramebuf(NyasFramebuffer *fb);
-
-void _NyClear(bool color = true, bool depth = true, bool stencil = false);
-void _NyDraw(int elem_count, int index_type, int instances = 1);
-void _NyClearColor(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f);
-void _NyEnableScissor();
-void _NyDisableScissor();
-void _NyEnableBlend();
-void _NyDisableBlend();
-void _NySetBlend(NyasBlendFunc blend_func_src, NyasBlendFunc blend_func_dst);
-void _NyEnableCull();
-void _NyDisableCull();
-void _NySetCull(NyasFaceCull cull_face);
-void _NyEnableDepthTest();
-void _NyDisableDepthTest();
-void _NyEnableDepthMask();
-void _NyDisableDepthMask();
-void _NySetDepthFunc(NyasDepthFunc depth_func);
-void _NyEnableStencilTest();
-void _NyDisableStencilTest();
-void _NyEnableStencilMask();
-void _NyDisableStencilMask();
-void _NyViewport(NyRect rect);
-void _NyScissor(NyRect rect);
+#include "nyas_render.h"
 
 NyasCtx DefaultCtx;
 NyasCtx *G_Ctx = &DefaultCtx;
@@ -822,7 +776,7 @@ void SetFramebufferTarget(NyasHandle framebuffer, int index, struct NyasTexTarge
     Framebufs[framebuffer].Resource.Flags |= NyasResourceFlags_Dirty;
     Framebufs[framebuffer].Target[index] = target;
 }
-
+using namespace nyas::render;
 static void _SyncMesh(NyasHandle msh, NyasHandle shader)
 {
     _NyCheckHandle(msh, Meshes);
@@ -1724,11 +1678,6 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
     t->Data.Format = NyasTexFmt_RGB_16F;
     t->Data.Width = 1024;
     t->Data.Height = 1024;
-    t->Data.MagFilter = NyasTexFilter_Linear;
-    t->Data.MinFilter = NyasTexFilter_Linear;
-    t->Data.WrapS = NyasTexWrap_Clamp;
-    t->Data.WrapT = NyasTexWrap_Clamp;
-    t->Data.WrapR = NyasTexWrap_Clamp;
 
     size_t size = 1024 * 1024 * 3 * 2; // size * nchannels * sizeof(channel)
     for (int i = 0; i < 6; ++i)
@@ -1749,11 +1698,6 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
     t->Data.Format = NyasTexFmt_RGB_16F;
     t->Data.Width = 1024;
     t->Data.Height = 1024;
-    t->Data.MagFilter = NyasTexFilter_Linear;
-    t->Data.MinFilter = NyasTexFilter_Linear;
-    t->Data.WrapS = NyasTexWrap_Clamp;
-    t->Data.WrapT = NyasTexWrap_Clamp;
-    t->Data.WrapR = NyasTexWrap_Clamp;
 
     for (int i = 0; i < 6; ++i)
     {
@@ -1773,11 +1717,7 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
     t->Data.Format = NyasTexFmt_RGB_16F;
     t->Data.Width = 256;
     t->Data.Height = 256;
-    t->Data.MagFilter = NyasTexFilter_Linear;
-    t->Data.MinFilter = NyasTexFilter_LinearMipmapLinear;
-    t->Data.WrapS = NyasTexWrap_Clamp;
-    t->Data.WrapT = NyasTexWrap_Clamp;
-    t->Data.WrapR = NyasTexWrap_Clamp;
+    t->Sampler.MinFilter = NyasTexFilter_LinearMipmapLinear;
 
     size = 256 * 256 * 3 * 2;
     for (int lod = 0; lod < 9; ++lod)
@@ -1803,11 +1743,6 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
     t->Data.Format = NyasTexFmt_RG_16F;
     t->Data.Width = 512;
     t->Data.Height = 512;
-    t->Data.MagFilter = NyasTexFilter_Linear;
-    t->Data.MinFilter = NyasTexFilter_Linear;
-    t->Data.WrapS = NyasTexWrap_Clamp;
-    t->Data.WrapT = NyasTexWrap_Clamp;
-    t->Data.WrapR = NyasTexWrap_Clamp;
 
     size = 512 * 512 * 2 * 2;
 
@@ -1885,12 +1820,22 @@ static GLint _GL_TexWrap(NyasTexWrap w)
     }
 }
 
-static NyGL_TexDesc _GL_TexDesc(NyasTexDesc *d)
+struct NyGL_TexConfig
 {
-    return { _GL_TexTarget(d->Type), _GL_TexFilter(d->MinFilter), _GL_TexFilter(d->MagFilter),
-        _GL_TexWrap(d->WrapS), _GL_TexWrap(d->WrapT), _GL_TexWrap(d->WrapR), d->BorderColor[0],
-        d->BorderColor[1], d->BorderColor[2], d->BorderColor[3] };
-}
+    GLenum MinFltr = GL_LINEAR;
+    GLenum MagFltr = GL_LINEAR;
+    GLenum WrapS = GL_CLAMP_TO_EDGE;
+    GLenum WrapT = GL_CLAMP_TO_EDGE;
+    GLenum WrapR = GL_CLAMP_TO_EDGE;
+    float BorderColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+
+    NyGL_TexConfig(NyasTexture *t)
+        : MinFltr(_GL_TexFilter(t->Sampler.MinFilter))
+        , MagFltr(_GL_TexFilter(t->Sampler.MagFilter))
+        , WrapS(_GL_TexWrap(t->Sampler.WrapS))
+        , WrapT(_GL_TexWrap(t->Sampler.WrapT))
+        , WrapR(_GL_TexWrap(t->Sampler.WrapR)) {}
+};
 
 struct _GL_TexFmtResult
 {
@@ -1918,41 +1863,44 @@ static struct _GL_TexFmtResult _GL_TexFmt(NyasTexFmt fmt)
     }
 }
 
+namespace nyas::render
+{
 void _NyCreateTex(NyasTexture *t)
 {
-    NyGL_TexDesc d = _GL_TexDesc(&t->Data);
+    auto tgt = _GL_TexTarget(t->Data.Type);
+    NyGL_TexConfig smplr = {t};
     _GL_TexFmtResult fmt = _GL_TexFmt(t->Data.Format);
     glGenTextures(1, &t->Resource.Id);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(d.target, t->Resource.Id);
-    if (d.min_f)
+    glBindTexture(tgt, t->Resource.Id);
+    if (smplr.MinFltr)
     {
-        glTexParameteri(d.target, GL_TEXTURE_MIN_FILTER, d.min_f);
+        glTexParameteri(tgt, GL_TEXTURE_MIN_FILTER, smplr.MinFltr);
     }
-    if (d.mag_f)
+    if (smplr.MagFltr)
     {
-        glTexParameteri(d.target, GL_TEXTURE_MAG_FILTER, d.mag_f);
+        glTexParameteri(tgt, GL_TEXTURE_MAG_FILTER, smplr.MagFltr);
     }
-    if (d.ws)
+    if (smplr.WrapS)
     {
-        glTexParameteri(d.target, GL_TEXTURE_WRAP_S, d.ws);
+        glTexParameteri(tgt, GL_TEXTURE_WRAP_S, smplr.WrapS);
     }
-    if (d.wt)
+    if (smplr.WrapT)
     {
-        glTexParameteri(d.target, GL_TEXTURE_WRAP_T, d.wt);
+        glTexParameteri(tgt, GL_TEXTURE_WRAP_T, smplr.WrapT);
     }
-    if (d.wr)
+    if (smplr.WrapR)
     {
-        glTexParameteri(d.target, GL_TEXTURE_WRAP_R, d.wr);
+        glTexParameteri(tgt, GL_TEXTURE_WRAP_R, smplr.WrapR);
     }
-    if (d.ba > 0.0f)
+    if (smplr.BorderColor[3] > 0.0f)
     {
-        glTexParameterfv(d.target, GL_TEXTURE_BORDER_COLOR, &d.br);
+        glTexParameterfv(tgt, GL_TEXTURE_BORDER_COLOR, &smplr.BorderColor[0]);
     }
 
     if (t->Data.Type == NyasTexType_Array2D)
     {
-        glTexImage3D(d.target, 0, fmt.ifmt, t->Data.Width, t->Data.Height, t->Data.Count, 0, fmt.fmt, fmt.type, 0);
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, fmt.ifmt, t->Data.Width, t->Data.Height, t->Data.Count, 0, fmt.fmt, fmt.type, 0);
     }
 }
 
@@ -2439,6 +2387,7 @@ void _NyScissor(NyRect rect)
     {
         glScissor(rect.X, rect.Y, rect.W, rect.H);
     }
+}
 }
 
 #endif
