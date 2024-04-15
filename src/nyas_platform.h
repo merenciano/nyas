@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "nyconfig.h"
 #include "nyas_math.h"
 
 #ifndef NYAS_ASSERT

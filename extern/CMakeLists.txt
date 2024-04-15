@@ -1,5 +1,16 @@
+add_library(nyas_extern)
 
-target_sources(nyas PRIVATE
+target_include_directories(nyas_extern PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/extern/src
+	${CMAKE_CURRENT_SOURCE_DIR}/extern/include
+	${CMAKE_CURRENT_SOURCE_DIR}/extern
+)
+
+target_compile_definitions(nyas_extern PRIVATE
+	_GLFW_X11
+)
+
+target_sources(nyas_extern PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/mathc.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/glad.c
 	${CMAKE_CURRENT_SOURCE_DIR}/src/GLFW/vulkan.c

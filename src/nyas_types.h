@@ -229,7 +229,6 @@ typedef struct NyasTexDesc
     int Width = 0;
     int Height = 0;
 	int Levels = 0;
-	NyasTexFmt Format = NyasTexFmt_SRGB_8;
     int Count = 1; // TexArrays
     NyasTexFlags Flags = NyasTexFlags_None;
     NyasTexType Type = NyasTexType_2D;

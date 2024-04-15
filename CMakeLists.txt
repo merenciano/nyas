@@ -27,11 +27,14 @@ target_include_directories(nyas PUBLIC
 
 target_sources(nyas PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas_render.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas_render_gl.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 )
 
 target_link_libraries(nyas PRIVATE
+	nyas_extern
 	GL
 	X11
 	dl

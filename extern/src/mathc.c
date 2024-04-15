@@ -18,7 +18,7 @@ the following restrictions:
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#include "mathc.h"
+#include "../include/mathc.h"
 
 #if defined(MATHC_USE_INT)
 mint_t clampi(mint_t value, mint_t min, mint_t max)
