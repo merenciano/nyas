@@ -218,25 +218,26 @@ struct NyasSampler
 {
     NyasTexFilter MinFilter = NyasTexFilter_Linear;
     NyasTexFilter MagFilter = NyasTexFilter_Linear;
-    NyasTexWrap WrapS = NyasTexWrap_Clamp;
-    NyasTexWrap WrapT = NyasTexWrap_Clamp;
-    NyasTexWrap WrapR = NyasTexWrap_Clamp;
+    NyasTexWrap WrapS = NyasTexWrap_Repeat;
+    NyasTexWrap WrapT = NyasTexWrap_Repeat;
+    NyasTexWrap WrapR = NyasTexWrap_Repeat;
     float BorderColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
 typedef struct NyasTexDesc
 {
+	NyasTexFmt Format = NyasTexFmt_SRGB_8;
     int Width = 0;
     int Height = 0;
 	int Levels = 0;
+
     int Count = 1; // TexArrays
     NyasTexFlags Flags = NyasTexFlags_None;
     NyasTexType Type = NyasTexType_2D;
-    NyasTexFmt Format = NyasTexFmt_SRGB_8;
     
 	NyasTexDesc() = default;
     NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h, int count = 1) :
-        Width(w), Height(h), Count(count), Flags(NyasTexFlags_None), Type(type), Format(fmt)
+        Format(fmt), Width(w), Height(h), Count(count), Flags(NyasTexFlags_None), Type(type)
     {}
 } NyasTexDesc;
 
@@ -281,23 +282,55 @@ typedef struct NyasShaderDesc
     }
 } NyasShaderDesc;
 
+typedef struct TEX_HANDLE
+{
+    int Index;
+    int Layer;
+} TEX_HANDLE;
+
 typedef struct NyasTexture
 {
+	NyasTexFmt Format;
 	int Width;
 	int Height;
 	int Levels;
-	NyasTexFmt Format;
-	int Count;
+	int Count = NYAS_TEX_ARRAY_SIZE; // TODO: Borrar
 	
     NyasResource Resource;
-    NyasTexDesc Data;
+    NyasTexDesc Data; // TODO: Borrar
 	NyasSampler Sampler;
     NyArray<NyasTexImg> Img;
 
     NyasTexture() = default;
-    NyasTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count = 1) : Data(t, f, w, h, count) {}
+    NyasTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count) : Data(t, f, w, h, NYAS_TEX_ARRAY_SIZE) {}
     NyasTexture(NyasTexDesc desc) : Data(desc) {}
 } NyasTexture;
+
+struct TEX_INFO
+{
+	NyasTexFmt Format;
+	int Width;
+	int Height;
+	int Levels;
+};
+#include <vector>
+struct TEX_ARR
+{
+    TEX_INFO Info;
+    NyasSampler Sampler;
+    NyResourceID InternalID;
+    std::vector<NyasTexImg> Img;
+}; 
+
+struct TEXTURES
+{
+    TEX_HANDLE Create(NyasTexDesc desc);
+    void Update(TEX_HANDLE h, NyasTexImg img);
+    //void Release(NyasTexHandle h);
+    TEX_ARR Textures[NYAS_TEX_ARRAYS];
+    int Offset[NYAS_TEX_ARRAYS];
+    //int FreeList[NYAS_TEX_ARRAYS]; // TODO: Texture release.
+};
 
 typedef struct NyasMesh
 {

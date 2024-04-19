@@ -1,9 +1,7 @@
-add_library(nyas_extern)
+add_library(nyas_extern OBJECT)
 
-target_include_directories(nyas_extern PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/extern/src
-	${CMAKE_CURRENT_SOURCE_DIR}/extern/include
-	${CMAKE_CURRENT_SOURCE_DIR}/extern
+target_include_directories(nyas_extern PRIVATE 
+	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_compile_definitions(nyas_extern PRIVATE
