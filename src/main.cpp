@@ -3,6 +3,10 @@
 #include <mathc.h>
 #include <stdio.h>
 
+#include <array>
+
+azdo::Textures GTextures;
+
 struct PbrDataDesc
 {
     float Model[16];
@@ -28,7 +32,7 @@ struct PbrSharedDesc
 
 struct PbrMaps
 {
-    NyasHandle Alb, Nor, Rou, Met;
+    azdo::TexHandle Alb, Nor, Rou, Met;
 };
 
 static const struct
@@ -49,7 +53,7 @@ struct
 struct
 {
     NyasHandle Sky;
-    PbrMaps PbrMaps;
+    PbrMaps Pbr[9];
 } G_Tex;
 
 NyasHandle G_Framebuf;
@@ -83,7 +87,14 @@ void Init(void)
         NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_R_8, 0, 0, 9),
         NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_R_8, 0, 0, 9) };
 
-    const char *texpaths[] = { "assets/tex/celtic-gold/celtic-gold_A.png",
+    azdo::TexInfo texinfo[] = {
+        azdo::TexInfo(NyasTexFmt_SRGB_8, 2048, 2048, 0),
+        azdo::TexInfo(NyasTexFmt_RGB_8, 2048, 2048, 0),
+        azdo::TexInfo(NyasTexFmt_R_8, 2048, 2048, 0),
+        azdo::TexInfo(NyasTexFmt_R_8, 2048, 2048, 0)
+    };
+
+    std::array<const char*, 36> texpaths { "assets/tex/celtic-gold/celtic-gold_A.png",
         "assets/tex/celtic-gold/celtic-gold_N.png", "assets/tex/celtic-gold/celtic-gold_R.png",
         "assets/tex/celtic-gold/celtic-gold_M.png", "assets/tex/peeling/peeling_A.png",
         "assets/tex/peeling/peeling_N.png", "assets/tex/peeling/peeling_R.png",
@@ -102,25 +113,15 @@ void Init(void)
         "assets/tex/granite/granite_M.png", "assets/tex/foam/foam_A.png",
         "assets/tex/foam/foam_N.png", "assets/tex/foam/foam_R.png", "assets/tex/foam/foam_M.png" };
 
-    NyAssetLoader::TexArgs loadtexargs[4];
-    NyasHandle *tex_begin = &G_Tex.PbrMaps.Alb;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 9; ++i)
     {
-        *tex_begin = Nyas::CreateTexture(0, 0, texdesc[i].Type, texdesc[i].Format, 9);
-        loadtexargs[i].Tex = *tex_begin++;
-        loadtexargs[i].Descriptor = texdesc[i];
-        for (int t = 0; t < 9; ++t)
-        {
-            loadtexargs[i].Path[t] = texpaths[t * 4 + i];
-        }
+        G_Tex.Pbr[i].Alb = GTextures.Load(texpaths[i * 9], NyasTexFmt_SRGB_8, 0);
+        G_Tex.Pbr[i].Nor = GTextures.Load(texpaths[i * 9 + 1], NyasTexFmt_RGB_8, 0);
+        G_Tex.Pbr[i].Rou = GTextures.Load(texpaths[i * 9 + 2], NyasTexFmt_R_8, 0);
+        G_Tex.Pbr[i].Met = GTextures.Load(texpaths[i * 9 + 3], NyasTexFmt_R_8, 0);
     }
 
-    for (int i = 0; i < 4; ++i)
-    {
-        ldr.AddTex(&loadtexargs[i]);
-    }
-
-    ldr.Load(24);
+    ldr.Load(12);
 
     Nyas::Shaders[G_Shaders.Pbr].TexArrays = (NyasHandle*)malloc(4 * sizeof(NyasHandle));
     PbrSharedDesc *shared = (PbrSharedDesc*)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
@@ -300,10 +301,7 @@ void Init(void)
 
     *Nyas::Shaders[G_Shaders.Skybox].Shared = G_Tex.Sky;
     *Nyas::Shaders[G_Shaders.FullscreenImg].Shared = G_FbTex;
-    Nyas::Shaders[G_Shaders.Pbr].TexArrays[0] = G_Tex.PbrMaps.Alb;
-    Nyas::Shaders[G_Shaders.Pbr].TexArrays[1] = G_Tex.PbrMaps.Met;
-    Nyas::Shaders[G_Shaders.Pbr].TexArrays[2] = G_Tex.PbrMaps.Rou;
-    Nyas::Shaders[G_Shaders.Pbr].TexArrays[3] = G_Tex.PbrMaps.Nor;
+    *Nyas::Shaders[G_Shaders.Pbr].Shared
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)

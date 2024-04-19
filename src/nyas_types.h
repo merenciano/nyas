@@ -80,7 +80,13 @@ enum NyasTexFmt_
     NyasTexFmt_RG_32F,
     NyasTexFmt_RGB_32F,
     NyasTexFmt_RGBA_32F,
-    NyasTexFmt_COUNT
+    NyasTexFmt_COUNT,
+
+
+    NyasTexFmt_BeginByte = NyasTexFmt_R_8,
+    NyasTexFmt_BeginFloat16 = NyasTexFmt_R_16F,
+    NyasTexFmt_BeginFloat32 = NyasTexFmt_R_32F,
+    NyasTexFmt_BeginFloat = NyasTexFmt_BeginFloat16,
 };
 
 enum NyasTexFace_
@@ -453,5 +459,9 @@ typedef struct NyasDrawCmd
     NyasHandle Shader;
     NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp) {}
 } NyasDrawCmd;
+
+// New types
+
+#include "nyas_texture.cpp"
 
 #endif // NYAS_TYPES_H
