@@ -145,11 +145,6 @@ namespace nyas::render
         {
             glTexParameterfv(tgt, GL_TEXTURE_BORDER_COLOR, &smplr.BorderColor[0]);
         }
-
-        if (t->Data.Type == NyasTexType_Array2D)
-        {
-            glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, fmt.ifmt, t->Data.Width, t->Data.Height, t->Data.Count, 0, fmt.fmt, fmt.type, 0);
-        }
     }
 
     void _NySetTex(struct NyasTexture *t)
@@ -162,6 +157,7 @@ namespace nyas::render
 
         if (type == GL_TEXTURE_2D_ARRAY)
         {
+            assert(false);
             for (int i = 0; i < t->Img.Size; ++i)
             {
                 int w = t->Data.Width >> t->Img[i].MipLevel;
@@ -397,7 +393,8 @@ namespace nyas::render
 
     void _NySetShaderTexArray(int loc, int *tex, int count, int texunit_offset)
     {
-        _SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_2D_ARRAY);
+        glUniform1iv(loc, count, tex);
+        //_SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_2D_ARRAY);
     }
 
     void _NySetShaderUniformBuffer(NyasShader* shader)

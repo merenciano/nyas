@@ -496,7 +496,6 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
     Shaders[ret].Name = desc->Name;
     Shaders[ret].Resource.Id = 0;
     Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
-    Shaders[ret].TexArrCount = desc->TexArrCount;
     Shaders[ret].SharedTexCount = desc->SharedTexCount;
     Shaders[ret].SharedCubemapCount = desc->SharedCubemapCount;
     Shaders[ret].Shared = (NyasHandle*)NYAS_ALLOC(
@@ -505,7 +504,6 @@ NyasHandle CreateShader(const struct NyasShaderDesc *desc)
     Shaders[ret].SharedBlock = NYAS_ALLOC(desc->SharedSize);
     Shaders[ret].UnitSize = desc->UnitSize;
     Shaders[ret].SharedSize = desc->SharedSize;
-    Shaders[ret].TexArrays = (NyasHandle*)NYAS_ALLOC(desc->TexArrCount * sizeof(NyasHandle));
     return ret;
 }
 
@@ -820,16 +818,14 @@ static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
 
     int tc = s->SharedTexCount;
     int cc = s->SharedCubemapCount;
-    int tac = s->TexArrCount;
     int tl = s->SharedTexLocation;
     int cl = s->SharedCubemapLocation;
-    int tal = s->TexArrLocation;
     int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
 
-    NYAS_ASSERT((tc >= 0) && (cc >= 0) && (tac >= 0));
+    NYAS_ASSERT((tc >= 0) && (cc >= 0));
     NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
 
-    if (!(tc | cc | tac))
+    if (!(tc | cc))
     {
         return;
     }
@@ -841,13 +837,6 @@ static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
         data_tex[i] = (int)itx->Resource.Id;
     }
 
-    NyasHandle data_texarr[4];
-    for (int i = 0; i < tac; ++i)
-    {
-        NyasTexture *itx = _SyncTex(s->TexArrays[i]);
-        data_texarr[i] = (int)itx->Resource.Id;
-    }
-
     // set opengl uniforms
     if (tc)
     {
@@ -857,11 +846,6 @@ static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
     if (cc)
     {
         _NySetShaderCubemap(cl, data_tex + tc, cc, tex_unit + tc);
-    }
-
-    if (tac)
-    {
-        _NySetShaderTexArray(tal, data_texarr, tac, tex_unit + tc + cc);
     }
 }
 
@@ -881,7 +865,14 @@ void _SyncShader(NyasShader *s)
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
         _NyCompileShader(s->Resource.Id, s->Name, s);
         _NyShaderLocations(s->Resource.Id, &s->SharedTexLocation, &uniforms[0], 3);
+        GTextures.Sync();
         s->Resource.Flags &= ~NyasResourceFlags_Dirty;
+        int Data[16];
+        for (int i = 0; i < 16; ++i)
+        {
+            Data[i] = i + 1;
+        }
+        glProgramUniform1iv(s->Resource.Id, s->TexArrLocation, GTextures.Data.size(), Data);
     }
     _NySetShaderUniformBuffer(s);
 }

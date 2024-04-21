@@ -6,8 +6,6 @@
 
 #include "stb_image.h"
 
-#define TEXARR_MAX 64
-
 namespace azdo {
 typedef unsigned int ResourceID;
 
@@ -78,12 +76,13 @@ struct Textures
 	{
 		for (int i = 0; i < Tex.size(); ++i)
 		{
-			if (Data[i] == -1)
+			if (Data[i] == 0x7FFFFFFF)
 			{
 				auto Format = _GL_TexFmt(Tex[i].Info.Format);
 				glGenTextures(1, &Data[i]);
 				glBindTexture(GL_TEXTURE_2D_ARRAY, Data[i]);
-				glTexStorage3D(GL_TEXTURE_2D_ARRAY, Tex[i].Info.Levels, Format.InternalFormat, Tex[i].Info.Width, Tex[i].Info.Height, TEXARR_MAX);
+				glTexStorage3D(GL_TEXTURE_2D_ARRAY, Tex[i].Info.Levels, Format.InternalFormat, Tex[i].Info.Width, Tex[i].Info.Height, NYAS_TEX_ARRAY_SIZE);
+				glBindTextureUnit(i + 1, Data[i]);
 			}
 		}
 	}
@@ -104,28 +103,47 @@ struct Textures
 	{
 		for (int i = 0; i < Tex.size(); ++i)
 		{
-			if (Tex[i].Info == Info && Tex[i].Count != TEXARR_MAX)
+			if (Tex[i].Info == Info && Tex[i].Count != NYAS_TEX_ARRAY_SIZE)
 			{
 				return { i, Tex[i].Count++ };
 			}
 		}
 
 		Tex.emplace_back(Info, 1);
-		Data.emplace_back(-1);
+		Data.emplace_back(0x7FFFFFFF);
 		return {(int)Tex.size() - 1, 0};
+	}
+
+	static int _TexChannels(NyasTexFmt fmt)
+	{
+		switch (fmt)
+		{
+			case NyasTexFmt_RGBA_16F:
+			case NyasTexFmt_RGBA_8: return 4;
+			case NyasTexFmt_RGB_16F:
+			case NyasTexFmt_RGB_8:
+			case NyasTexFmt_SRGB_8: return 3;
+			case NyasTexFmt_RG_16F:
+			case NyasTexFmt_RG_8: return 2;
+			case NyasTexFmt_R_16F:
+			case NyasTexFmt_R_8: return 1;
+			default: return 0;
+		}
 	}
 
 	TexHandle Load(const char *path, NyasTexFmt fmt, int levels)
 	{
 		int w, h, channels;
+		int ch = _TexChannels(fmt);
 		azdo::TexImage img;
+		img.Level = 0;
 		if (fmt >= NyasTexFmt_BeginFloat)
 		{
-			img.Data = stbi_loadf(path, &w, &h, &channels, 0);
+			img.Data = stbi_loadf(path, &w, &h, &channels, ch);
 		}
 		else
 		{
-			img.Data = stbi_load(path, &w, &h, &channels, 0);
+			img.Data = stbi_load(path, &w, &h, &channels, ch);
 		}
 
 		if (!img.Data)
@@ -135,6 +153,7 @@ struct Textures
 		
 		TexHandle hnd = Alloc({fmt, w, h, levels});
 		Update(hnd, img);
+		return hnd;
 	}
 
 	void Update(TexHandle h, TexImage img)
@@ -146,7 +165,6 @@ struct Textures
 	{
 		_CreateTex();
 		_UpdateTex();
-		glBindTextures(1, Data.size(), Data.data());
 	}
 
     std::vector<TexArr> Tex;

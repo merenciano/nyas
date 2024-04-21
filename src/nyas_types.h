@@ -278,21 +278,14 @@ typedef struct NyasShaderDesc
     const char *Name;
     int SharedTexCount;
     int SharedCubemapCount;
-    int TexArrCount;
     int UnitSize;
     int SharedSize;
 
-    NyasShaderDesc(const char *id, int stcount = 0, int scmcount = 0, int tacount = 0, int unitsz = 0, int sharedsz = 0) :
-        Name(id), SharedTexCount(stcount), SharedCubemapCount(scmcount), TexArrCount(tacount), UnitSize(unitsz), SharedSize(sharedsz) 
+    NyasShaderDesc(const char *id, int stcount = 0, int scmcount = 0, int unitsz = 0, int sharedsz = 0) :
+        Name(id), SharedTexCount(stcount), SharedCubemapCount(scmcount), UnitSize(unitsz), SharedSize(sharedsz) 
     {
     }
 } NyasShaderDesc;
-
-typedef struct TEX_HANDLE
-{
-    int Index;
-    int Layer;
-} TEX_HANDLE;
 
 typedef struct NyasTexture
 {
@@ -311,32 +304,6 @@ typedef struct NyasTexture
     NyasTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count) : Data(t, f, w, h, NYAS_TEX_ARRAY_SIZE) {}
     NyasTexture(NyasTexDesc desc) : Data(desc) {}
 } NyasTexture;
-
-struct TEX_INFO
-{
-	NyasTexFmt Format;
-	int Width;
-	int Height;
-	int Levels;
-};
-#include <vector>
-struct TEX_ARR
-{
-    TEX_INFO Info;
-    NyasSampler Sampler;
-    NyResourceID InternalID;
-    std::vector<NyasTexImg> Img;
-}; 
-
-struct TEXTURES
-{
-    TEX_HANDLE Create(NyasTexDesc desc);
-    void Update(TEX_HANDLE h, NyasTexImg img);
-    //void Release(NyasTexHandle h);
-    TEX_ARR Textures[NYAS_TEX_ARRAYS];
-    int Offset[NYAS_TEX_ARRAYS];
-    //int FreeList[NYAS_TEX_ARRAYS]; // TODO: Texture release.
-};
 
 typedef struct NyasMesh
 {
@@ -361,13 +328,11 @@ typedef struct NyasShader
     int TexArrLocation;
     int SharedTexCount;
     int SharedCubemapCount;
-    int TexArrCount;
     NyasHandle *Shared;
     void *UnitBlock;
     void *SharedBlock;
     int UnitSize;
     int SharedSize;
-    NyasHandle *TexArrays;
 
     NyasShader()
     {
@@ -375,7 +340,7 @@ typedef struct NyasShader
     }
 
     NyasShader(NyasShaderDesc *desc) : Name(desc->Name), SharedTexCount(desc->SharedTexCount), SharedCubemapCount(desc->SharedCubemapCount),
-        TexArrCount(desc->TexArrCount), UnitSize(desc->UnitSize), SharedSize(desc->SharedSize)
+        UnitSize(desc->UnitSize), SharedSize(desc->SharedSize)
     {
         Resource.Id = 0;
         Resource.Flags = NyasResourceFlags_Dirty;
@@ -387,7 +352,6 @@ typedef struct NyasShader
         UnitBlock = NYAS_ALLOC(UnitSize);
         SharedBlock = NYAS_ALLOC(SharedSize);
         Shared = (NyasHandle*)NYAS_ALLOC((SharedTexCount + SharedCubemapCount) * sizeof(NyasHandle));
-        TexArrays = (NyasHandle*)NYAS_ALLOC(TexArrCount * sizeof(NyasHandle));
     }
 
     ~NyasShader()
@@ -395,11 +359,9 @@ typedef struct NyasShader
         NYAS_FREE(UnitBlock);
         NYAS_FREE(SharedBlock);
         NYAS_FREE(Shared);
-        NYAS_FREE(TexArrays);
         UnitBlock = NULL;
         SharedBlock = NULL;
         Shared = NULL;
-        TexArrays = NULL;
     }
 } NyasShader;
 

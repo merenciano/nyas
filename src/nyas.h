@@ -17,6 +17,8 @@ struct NyasCamera;
 struct NyasEntity;
 struct NyasCtx;
 
+extern azdo::Textures GTextures;
+
 namespace Nyas
 {
 NyasHandle CreateTexture();

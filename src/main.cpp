@@ -20,6 +20,14 @@ struct PbrDataDesc
     float Metallic;
     float UseNormalMap;
     float _Padding;
+    int AlbedoIdx;
+    float AlbedoLayer;
+    int NormalIdx;
+    float NormalLayer;
+    int RoughnessIdx;
+    float RoughnessLayer;
+    int MetallicIdx;
+    float MetallicLayer;
 };
 
 struct PbrSharedDesc
@@ -28,6 +36,8 @@ struct PbrSharedDesc
     NyVec3 CameraEye;
     float _Padding;
     float Sunlight[4]; // Alpha for light intensity
+    int LutIdx;
+    float LutLayer;
 };
 
 struct PbrMaps
@@ -40,8 +50,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 1, 2, 4, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc)},
-    { "fullscreen-img", 1 }, { "skybox", 0, 1, 0, 16 * sizeof(float), 0 } };
+} G_ShaderDescriptors = { { "pbr", 1, 2, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc)},
+    { "fullscreen-img", 1 }, { "skybox", 0, 1, 16 * sizeof(float), 0 } };
 
 struct
 {
@@ -82,18 +92,6 @@ void Init(void)
     ldr.AddMesh(&mesh);
     ldr.AddEnv(&envargs);
 
-    NyasTexDesc texdesc[] = { NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_SRGB_8, 0, 0, 9),
-        NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_RGB_8, 0, 0, 9),
-        NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_R_8, 0, 0, 9),
-        NyasTexDesc(NyasTexType_Array2D, NyasTexFmt_R_8, 0, 0, 9) };
-
-    azdo::TexInfo texinfo[] = {
-        azdo::TexInfo(NyasTexFmt_SRGB_8, 2048, 2048, 0),
-        azdo::TexInfo(NyasTexFmt_RGB_8, 2048, 2048, 0),
-        azdo::TexInfo(NyasTexFmt_R_8, 2048, 2048, 0),
-        azdo::TexInfo(NyasTexFmt_R_8, 2048, 2048, 0)
-    };
-
     std::array<const char*, 36> texpaths { "assets/tex/celtic-gold/celtic-gold_A.png",
         "assets/tex/celtic-gold/celtic-gold_N.png", "assets/tex/celtic-gold/celtic-gold_R.png",
         "assets/tex/celtic-gold/celtic-gold_M.png", "assets/tex/peeling/peeling_A.png",
@@ -115,15 +113,14 @@ void Init(void)
 
     for (int i = 0; i < 9; ++i)
     {
-        G_Tex.Pbr[i].Alb = GTextures.Load(texpaths[i * 9], NyasTexFmt_SRGB_8, 0);
-        G_Tex.Pbr[i].Nor = GTextures.Load(texpaths[i * 9 + 1], NyasTexFmt_RGB_8, 0);
-        G_Tex.Pbr[i].Rou = GTextures.Load(texpaths[i * 9 + 2], NyasTexFmt_R_8, 0);
-        G_Tex.Pbr[i].Met = GTextures.Load(texpaths[i * 9 + 3], NyasTexFmt_R_8, 0);
+        G_Tex.Pbr[i].Alb = GTextures.Load(texpaths[i * 4], NyasTexFmt_SRGB_8, 1);
+        G_Tex.Pbr[i].Nor = GTextures.Load(texpaths[i * 4 + 1], NyasTexFmt_RGB_8, 1);
+        G_Tex.Pbr[i].Rou = GTextures.Load(texpaths[i * 4 + 2], NyasTexFmt_R_8, 1);
+        G_Tex.Pbr[i].Met = GTextures.Load(texpaths[i * 4 + 3], NyasTexFmt_R_8, 1);
     }
 
     ldr.Load(12);
 
-    Nyas::Shaders[G_Shaders.Pbr].TexArrays = (NyasHandle*)malloc(4 * sizeof(NyasHandle));
     PbrSharedDesc *shared = (PbrSharedDesc*)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
     shared->Sunlight[0] = 0.0f;
     shared->Sunlight[1] = -1.0f;
@@ -174,7 +171,16 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx = G_Tex.Pbr[0].Alb.Index;
+        pbr.AlbedoLayer = G_Tex.Pbr[0].Alb.Layer;
+        pbr.NormalIdx = G_Tex.Pbr[0].Nor.Index;
+        pbr.NormalLayer = G_Tex.Pbr[0].Nor.Layer;
+        pbr.RoughnessIdx = G_Tex.Pbr[0].Rou.Index;
+        pbr.RoughnessLayer = G_Tex.Pbr[0].Rou.Layer;
+        pbr.MetallicIdx = G_Tex.Pbr[0].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[0].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
+
     }
 
     // Peeling
@@ -189,6 +195,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[1].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[1].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[1].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[1].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[1].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[1].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[1].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[1].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -204,6 +218,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[2].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[2].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[2].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[2].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[2].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[2].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[2].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[2].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -220,6 +242,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[3].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[3].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[3].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[3].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[3].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[3].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[3].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[3].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -235,6 +265,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[4].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[4].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[4].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[4].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[4].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[4].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[4].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[4].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -250,6 +288,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[5].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[5].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[5].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[5].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[5].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[5].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[5].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[5].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -266,6 +312,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[6].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[6].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[6].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[6].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[6].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[6].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[6].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[6].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -281,6 +335,14 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[7].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[7].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[7].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[7].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[7].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[7].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[7].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[7].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
@@ -296,12 +358,19 @@ void Init(void)
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
         e->Shader = G_Shaders.Pbr;
+        pbr.AlbedoIdx =     G_Tex.Pbr[8].Alb.Index;
+        pbr.AlbedoLayer =   G_Tex.Pbr[8].Alb.Layer;
+        pbr.NormalIdx =     G_Tex.Pbr[8].Nor.Index;
+        pbr.NormalLayer =   G_Tex.Pbr[8].Nor.Layer;
+        pbr.RoughnessIdx =  G_Tex.Pbr[8].Rou.Index;
+        pbr.RoughnessLayer =G_Tex.Pbr[8].Rou.Layer;
+        pbr.MetallicIdx =   G_Tex.Pbr[8].Met.Index;
+        pbr.MetallicLayer = G_Tex.Pbr[8].Met.Layer;
         pbr_uniform_block[eidx] = pbr;
     }
 
     *Nyas::Shaders[G_Shaders.Skybox].Shared = G_Tex.Sky;
     *Nyas::Shaders[G_Shaders.FullscreenImg].Shared = G_FbTex;
-    *Nyas::Shaders[G_Shaders.Pbr].Shared
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
