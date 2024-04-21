@@ -1743,6 +1743,10 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
     NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
     t->Img.Push(img);
     fclose(f);
+
+    // Por aqui voy!!
+    azdo::TexHandle h = GTextures.Alloc({NyasTexFmt_RG_16F, 512, 512, 1});
+    GTextures.Update(h, {img.Pix, 0});
 }
 } // namespace NyUtil
 
