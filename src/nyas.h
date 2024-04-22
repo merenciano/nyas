@@ -182,7 +182,7 @@ struct NyAssetLoader
         NyasHandle *Sky;
         NyasHandle *Irradiance;
         NyasHandle *Pref;
-        NyasHandle *LUT;
+        azdo::TexHandle *LUT;
     };
 
     NyArray<NySched::Job> Sequential;
@@ -208,7 +208,7 @@ namespace NyUtil
 void LoadBasicGeometries(void);
 
 // Environment maps
-void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref);
+void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref);
 
 } // namespace NyUtil
 

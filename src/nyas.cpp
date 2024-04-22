@@ -1649,7 +1649,7 @@ void LoadBasicGeometries(void)
     _MeshSetGeometry(NYAS_QUAD, NyasGeometry_Quad);
 }
 
-void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref)
+void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref)
 {
     FILE *f = fopen(path, "r");
     char hdr[9];
@@ -1726,7 +1726,7 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
         size /= 4;
     }
 
-    *lut = Nyas::CreateTexture();
+    /* *lut = Nyas::CreateTexture();
     t = &Nyas::Textures[*lut];
     t->Resource.Id = 0;
     t->Resource.Flags = NyasResourceFlags_Dirty;
@@ -1742,11 +1742,14 @@ void LoadEnv(const char *path, NyasHandle *lut, NyasHandle *sky, NyasHandle *irr
     fread(img.Pix, size, 1, f);
     NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
     t->Img.Push(img);
-    fclose(f);
+     */
 
-    // Por aqui voy!!
-    azdo::TexHandle h = GTextures.Alloc({NyasTexFmt_RG_16F, 512, 512, 1});
-    GTextures.Update(h, {img.Pix, 0});
+	void *img_pix {NYAS_ALLOC(size)};
+	fread(img_pix, size, 1, f);
+	*lut = GTextures.Alloc({NyasTexFmt_RG_16F, 512, 512, 1});
+	GTextures.Update(*lut, {img_pix, 0});
+
+    fclose(f);
 }
 } // namespace NyUtil
 

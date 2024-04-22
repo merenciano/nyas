@@ -75,7 +75,7 @@ void Init(void)
     NyUtil::LoadBasicGeometries();
     NyasHandle irradiance;
     NyasHandle prefilter;
-    NyasHandle lut;
+    azdo::TexHandle lut;
 
     NyAssetLoader::ShaderArgs fsimgargs = { G_ShaderDescriptors.FullscreenImg,
         &G_Shaders.FullscreenImg };
@@ -126,11 +126,12 @@ void Init(void)
     shared->Sunlight[1] = -1.0f;
     shared->Sunlight[2] = -0.1f;
     shared->Sunlight[3] = 0.0f;
+	shared->LutIdx = lut.Index;
+	shared->LutLayer = (float)lut.Layer;
 
     NyasHandle *pbr_scene_tex = Nyas::Shaders[G_Shaders.Pbr].Shared;
-    pbr_scene_tex[0] = lut;
-    pbr_scene_tex[1] = irradiance;
-    pbr_scene_tex[2] = prefilter;
+    pbr_scene_tex[0] = irradiance;
+    pbr_scene_tex[1] = prefilter;
 
     G_Framebuf = Nyas::CreateFramebuffer();
     NyVec2i vp = Nyas::GetCurrentCtx()->Platform.WindowSize;
