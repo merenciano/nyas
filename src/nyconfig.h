@@ -7,8 +7,8 @@
 
 #define NYAS_TEX_ARRAY_SIZE 64
 #define NYAS_TEX_ARRAYS 16
-#define NYAS_CUBEMAP_ARRAY_SIZE 64
-#define NYAS_CUBEMAP_ARRAYS 16
+#define NYAS_CUBEMAP_ARRAY_SIZE 8
+#define NYAS_CUBEMAP_ARRAYS 8
 
 // #define NyDrawIdx unsigned int
 // #define NyResourceID void*

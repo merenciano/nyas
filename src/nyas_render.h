@@ -26,7 +26,7 @@ namespace nyas::render
 	void _NySetShaderUniformBuffer(NyasShader *shader);
 
 	void _NyCreateFramebuf(NyasFramebuffer *fb);
-	void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, NyasTexTarget *tt);
+	void _NySetFramebuf(uint32_t fb_id, NyasTexTarget *tt);
 	void _NyUseFramebuf(uint32_t id);
 	void _NyReleaseFramebuf(NyasFramebuffer *fb);
 

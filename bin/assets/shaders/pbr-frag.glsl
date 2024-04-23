@@ -17,7 +17,7 @@
 #define ROUGHNESS_MAP        u_textures[entity[v_in.instance_id].roughness_map_index]
 #define NORMAL_MAP           u_textures[entity[v_in.instance_id].normal_map_index]
 
-#define LUT_MAP              u_common_tex[0]
+#define LUT_MAP              u_textures[lut_index]
 #define IRRADIANCE_MAP       u_common_cube[0]
 #define PREFILTER_MAP        u_common_cube[1]
 
@@ -70,11 +70,11 @@ layout(std140, binding=10) uniform SharedData
     float _pad2;
     vec3 light_dir;
     float light_intensity;
+    int lut_index;
+    float lut_layer;
 };
 
-uniform sampler2D   u_common_tex[1];
 uniform samplerCube u_common_cube[2];
-
 uniform sampler2DArray u_textures[16];
 
 // Normal distribution function (from filament documentation)
@@ -163,7 +163,7 @@ void main()
     vec3 r = reflect(-view, normal);
     float lod = perceptual_roughness * kMaxPrefilterLod;
     vec3 specular_irradiance = textureLod(PREFILTER_MAP, r, lod).rgb;
-    vec2 dfg_lut = texture(LUT_MAP, vec2(nov, perceptual_roughness)).rg;
+    vec2 dfg_lut = texture(LUT_MAP, vec3(nov, perceptual_roughness, lut_layer)).rg;
     vec3 ibl_dfg = mix(dfg_lut.xxx, dfg_lut.yyy, f0);
     vec3 specular_ibl = ibl_dfg * specular_irradiance;
 

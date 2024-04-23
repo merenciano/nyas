@@ -106,7 +106,8 @@ static struct _GL_TexFmtResult _GL_TexFmt(NyasTexFmt fmt)
         case NyasTexFmt_RGB_16F: return { GL_RGB16F, GL_RGB, GL_HALF_FLOAT };
         case NyasTexFmt_RGBA_16F: return { GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT };
         case NyasTexFmt_RGB_32F: return { GL_RGB32F, GL_RGB, GL_FLOAT };
-        case NyasTexFmt_Depth: return { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT };
+        case NyasTexFmt_Depth: return { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT };
+        case NyasTexFmt_DepthStencil: return { GL_DEPTH24_STENCIL8, GL_DEPTH_COMPONENT, GL_FLOAT };
         default: NYAS_LOG_ERR("Unrecognized texture format: (%d).", fmt); return { 0, 0, 0 };
     }
 }
@@ -441,13 +442,15 @@ namespace nyas::render
         }
     }
 
-    void _NySetFramebuf(uint32_t fb_id, uint32_t tex_id, NyasTexTarget *tt)
+    void _NySetFramebuf(uint32_t fb_id, NyasTexTarget *tt)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
-        GLenum face =
-            tt->Face == NyasTexFace_2D ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP_POSITIVE_X + tt->Face;
+        //GLenum face =
+        //    tt->Face == NyasTexFace_2D ? GL_TEXTURE_3D : GL_TEXTURE_CUBE_MAP_POSITIVE_X + tt->Face;
         GLint slot = _GL_FramebufAttach(tt->Attach);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, slot, face, tex_id, tt->MipLevel);
+        //glFramebufferTexture2D(GL_FRAMEBUFFER, slot, face, tex_id, tt->MipLevel);
+        //glFramebufferTexture3D(GL_FRAMEBUFFER, slot, face, GTextures.Data[tt->Tex.Index], tt->MipLevel, tt->Tex.Layer);
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, slot, GTextures.Data[tt->Tex.Index], tt->MipLevel, tt->Tex.Layer);
     }
 
     void _NyUseFramebuf(uint32_t id)

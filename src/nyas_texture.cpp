@@ -30,6 +30,12 @@ struct TexImage
 	int Level;
 };
 
+struct CubemapImage
+{
+	void *Data[6];
+	int Level;
+};
+
 struct TexArr
 {
     TexInfo Info;
@@ -42,6 +48,12 @@ struct TexHandle
 {
     int Index;
     int Layer;
+};
+
+struct CubemapHandle
+{
+	int Index;
+	int Layer;
 };
 
 struct Textures
@@ -67,14 +79,15 @@ struct Textures
 			case NyasTexFmt_RGB_16F: return { GL_RGB16F, GL_RGB, GL_HALF_FLOAT };
 			case NyasTexFmt_RGBA_16F: return { GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT };
 			case NyasTexFmt_RGB_32F: return { GL_RGB32F, GL_RGB, GL_FLOAT };
-			case NyasTexFmt_Depth: return { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT };
+			case NyasTexFmt_Depth: return { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT };
+        	case NyasTexFmt_DepthStencil: return { GL_DEPTH24_STENCIL8, GL_DEPTH_COMPONENT, GL_FLOAT };
 			default: printf("Unrecognized texture format: (%d).", Format); return { 0, 0, 0 };
 		}
 	}
 
 	void inline _CreateTex()
 	{
-		for (int i = 0; i < Tex.size(); ++i)
+		for (int i = 0; i < (int)Tex.size(); ++i)
 		{
 			if (Data[i] == 0x7FFFFFFF)
 			{
@@ -112,6 +125,21 @@ struct Textures
 		Tex.emplace_back(Info, 1);
 		Data.emplace_back(0x7FFFFFFF);
 		return {(int)Tex.size() - 1, 0};
+	}
+
+	CubemapHandle CubeAlloc(TexInfo Info)
+	{
+		for (int i = 0; i < Cubemap.size(); ++i)
+		{
+			if (Cubemap[i].Info == Info && Cubemap[i].Count != NYAS_TEX_ARRAY_SIZE)
+			{
+				return { i, Cubemap[i].Count++ };
+			}
+		}
+
+		Cubemap.emplace_back(Info, 1);
+		CubeData.emplace_back(0x7FFFFFFF);
+		return {(int)Cubemap.size() - 1, 0};
 	}
 
 	static int _TexChannels(NyasTexFmt fmt)
@@ -170,6 +198,10 @@ struct Textures
     std::vector<TexArr> Tex;
     std::vector<ResourceID> Data;
 	std::vector<std::pair<TexHandle, TexImage>> Updates;
+
+	std::vector<TexArr> Cubemap;
+    std::vector<ResourceID> CubeData;
+	std::vector<std::pair<TexHandle, TexImage>> CubeUpdates;
 };
 }// namespace azdo
 

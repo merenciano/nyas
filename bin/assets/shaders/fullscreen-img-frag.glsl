@@ -1,6 +1,12 @@
-#version 330 core 
+#version 450 core
 
-uniform sampler2D u_common_tex[1];
+layout(std140, binding=30) uniform BlockData
+{
+    int img_index;
+    float img_layer;
+};
+
+uniform sampler2DArray u_textures[16];
 
 in vec2 uv;
 
@@ -8,7 +14,7 @@ out vec4 FragColor;
 
 void main()
 {
-    vec3 color = texture(u_common_tex[0], uv).rgb;
+    vec3 color = texture(u_textures[img_index], vec3(uv, img_layer)).rgb;
 
     // Tone mapping
     color = color / (color + vec3(1.0));

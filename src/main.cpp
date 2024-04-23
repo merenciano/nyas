@@ -38,6 +38,7 @@ struct PbrSharedDesc
     float Sunlight[4]; // Alpha for light intensity
     int LutIdx;
     float LutLayer;
+    float _Padding2[2];
 };
 
 struct PbrMaps
@@ -50,8 +51,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 1, 2, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc)},
-    { "fullscreen-img", 1 }, { "skybox", 0, 1, 16 * sizeof(float), 0 } };
+} G_ShaderDescriptors = { { "pbr", 2, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc)},
+    { "fullscreen-img", 0, 16, 0 }, { "skybox", 1, 16 * sizeof(float), 0 } };
 
 struct
 {
@@ -67,7 +68,7 @@ struct
 } G_Tex;
 
 NyasHandle G_Framebuf;
-NyasHandle G_FbTex;
+azdo::TexHandle G_FbTex;
 NyasHandle G_Mesh;
 
 void Init(void)
@@ -136,13 +137,16 @@ void Init(void)
     G_Framebuf = Nyas::CreateFramebuffer();
     NyVec2i vp = Nyas::GetCurrentCtx()->Platform.WindowSize;
     NyasTexDesc descriptor(NyasTexType_2D, NyasTexFmt_RGB_32F, vp.X, vp.Y);
-    G_FbTex = Nyas::CreateTexture();
-    Nyas::SetTexture(G_FbTex, &descriptor);
+    G_FbTex = GTextures.Alloc({NyasTexFmt_RGB_32F, vp.X, vp.Y, 1});
+    azdo::TexHandle fb_depth = GTextures.Alloc({NyasTexFmt_Depth, vp.X, vp.Y, 1});
+
+    //G_FbTex = Nyas::CreateTexture();
+    //Nyas::SetTexture(G_FbTex, &descriptor);
     NyasTexTarget color = { G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0 };
 
-    NyasTexDesc depthscriptor(NyasTexType_2D, NyasTexFmt_Depth, vp.X, vp.Y);
-    NyasHandle fb_depth = Nyas::CreateTexture();
-    Nyas::SetTexture(fb_depth, &depthscriptor);
+    //NyasTexDesc depthscriptor(NyasTexType_2D, NyasTexFmt_Depth, vp.X, vp.Y);
+    //NyasHandle fb_depth = Nyas::CreateTexture();
+    //Nyas::SetTexture(fb_depth, &depthscriptor);
     NyasTexTarget depth = { fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0 };
 
     Nyas::SetFramebufferTarget(G_Framebuf, 0, color);
@@ -371,7 +375,9 @@ void Init(void)
     }
 
     *Nyas::Shaders[G_Shaders.Skybox].Shared = G_Tex.Sky;
-    *Nyas::Shaders[G_Shaders.FullscreenImg].Shared = G_FbTex;
+    //*Nyas::Shaders[G_Shaders.FullscreenImg].Shared = G_FbTex;
+    Nyas::Shaders[G_Shaders.FullscreenImg].UnitBlock = malloc(16);
+    *(azdo::TexHandle*)Nyas::Shaders[G_Shaders.FullscreenImg].UnitBlock = G_FbTex;
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)

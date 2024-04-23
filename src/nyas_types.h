@@ -247,14 +247,6 @@ typedef struct NyasTexDesc
     {}
 } NyasTexDesc;
 
-typedef struct NyasTexTarget
-{
-    NyasHandle Tex;
-    NyasTexFace Face;
-    NyasFbAttach Attach;
-    int MipLevel;
-} NyasTexTarget;
-
 typedef struct NyasTexImg
 {
     void *Pix;
@@ -276,13 +268,12 @@ typedef struct NyasResource
 typedef struct NyasShaderDesc
 {
     const char *Name;
-    int SharedTexCount;
     int SharedCubemapCount;
     int UnitSize;
     int SharedSize;
 
-    NyasShaderDesc(const char *id, int stcount = 0, int scmcount = 0, int unitsz = 0, int sharedsz = 0) :
-        Name(id), SharedTexCount(stcount), SharedCubemapCount(scmcount), UnitSize(unitsz), SharedSize(sharedsz) 
+    NyasShaderDesc(const char *id, int scmcount = 0, int unitsz = 0, int sharedsz = 0) :
+        Name(id), SharedCubemapCount(scmcount), UnitSize(unitsz), SharedSize(sharedsz) 
     {
     }
 } NyasShaderDesc;
@@ -323,10 +314,8 @@ typedef struct NyasShader
     NyasResource ResUnif;
     NyasResource ResSharedUnif;
     const char *Name;
-    int SharedTexLocation;
     int SharedCubemapLocation;
     int TexArrLocation;
-    int SharedTexCount;
     int SharedCubemapCount;
     NyasHandle *Shared;
     void *UnitBlock;
@@ -339,7 +328,7 @@ typedef struct NyasShader
         memset((void*)&Resource, 0, sizeof(*this));
     }
 
-    NyasShader(NyasShaderDesc *desc) : Name(desc->Name), SharedTexCount(desc->SharedTexCount), SharedCubemapCount(desc->SharedCubemapCount),
+    NyasShader(NyasShaderDesc *desc) : Name(desc->Name), SharedCubemapCount(desc->SharedCubemapCount),
         UnitSize(desc->UnitSize), SharedSize(desc->SharedSize)
     {
         Resource.Id = 0;
@@ -351,7 +340,7 @@ typedef struct NyasShader
         
         UnitBlock = NYAS_ALLOC(UnitSize);
         SharedBlock = NYAS_ALLOC(SharedSize);
-        Shared = (NyasHandle*)NYAS_ALLOC((SharedTexCount + SharedCubemapCount) * sizeof(NyasHandle));
+        Shared = (NyasHandle*)NYAS_ALLOC((SharedCubemapCount) * sizeof(NyasHandle));
     }
 
     ~NyasShader()
@@ -364,12 +353,6 @@ typedef struct NyasShader
         Shared = NULL;
     }
 } NyasShader;
-
-typedef struct NyasFramebuffer
-{
-    NyasResource Resource;
-    NyasTexTarget Target[8];
-} NyasFramebuffer;
 
 typedef struct NyasDrawState
 {
@@ -425,5 +408,19 @@ typedef struct NyasDrawCmd
 // New types
 
 #include "nyas_texture.cpp"
+
+typedef struct NyasTexTarget
+{
+    azdo::TexHandle Tex;
+    NyasTexFace Face;
+    NyasFbAttach Attach;
+    int MipLevel;
+} NyasTexTarget;
+
+typedef struct NyasFramebuffer
+{
+    NyasResource Resource;
+    NyasTexTarget Target[8];
+} NyasFramebuffer;
 
 #endif // NYAS_TYPES_H
