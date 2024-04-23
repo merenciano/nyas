@@ -197,12 +197,12 @@ struct Textures
 	{
 		Updates.emplace_back(h, img);
 	}
-
+/*
 	void Update(TexHandle h, CubemapImage img)
 	{
 		CubemapUpdates.emplace_back(h, img);
 	}
-
+*/
 	void Sync()
 	{
 		_CreateTex();

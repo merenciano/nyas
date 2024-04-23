@@ -224,9 +224,9 @@ struct NyasSampler
 {
     NyasTexFilter MinFilter = NyasTexFilter_Linear;
     NyasTexFilter MagFilter = NyasTexFilter_Linear;
-    NyasTexWrap WrapS = NyasTexWrap_Repeat;
-    NyasTexWrap WrapT = NyasTexWrap_Repeat;
-    NyasTexWrap WrapR = NyasTexWrap_Repeat;
+    NyasTexWrap WrapS = NyasTexWrap_Mirror;
+    NyasTexWrap WrapT = NyasTexWrap_Mirror;
+    NyasTexWrap WrapR = NyasTexWrap_Mirror;
     float BorderColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
