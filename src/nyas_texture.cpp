@@ -110,6 +110,15 @@ struct Textures
 			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data);
 		}
 		Updates.clear();// TODO: Posible memleak
+
+		for (auto& t : CubemapUpdates)
+		{
+			auto Format = _GL_TexFmt(Cubemap[t.first.Index].Info.Format);
+			int w = Cubemap[t.first.Index].Info.Width >> t.second.Level;
+			int h = Cubemap[t.first.Index].Info.Height >> t.second.Level;
+			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data);
+		}
+		CubemapUpdates.clear();// TODO: Posible memleak
 	}
 
 	TexHandle Alloc(TexInfo Info)
@@ -189,6 +198,11 @@ struct Textures
 		Updates.emplace_back(h, img);
 	}
 
+	void Update(TexHandle h, CubemapImage img)
+	{
+		CubemapUpdates.emplace_back(h, img);
+	}
+
 	void Sync()
 	{
 		_CreateTex();
@@ -201,7 +215,7 @@ struct Textures
 
 	std::vector<TexArr> Cubemap;
     std::vector<ResourceID> CubeData;
-	std::vector<std::pair<TexHandle, TexImage>> CubeUpdates;
+	std::vector<std::pair<TexHandle, TexImage>> CubemapUpdates;
 };
 }// namespace azdo
 

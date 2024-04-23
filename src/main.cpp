@@ -140,15 +140,8 @@ void Init(void)
     G_FbTex = GTextures.Alloc({NyasTexFmt_RGB_32F, vp.X, vp.Y, 1});
     azdo::TexHandle fb_depth = GTextures.Alloc({NyasTexFmt_Depth, vp.X, vp.Y, 1});
 
-    //G_FbTex = Nyas::CreateTexture();
-    //Nyas::SetTexture(G_FbTex, &descriptor);
     NyasTexTarget color = { G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0 };
-
-    //NyasTexDesc depthscriptor(NyasTexType_2D, NyasTexFmt_Depth, vp.X, vp.Y);
-    //NyasHandle fb_depth = Nyas::CreateTexture();
-    //Nyas::SetTexture(fb_depth, &depthscriptor);
     NyasTexTarget depth = { fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0 };
-
     Nyas::SetFramebufferTarget(G_Framebuf, 0, color);
     Nyas::SetFramebufferTarget(G_Framebuf, 1, depth);
 
