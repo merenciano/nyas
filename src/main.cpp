@@ -38,6 +38,10 @@ struct PbrSharedDesc
     float Sunlight[4]; // Alpha for light intensity
     int LutIdx;
     float LutLayer;
+	int IrrIdx;
+	float IrrLayer;
+	int PrefIdx;
+	float PrefLayer;
     float _Padding2[2];
 };
 
@@ -63,7 +67,7 @@ struct
 
 struct
 {
-    NyasHandle Sky;
+	azdo::CubemapHandle Sky;
     PbrMaps Pbr[9];
 } G_Tex;
 
@@ -74,8 +78,8 @@ NyasHandle G_Mesh;
 void Init(void)
 {
     NyUtil::LoadBasicGeometries();
-    NyasHandle irradiance;
-    NyasHandle prefilter;
+	azdo::CubemapHandle irradiance;
+	azdo::CubemapHandle prefilter;
     azdo::TexHandle lut;
 
     NyAssetLoader::ShaderArgs fsimgargs = { G_ShaderDescriptors.FullscreenImg,
@@ -129,14 +133,17 @@ void Init(void)
     shared->Sunlight[3] = 0.0f;
 	shared->LutIdx = lut.Index;
 	shared->LutLayer = (float)lut.Layer;
+	shared->IrrIdx = irradiance.Index;
+	shared->IrrLayer = (float)irradiance.Layer;
+	shared->PrefIdx = prefilter.Index;
+	shared->PrefLayer = (float)prefilter.Layer;
 
-    NyasHandle *pbr_scene_tex = Nyas::Shaders[G_Shaders.Pbr].Shared;
+    /*NyasHandle *pbr_scene_tex = Nyas::Shaders[G_Shaders.Pbr].Shared;
     pbr_scene_tex[0] = irradiance;
-    pbr_scene_tex[1] = prefilter;
+    pbr_scene_tex[1] = prefilter;*/
 
     G_Framebuf = Nyas::CreateFramebuffer();
     NyVec2i vp = Nyas::GetCurrentCtx()->Platform.WindowSize;
-    NyasTexDesc descriptor(NyasTexType_2D, NyasTexFmt_RGB_32F, vp.X, vp.Y);
     G_FbTex = GTextures.Alloc({NyasTexFmt_RGB_32F, vp.X, vp.Y, 1});
     azdo::TexHandle fb_depth = GTextures.Alloc({NyasTexFmt_Depth, vp.X, vp.Y, 1});
 

@@ -316,6 +316,7 @@ typedef struct NyasShader
     const char *Name;
     int SharedCubemapLocation;
     int TexArrLocation;
+	int CubemapArrLocation;
     int SharedCubemapCount;
     NyasHandle *Shared;
     void *UnitBlock;

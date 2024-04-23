@@ -179,9 +179,9 @@ struct NyAssetLoader
     struct EnvArgs
     {
         const char *Path;
-        NyasHandle *Sky;
-        NyasHandle *Irradiance;
-        NyasHandle *Pref;
+		azdo::CubemapHandle *Sky;
+		azdo::CubemapHandle *Irradiance;
+		azdo::CubemapHandle *Pref;
         azdo::TexHandle *LUT;
     };
 
@@ -205,10 +205,10 @@ enum NyasGeometry
 
 namespace NyUtil
 {
-void LoadBasicGeometries(void);
+void LoadBasicGeometries();
 
 // Environment maps
-void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref);
+void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, azdo::CubemapHandle *irr, azdo::CubemapHandle *pref);
 
 } // namespace NyUtil
 

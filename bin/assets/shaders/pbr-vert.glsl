@@ -36,6 +36,11 @@ layout(std140, binding=10) uniform SharedData
     float light_intensity;
     int lut_index;
     float lut_layer;
+    int irr_index;
+    float irr_layer;
+    int pref_index;
+    float pref_layer;
+    float _pad3[2];
 };
 
 layout(location=0) in vec3 a_position;

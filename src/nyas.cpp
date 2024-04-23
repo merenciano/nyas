@@ -841,7 +841,7 @@ static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
 
 void _SyncShader(NyasShader *s)
 {
-    static const char *uniforms[] = { "u_common_cube", "u_textures" };
+    static const char *uniforms[] = { "u_common_cube", "u_textures", "u_cubemaps" };
 
     if (!(s->Resource.Flags & NyasResourceFlags_Created))
     {
@@ -853,11 +853,11 @@ void _SyncShader(NyasShader *s)
     {
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
         _NyCompileShader(s->Resource.Id, s->Name, s);
-        _NyShaderLocations(s->Resource.Id, &s->SharedCubemapLocation, &uniforms[0], 2);
+        _NyShaderLocations(s->Resource.Id, &s->SharedCubemapLocation, &uniforms[0], 3);
         GTextures.Sync();
         s->Resource.Flags &= ~NyasResourceFlags_Dirty;
-        int Data[16];
-        for (int i = 0; i < 16; ++i)
+        int Data[NYAS_TEX_ARRAYS];
+        for (int i = 0; i < NYAS_TEX_ARRAYS; ++i)
         {
             Data[i] = i + 1;
         }
@@ -1629,7 +1629,7 @@ static void _MeshSetGeometry(NyasHandle msh, NyasGeometry geo)
     m->Resource.Flags |= NyasResourceFlags_Dirty;
 }
 
-void LoadBasicGeometries(void)
+void LoadBasicGeometries()
 {
     NYAS_SPHERE = Nyas::CreateMesh();
     NYAS_CUBE = Nyas::CreateMesh();
@@ -1639,7 +1639,7 @@ void LoadBasicGeometries(void)
     _MeshSetGeometry(NYAS_QUAD, NyasGeometry_Quad);
 }
 
-void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle *irr, NyasHandle *pref)
+void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, azdo::CubemapHandle *irr, azdo::CubemapHandle *pref)
 {
     FILE *f = fopen(path, "r");
     char hdr[9];
@@ -1651,7 +1651,7 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle
         return;
     }
 
-    *sky = Nyas::CreateTexture();
+    /**sky = Nyas::CreateTexture();
     NyasTexture *t = &Nyas::Textures[*sky];
     t->Resource.Id = 0;
     t->Resource.Flags = NyasResourceFlags_Dirty;
@@ -1669,9 +1669,21 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle
         fread(img.Pix, size, 1, f);
         NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
         t->Img.Push(img);
-    }
+    }*/
 
-    *irr = Nyas::CreateTexture();
+	*sky = GTextures.CubeAlloc({NyasTexFmt_RGB_16F, 1024, 1024, 1});
+	size_t size = 1024 * 1024 * 3 * 2;
+	azdo::CubemapImage sky_img;
+	sky_img.Level = 0;
+	for (int i = 0; i < 6; ++i)
+	{
+		sky_img.Data[i] = NYAS_ALLOC(size);
+		fread(sky_img.Data[i], size, 1, f);
+		NYAS_ASSERT(sky_img.Data[i] && "The image couldn't be loaded");
+	}
+	GTextures.Update(*sky, sky_img);
+
+    /**irr = Nyas::CreateTexture();
     t = &Nyas::Textures[*irr];
     t->Resource.Id = 0;
     t->Resource.Flags = NyasResourceFlags_Dirty;
@@ -1688,9 +1700,20 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle
         fread(img.Pix, size, 1, f);
         NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
         t->Img.Push(img);
-    }
+    }*/
 
-    *pref = Nyas::CreateTexture();
+	*irr = GTextures.CubeAlloc({NyasTexFmt_RGB_16F, 1024, 1024, 1});
+	azdo::CubemapImage irrad_img;
+	irrad_img.Level = 0;
+	for (int i = 0; i < 6; ++i)
+	{
+		irrad_img.Data[i] = NYAS_ALLOC(size);
+		fread(irrad_img.Data[i], size, 1, f);
+		NYAS_ASSERT(irrad_img.Data[i] && "The image couldn't be loaded");
+	}
+	GTextures.Update(*irr, irrad_img);
+
+    /**pref = Nyas::CreateTexture();
     t = &Nyas::Textures[*pref];
     t->Resource.Id = 0;
     t->Resource.Flags = NyasResourceFlags_Dirty;
@@ -1714,7 +1737,24 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, NyasHandle *sky, NyasHandle
             t->Img.Push(img);
         }
         size /= 4;
-    }
+    }*/
+
+	// TODO: Sampler - NyasTexFilter_LinearMipmapLinear
+	*pref = GTextures.CubeAlloc({NyasTexFmt_RGB_16F, 256, 256, 9});
+	size = 256 * 256 * 3 * 2;
+	for (int lod = 0; lod < 9; ++lod)
+	{
+		azdo::CubemapImage img;
+		img.Level = lod;
+		for (int face = 0; face < 6; ++face)
+		{
+			img.Data[face] = NYAS_ALLOC(size);
+			fread(img.Data[face], size, 1, f);
+			NYAS_ASSERT(img.Data[face] && "The image couldn't be loaded");
+		}
+		GTextures.Update(*pref, img);
+		size /= 4;
+	}
 
     /* *lut = Nyas::CreateTexture();
     t = &Nyas::Textures[*lut];

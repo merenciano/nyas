@@ -18,8 +18,8 @@
 #define NORMAL_MAP           u_textures[entity[v_in.instance_id].normal_map_index]
 
 #define LUT_MAP              u_textures[lut_index]
-#define IRRADIANCE_MAP       u_common_cube[0]
-#define PREFILTER_MAP        u_common_cube[1]
+#define IRRADIANCE_MAP       u_cubemaps[irr_index]
+#define PREFILTER_MAP        u_cubemaps[pref_index]
 
 const float PI = 3.14159265359;
 const vec3  kFdielectric = vec3(0.04);
@@ -72,10 +72,16 @@ layout(std140, binding=10) uniform SharedData
     float light_intensity;
     int lut_index;
     float lut_layer;
+    int irr_index;
+    float irr_layer;
+    int pref_index;
+    float pref_layer;
+    float _pad3[2];
 };
 
 uniform samplerCube u_common_cube[2];
 uniform sampler2DArray u_textures[16];
+uniform samplerCubeArray u_cubemaps[8];
 
 // Normal distribution function (from filament documentation)
 float Distribution_GGX(float noh, float roughness) {
@@ -162,12 +168,12 @@ void main()
     // IBL
     vec3 r = reflect(-view, normal);
     float lod = perceptual_roughness * kMaxPrefilterLod;
-    vec3 specular_irradiance = textureLod(PREFILTER_MAP, r, lod).rgb;
+    vec3 specular_irradiance = textureLod(PREFILTER_MAP, vec4(r, pref_layer), lod).rgb;
     vec2 dfg_lut = texture(LUT_MAP, vec3(nov, perceptual_roughness, lut_layer)).rg;
     vec3 ibl_dfg = mix(dfg_lut.xxx, dfg_lut.yyy, f0);
     vec3 specular_ibl = ibl_dfg * specular_irradiance;
 
-    vec3 irradiance = texture(IRRADIANCE_MAP, r).rgb;
+    vec3 irradiance = texture(IRRADIANCE_MAP, vec4(r, irr_layer)).rgb;
     vec3 diffuse_ibl = irradiance * diffuse_color;
 
     vec3 ambient_lighting = diffuse_ibl + specular_ibl;

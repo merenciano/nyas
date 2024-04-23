@@ -26,14 +26,14 @@ struct TexInfo
 
 struct TexImage
 {
-	void *Data;
-	int Level;
+	void *Data = NULL;
+	int Level = 0;
 };
 
 struct CubemapImage
 {
-	void *Data[6];
-	int Level;
+	void *Data[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+	int Level = 0;
 };
 
 struct TexArr
@@ -98,6 +98,18 @@ struct Textures
 				glBindTextureUnit(i + 1, Data[i]);
 			}
 		}
+
+		for (int i = 0; i < (int)Cubemap.size(); ++i)
+		{
+			if (CubeData[i] == 0x7FFFFFFF)
+			{
+				auto Format = _GL_TexFmt(Cubemap[i].Info.Format);
+				glGenTextures(1, &CubeData[i]);
+				glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, CubeData[i]);
+				glTexStorage3D(GL_TEXTURE_CUBE_MAP_ARRAY, Cubemap[i].Info.Levels, Format.InternalFormat, Cubemap[i].Info.Width, Cubemap[i].Info.Height, NYAS_CUBEMAP_ARRAY_SIZE * 6);
+				glBindTextureUnit(i + 1, CubeData[i]);
+			}
+		}
 	}
 
 	void _UpdateTex()
@@ -116,7 +128,10 @@ struct Textures
 			auto Format = _GL_TexFmt(Cubemap[t.first.Index].Info.Format);
 			int w = Cubemap[t.first.Index].Info.Width >> t.second.Level;
 			int h = Cubemap[t.first.Index].Info.Height >> t.second.Level;
-			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data);
+			for (int i = 0; i < 6; ++i)
+			{
+				glTextureSubImage3D(CubeData[t.first.Index], t.second.Level, 0, 0, t.first.Layer * 6 + i, w, h, 1, Format.Format, Format.Type, t.second.Data[i]);
+			}
 		}
 		CubemapUpdates.clear();// TODO: Posible memleak
 	}
@@ -193,16 +208,50 @@ struct Textures
 		return hnd;
 	}
 
+	CubemapHandle LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels)
+	{
+		int w, h, channels = 0;
+		int ch = _TexChannels(fmt);
+		azdo::CubemapImage img;
+		img.Level = 0;
+		if (fmt >= NyasTexFmt_BeginFloat)
+		{
+			for (int i = 0; i < 6; ++i)
+			{
+				img.Data[i] = stbi_loadf(path[i], &w, &h, &channels, ch);
+				if (!img.Data[0])
+				{
+					printf("The image '%s' couldn't be loaded", path);
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < 6; ++i)
+			{
+				img.Data[i] = stbi_load(path[i], &w, &h, &channels, ch);
+				if (!img.Data[0])
+				{
+					printf("The image '%s' couldn't be loaded", path);
+				}
+			}
+		}
+
+		CubemapHandle hnd = CubeAlloc({fmt, w, h, levels});
+		Update(hnd, img);
+		return hnd;
+	}
+
 	void Update(TexHandle h, TexImage img)
 	{
 		Updates.emplace_back(h, img);
 	}
-/*
-	void Update(TexHandle h, CubemapImage img)
+
+	void Update(CubemapHandle h, CubemapImage img)
 	{
 		CubemapUpdates.emplace_back(h, img);
 	}
-*/
+
 	void Sync()
 	{
 		_CreateTex();
@@ -215,7 +264,7 @@ struct Textures
 
 	std::vector<TexArr> Cubemap;
     std::vector<ResourceID> CubeData;
-	std::vector<std::pair<TexHandle, TexImage>> CubemapUpdates;
+	std::vector<std::pair<CubemapHandle, CubemapImage>> CubemapUpdates;
 };
 }// namespace azdo
 
