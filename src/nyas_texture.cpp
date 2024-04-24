@@ -16,6 +16,25 @@ struct TexInfo
     int Height = 0;
     int Levels = 0;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	TexInfo(NyasTexFmt fmt, int w, int h, int lvls) : Format(fmt), Width(w), Height(h), Levels(lvls) {}
 	bool operator==(TexInfo rhs)
 	{
@@ -155,7 +174,7 @@ struct Textures
 	{
 		for (int i = 0; i < Cubemap.size(); ++i)
 		{
-			if (Cubemap[i].Info == Info && Cubemap[i].Count != NYAS_TEX_ARRAY_SIZE)
+			if (Cubemap[i].Info == Info && Cubemap[i].Count != NYAS_CUBEMAP_ARRAY_SIZE);
 			{
 				return { i, Cubemap[i].Count++ };
 			}

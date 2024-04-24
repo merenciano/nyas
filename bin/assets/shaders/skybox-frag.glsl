@@ -1,13 +1,18 @@
 #version 450
 
-#define SKYBOX_CUBEMAP u_common_cube[0]
+layout(std140, binding=30) uniform BlockData
+{
+    mat4 model;
+    int sky_index;
+    float sky_layer;
+};
 
-uniform samplerCube u_common_cube[1];
+uniform samplerCubeArray u_cubemaps[8];
 
 out vec4 FragColor;
 in vec3 position;
 
 void main() 
 {
-    FragColor = texture(SKYBOX_CUBEMAP, position);
+    FragColor = texture(u_cubemaps[sky_index], vec4(position, sky_layer));
 }

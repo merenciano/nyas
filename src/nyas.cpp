@@ -815,15 +815,15 @@ static NyasTexture *_SyncTex(NyasHandle texture)
 
 static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
 {
-    NYAS_ASSERT((common == 0 || common == 1) && "Invalid common value.");
+    //NYAS_ASSERT((common == 0 || common == 1) && "Invalid common value.");
 
-    int cc = s->SharedCubemapCount;
-    int cl = s->SharedCubemapLocation;
-    int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
+    //int cc = s->SharedCubemapCount;
+    //int cl = s->SharedCubemapLocation;
+    //int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
 
-    NYAS_ASSERT(cc >= 0);
-    NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
-
+    //NYAS_ASSERT(cc >= 0);
+    //NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
+/*
     if (!cc)
     {
         return;
@@ -837,6 +837,7 @@ static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
     }
 
     _NySetShaderCubemap(cl, data_tex, cc, tex_unit);
+    */
 }
 
 void _SyncShader(NyasShader *s)
@@ -862,13 +863,14 @@ void _SyncShader(NyasShader *s)
             Data[i] = i + 1;
         }
         glProgramUniform1iv(s->Resource.Id, s->TexArrLocation, GTextures.Data.size(), Data);
+        glProgramUniform1iv(s->Resource.Id, s->CubemapArrLocation, GTextures.CubeData.size(), Data);
     }
     _NySetShaderUniformBuffer(s);
 }
 
 static void _SyncFramebuf(NyasHandle framebuffer)
 {
-    struct NyasFramebuffer *fb = &Framebufs[framebuffer];
+    NyasFramebuffer *fb = &Framebufs[framebuffer];
     if (!(fb->Resource.Flags & NyasResourceFlags_Created))
     {
         _NyCreateFramebuf(fb);
@@ -878,7 +880,7 @@ static void _SyncFramebuf(NyasHandle framebuffer)
     _NyUseFramebuf(fb->Resource.Id);
     if (fb->Resource.Flags & NyasResourceFlags_Dirty)
     {
-        for (int i = 0; fb->Target[i].Tex.Index != NyasCode_None; ++i)
+        for (int i = 0; i < 2; ++i) // TODO: ya sabes
         {
             //struct NyasTexture *t = _SyncTex(fb->Target[i].Tex);
             _NySetFramebuf(fb->Resource.Id, &fb->Target[i]);
@@ -906,11 +908,9 @@ void Draw(NyasDrawCmd *cmd)
     {
         _NyCheckHandle(cmd->Shader, Shaders);
         NyasShader *s = &Shaders[cmd->Shader];
-        NyasHandle *SharedTex = (NyasHandle*)NyFrameAllocator::Alloc(s->SharedCubemapCount * sizeof(NyasHandle));
-        memcpy(SharedTex, s->Shared, s->SharedCubemapCount * sizeof(NyasHandle));
         _SyncShader(s);
         _NyUseShader(s->Resource.Id);
-        _SyncShaderData(s, SharedTex, true);
+        GTextures.Sync();
     }
 
     NyasDrawState &s = cmd->State;

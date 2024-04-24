@@ -365,33 +365,7 @@ namespace nyas::render
             o_loc[i] = glGetUniformLocation(id, i_unif[i]);
         }
     }
-
-    void _NySetShaderData(int loc, float *data, int v4count)
-    {
-        glUniform4fv(loc, v4count, data);
-    }
-
-    static void _SetTex(int loc, int *t, int c, int unit, GLenum target)
-    {
-        for (int i = 0; i < c; ++i)
-        {
-            glActiveTexture(GL_TEXTURE0 + unit + i);
-            glBindTexture(target, t[i]);
-            t[i] = unit + i;
-        }
-        glUniform1iv(loc, c, t);
-    }
-
-    void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset)
-    {
-        _SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_2D);
-    }
-
-    void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset)
-    {
-        _SetTex(loc, tex, count, texunit_offset, GL_TEXTURE_CUBE_MAP);
-    }
-
+    
     void _NySetShaderTexArray(int loc, int *tex, int count, int texunit_offset)
     {
         glUniform1iv(loc, count, tex);

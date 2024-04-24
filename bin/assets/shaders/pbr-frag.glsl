@@ -60,7 +60,7 @@ struct EntityData
 
 layout(std140, binding=30) uniform BlockData
 {
-    EntityData entity[1024];
+    EntityData entity[256];
 };
 
 layout(std140, binding=10) uniform SharedData

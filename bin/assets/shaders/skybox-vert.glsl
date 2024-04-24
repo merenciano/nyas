@@ -3,6 +3,8 @@
 layout(std140, binding=30) uniform BlockData
 {
     mat4 model;
+    int sky_index;
+    float sky_layer;
 };
 
 layout (location = 0) in vec3 a_position;
