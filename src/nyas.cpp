@@ -1227,7 +1227,7 @@ void NyAssetLoader::AddShader(ShaderArgs *args)
 
 void NyAssetLoader::AddEnv(EnvArgs *args)
 {
-    Async.Push({ _EnvLoader, args });
+    Sequential.Push({ _EnvLoader, args });
 }
 
 void NyAssetLoader::AddJob(NySched::Job job, bool async)
@@ -1244,6 +1244,7 @@ void NyAssetLoader::AddJob(NySched::Job job, bool async)
 
 void NyAssetLoader::Load(int threads)
 {
+    /*
     NySched load_sched = NySched(threads);
     for (int i = 0; i < Async.Size; ++i)
     {
@@ -1256,6 +1257,17 @@ void NyAssetLoader::Load(int threads)
     }
 
     load_sched.Wait(); // TODO(Check): sched_destroy waits?
+    */
+
+    for (int i = 0; i < Async.Size; ++i)
+    {
+        (*Async[i].Func)(Async[i].Args);
+    }
+
+    for (int i = 0; i < Sequential.Size; ++i)
+    {
+        (*Sequential[i].Func)(Sequential[i].Args);
+    }
 }
 
 static void _MeshSetCube(NyasMesh *mesh)
