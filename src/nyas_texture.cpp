@@ -65,14 +65,14 @@ struct TexArr
 
 struct TexHandle
 {
-    int Index;
-    int Layer;
+    int Index = -1;
+    int Layer = -1;
 };
 
 struct CubemapHandle
 {
-	int Index;
-	int Layer;
+	int Index = -1;
+	int Layer = -1;
 };
 
 struct Textures
@@ -157,7 +157,7 @@ struct Textures
 
 	TexHandle Alloc(TexInfo Info)
 	{
-		for (int i = 0; i < Tex.size(); ++i)
+		for (int i = 0; i < (int)Tex.size(); ++i)
 		{
 			if (Tex[i].Info == Info && Tex[i].Count != NYAS_TEX_ARRAY_SIZE)
 			{
@@ -172,7 +172,7 @@ struct Textures
 
 	CubemapHandle CubeAlloc(TexInfo Info)
 	{
-		for (int i = 0; i < Cubemap.size(); ++i)
+		for (int i = 0; i < (int)Cubemap.size(); ++i)
 		{
 			if ((Cubemap[i].Info == Info) && (Cubemap[i].Count != NYAS_CUBEMAP_ARRAY_SIZE))
 			{
@@ -240,7 +240,7 @@ struct Textures
 				img.Data[i] = stbi_loadf(path[i], &w, &h, &channels, ch);
 				if (!img.Data[0])
 				{
-					printf("The image '%s' couldn't be loaded", path);
+					printf("The image '%s' couldn't be loaded", path[i]);
 				}
 			}
 		}
@@ -251,7 +251,7 @@ struct Textures
 				img.Data[i] = stbi_load(path[i], &w, &h, &channels, ch);
 				if (!img.Data[0])
 				{
-					printf("The image '%s' couldn't be loaded", path);
+					printf("The image '%s' couldn't be loaded", path[i]);
 				}
 			}
 		}

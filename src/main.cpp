@@ -55,9 +55,8 @@ static const struct
     const NyasShaderDesc Pbr;
     const NyasShaderDesc FullscreenImg;
     const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", 0, sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS,
-                              sizeof(PbrSharedDesc) },
-    { "fullscreen-img", 0, 16, 0 }, { "skybox", 0, 20 * sizeof(float), 0 } };
+} G_ShaderDescriptors = { { "pbr", sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc) },
+    { "fullscreen-img", 16, 0 }, { "skybox", 20 * sizeof(float), 0 } };
 
 struct
 {
@@ -76,7 +75,7 @@ NyasHandle G_Framebuf;
 azdo::TexHandle G_FbTex;
 NyasHandle G_Mesh;
 
-void Init(void)
+void Init()
 {
     NyUtil::LoadBasicGeometries();
     azdo::CubemapHandle irradiance;
@@ -138,10 +137,6 @@ void Init(void)
     shared->IrrLayer = (float)irradiance.Layer;
     shared->PrefIdx = prefilter.Index;
     shared->PrefLayer = (float)prefilter.Layer;
-
-    /*NyasHandle *pbr_scene_tex = Nyas::Shaders[G_Shaders.Pbr].Shared;
-    pbr_scene_tex[0] = irradiance;
-    pbr_scene_tex[1] = prefilter;*/
 
     G_Framebuf = Nyas::CreateFramebuffer();
     NyVec2i vp = Nyas::GetCurrentCtx()->Platform.WindowSize;
@@ -469,7 +464,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    Nyas::InitIO("NYAS PBR Material Demo", 1920, 1080);
+    Nyas::InitIO("NYAS PBR Material Demo", 600, 400);
     Nyas::Camera.Init(*Nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;

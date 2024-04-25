@@ -22,7 +22,6 @@ typedef unsigned int NyResourceID;
 struct NyasResource;
 struct NyasTexDesc;
 struct NyasTexTarget;
-struct NyasTexImg;
 struct NyasShaderDesc;
 struct NyasTexture;
 struct NyasMesh;
@@ -230,7 +229,7 @@ struct NyasSampler
     float BorderColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
-typedef struct NyasTexDesc
+struct NyasTexDesc
 {
 	NyasTexFmt Format = NyasTexFmt_SRGB_8;
     int Width = 0;
@@ -245,56 +244,25 @@ typedef struct NyasTexDesc
     NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h, int count = 1) :
         Format(fmt), Width(w), Height(h), Count(count), Flags(NyasTexFlags_None), Type(type)
     {}
-} NyasTexDesc;
-
-typedef struct NyasTexImg
-{
-    void *Pix;
-    NyasTexFace Face;
-    int MipLevel;
-    int Index;
-    NyasTexImg() : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0), Index(0) {}
-    NyasTexImg(int aIndex) : Pix(NULL), Face(NyasTexFace_2D), MipLevel(0), Index(aIndex) {}
-} NyasTexImg;
+};
 
 typedef struct NyasResource
 {
-    uint32_t Id;
-    NyasResourceFlags Flags;
-
-    NyasResource() : Id(0), Flags(0) {}
+    uint32_t Id = 0x7FFFFFFF;
+    NyasResourceFlags Flags = NyasResourceFlags_Created;
 } NyasResource;
 
 typedef struct NyasShaderDesc
 {
     const char *Name;
-    int SharedCubemapCount;
     int UnitSize;
     int SharedSize;
 
-    NyasShaderDesc(const char *id, int scmcount = 0, int unitsz = 0, int sharedsz = 0) :
-        Name(id), SharedCubemapCount(scmcount), UnitSize(unitsz), SharedSize(sharedsz) 
+    NyasShaderDesc(const char *id, int unitsz = 0, int sharedsz = 0) :
+        Name(id), UnitSize(unitsz), SharedSize(sharedsz)
     {
     }
 } NyasShaderDesc;
-
-typedef struct NyasTexture
-{
-	NyasTexFmt Format;
-	int Width;
-	int Height;
-	int Levels;
-	int Count = NYAS_TEX_ARRAY_SIZE; // TODO: Borrar
-	
-    NyasResource Resource;
-    NyasTexDesc Data; // TODO: Borrar
-	NyasSampler Sampler;
-    NyArray<NyasTexImg> Img;
-
-    NyasTexture() = default;
-    NyasTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count) : Data(t, f, w, h, NYAS_TEX_ARRAY_SIZE) {}
-    NyasTexture(NyasTexDesc desc) : Data(desc) {}
-} NyasTexture;
 
 typedef struct NyasMesh
 {
@@ -308,52 +276,33 @@ typedef struct NyasMesh
     NyasVtxAttribFlags Attribs;
 } NyasMesh;
 
-typedef struct NyasShader
+struct NyasShader
 {
     NyasResource Resource;
     NyasResource ResUnif;
     NyasResource ResSharedUnif;
     const char *Name;
-    int SharedCubemapLocation;
     int TexArrLocation;
 	int CubemapArrLocation;
-    int SharedCubemapCount;
-    NyasHandle *Shared;
     void *UnitBlock;
     void *SharedBlock;
     int UnitSize;
     int SharedSize;
 
-    NyasShader()
+    NyasShader(NyasShaderDesc *desc) : Name(desc->Name), UnitSize(desc->UnitSize), SharedSize(desc->SharedSize)
     {
-        memset((void*)&Resource, 0, sizeof(*this));
-    }
-
-    NyasShader(NyasShaderDesc *desc) : Name(desc->Name), SharedCubemapCount(desc->SharedCubemapCount),
-        UnitSize(desc->UnitSize), SharedSize(desc->SharedSize)
-    {
-        Resource.Id = 0;
-        Resource.Flags = NyasResourceFlags_Dirty;
-        ResUnif.Id = 0;
-        ResUnif.Flags = NyasResourceFlags_Dirty;
-        ResSharedUnif.Id = 0;
-        ResSharedUnif.Flags = NyasResourceFlags_Dirty;
-        
         UnitBlock = NYAS_ALLOC(UnitSize);
         SharedBlock = NYAS_ALLOC(SharedSize);
-        Shared = (NyasHandle*)NYAS_ALLOC((SharedCubemapCount) * sizeof(NyasHandle));
     }
 
     ~NyasShader()
     {
         NYAS_FREE(UnitBlock);
         NYAS_FREE(SharedBlock);
-        NYAS_FREE(Shared);
         UnitBlock = NULL;
         SharedBlock = NULL;
-        Shared = NULL;
     }
-} NyasShader;
+};
 
 typedef struct NyasDrawState
 {
@@ -410,18 +359,18 @@ typedef struct NyasDrawCmd
 
 #include "nyas_texture.cpp"
 
-typedef struct NyasTexTarget
+struct NyasTexTarget
 {
     azdo::TexHandle Tex;
     NyasTexFace Face;
     NyasFbAttach Attach;
     int MipLevel;
-} NyasTexTarget;
+};
 
-typedef struct NyasFramebuffer
+struct NyasFramebuffer
 {
     NyasResource Resource;
     NyasTexTarget Target[8];
-} NyasFramebuffer;
+};
 
 #endif // NYAS_TYPES_H

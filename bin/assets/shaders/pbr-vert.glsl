@@ -22,12 +22,12 @@ struct EntityData
     float metallic_map_layer;
 };
 
-layout(std140, binding=30) uniform BlockData
+layout(std140, binding=1) uniform BlockData
 {
     EntityData entity[256];
 };
 
-layout(std140, binding=10) uniform SharedData
+layout(std140, binding=0) uniform SharedData
 {
     mat4 vp;
     vec3 camera_pos;

@@ -64,7 +64,6 @@ NyasCtx *G_Ctx = &DefaultCtx;
 namespace Nyas
 {
 NyPool<NyasMesh> Meshes;
-NyPool<NyasTexture> Textures;
 NyPool<NyasShader> Shaders;
 NyPool<NyasFramebuffer> Framebufs;
 
@@ -302,7 +301,7 @@ int ReadFile(const char *path, char **dst, size_t *size)
     return NyasCode_Ok;
 }
 
-void PollIO(void)
+void PollIO()
 {
     NYAS_ASSERT(G_Ctx->Platform.InternalWindow && "The IO system is uninitalized");
     G_Ctx->IO.MouseScroll = { 0.0f, 0.0f };
@@ -322,7 +321,7 @@ void PollIO(void)
     }
 }
 
-void WindowSwap(void)
+void WindowSwap()
 {
     NYAS_ASSERT(G_Ctx->Platform.InternalWindow && "The IO system is uninitalized");
     glfwSwapBuffers((GLFWwindow *)G_Ctx->Platform.InternalWindow);
@@ -351,9 +350,9 @@ static NyasHandle _CreateFramebufHandle(void)
     return Framebufs.Add(NyasFramebuffer());
 }
 
-static NyasHandle _CreateShaderHandle(void)
+static NyasHandle _CreateShaderHandle(NyasShaderDesc *desc)
 {
-    return Shaders.Add(NyasShader());
+    return Shaders.Add(NyasShader(desc));
 }
 
 const char *_GetImgFacePath(const char *path, int face, int face_count)
@@ -423,84 +422,12 @@ static bool _TexFmtFloat(NyasTexFmt fmt)
     }
 }
 
-NyasHandle CreateTexture()
+NyasHandle CreateShader(NyasShaderDesc *desc)
 {
-    int tex = Textures.Add({});
-    return tex;
-}
-
-NyasHandle CreateTexture(NyasTexFmt f, NyasTexType t, int w, int h, int count)
-{
-    int tex = Textures.Add(NyasTexture(f, t, w, h, count));
-    return tex;
-}
-
-void LoadTexture(NyasHandle texture, NyasTexDesc *desc, const char *path, int index)
-{
-    NYAS_ASSERT(*path != '\0' && "For empty textures use nyas_tex_set");
-    NyasTexture *t = &Textures[texture];
-    t->Resource.Id = 0;
-    t->Resource.Flags = NyasResourceFlags_Dirty;
-    if (desc)
-    {
-        t->Data = *desc;
-    }
-
-    int fmt_ch = _TexChannels(t->Data.Format);
-    stbi_set_flip_vertically_on_load(t->Data.Flags & NyasTexFlags_FlipVerticallyOnLoad);
-
-    int channels = 0;
-    int face_count = _TexFaces(t->Data.Type);
-    for (int i = 0; i < face_count; ++i)
-    {
-        NyasTexImg img;
-        const char *p = _GetImgFacePath(path, i, face_count);
-        img.Face = i;
-        img.Index = index;
-        if (_TexFmtFloat(t->Data.Format))
-        {
-            img.Pix = stbi_loadf(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
-        }
-        else
-        {
-            img.Pix = stbi_load(p, &t->Data.Width, &t->Data.Height, &channels, fmt_ch);
-        }
-
-        if (!img.Pix)
-        {
-            NYAS_LOG_ERR("The image '%s' couldn't be loaded", p);
-        }
-        t->Img.Push(img);
-    }
-}
-
-void SetTexture(NyasHandle texture, struct NyasTexDesc *desc)
-{
-    NYAS_ASSERT(desc->Width > 0 && desc->Height > 0 && "Incorrect dimensions");
-    NyasTexture *t = &Textures[texture];
-    t->Resource.Flags |= NyasResourceFlags_Dirty;
-    t->Data = *desc;
-    if (!t->Img.Size)
-    {
-        int face_count = _TexFaces(t->Data.Type);
-        for (int i = 0; i < face_count; ++i)
-        {
-            NyasTexImg img;
-            img.Face = i;
-            t->Img.Push(img);
-        }
-    }
-}
-
-NyasHandle CreateShader(const struct NyasShaderDesc *desc)
-{
-    NyasHandle ret = _CreateShaderHandle();
+    NyasHandle ret = _CreateShaderHandle(desc);
     Shaders[ret].Name = desc->Name;
     Shaders[ret].Resource.Id = 0;
     Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
-    Shaders[ret].SharedCubemapCount = desc->SharedCubemapCount;
-    Shaders[ret].Shared = (NyasHandle*)NYAS_ALLOC(
-        desc->SharedCubemapCount * sizeof(NyasHandle));
     Shaders[ret].UnitBlock = NYAS_ALLOC(desc->UnitSize);
     Shaders[ret].SharedBlock = NYAS_ALLOC(desc->SharedSize);
     Shaders[ret].UnitSize = desc->UnitSize;
@@ -795,76 +722,23 @@ static void _SyncMesh(NyasHandle msh, NyasHandle shader)
     }
 }
 
-static NyasTexture *_SyncTex(NyasHandle texture)
-{
-    _NyCheckHandle(texture, Textures);
-    NyasTexture *t = &Textures[texture];
-    if (!(t->Resource.Flags & NyasResourceFlags_Created))
-    {
-        _NyCreateTex(t);
-        t->Resource.Flags |= (NyasResourceFlags_Created | NyasResourceFlags_Dirty);
-    }
-
-    if (t->Resource.Flags & NyasResourceFlags_Dirty)
-    {
-        _NySetTex(t);
-        t->Resource.Flags &= ~NyasResourceFlags_Dirty;
-    }
-    return t;
-}
-
-static void _SyncShaderData(NyasShader *s, NyasHandle *data_tex, int common)
-{
-    //NYAS_ASSERT((common == 0 || common == 1) && "Invalid common value.");
-
-    //int cc = s->SharedCubemapCount;
-    //int cl = s->SharedCubemapLocation;
-    //int tex_unit = NYAS_TEXUNIT_OFFSET_FOR_COMMON_SHADER_DATA * common;
-
-    //NYAS_ASSERT(cc >= 0);
-    //NYAS_ASSERT(tex_unit >= 0 && tex_unit < 128);
-/*
-    if (!cc)
-    {
-        return;
-    }
-
-    // change texture handle for texture internal id
-    for (int i = 0; i < cc; ++i)
-    {
-        NyasTexture *itx = _SyncTex(data_tex[i]);
-        data_tex[i] = (int)itx->Resource.Id;
-    }
-
-    _NySetShaderCubemap(cl, data_tex, cc, tex_unit);
-    */
-}
-
 void _SyncShader(NyasShader *s)
 {
-    static const char *uniforms[] = { "u_common_cube", "u_textures", "u_cubemaps" };
-
     if (!(s->Resource.Flags & NyasResourceFlags_Created))
     {
         _NyCreateShader(&s->Resource.Id);
         s->Resource.Flags |= NyasResourceFlags_Created;
     }
 
+	_NyUseShader(s->Resource.Id);
+
     if (s->Resource.Flags & NyasResourceFlags_Dirty)
     {
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
         _NyCompileShader(s->Resource.Id, s->Name, s);
-        _NyShaderLocations(s->Resource.Id, &s->SharedCubemapLocation, &uniforms[0], 3);
         GTextures.Sync();
-        s->Resource.Flags &= ~NyasResourceFlags_Dirty;
-        int Data[NYAS_TEX_ARRAYS];
-        for (int i = 0; i < NYAS_TEX_ARRAYS; ++i)
-        {
-            Data[i] = i + 1;
-        }
-        glProgramUniform1iv(s->Resource.Id, s->TexArrLocation, GTextures.Data.size(), Data);
-        glProgramUniform1iv(s->Resource.Id, s->CubemapArrLocation, GTextures.CubeData.size(), Data);
-    }
+		s->Resource.Flags &= ~NyasResourceFlags_Dirty;
+	}
     _NySetShaderUniformBuffer(s);
 }
 
@@ -882,7 +756,6 @@ static void _SyncFramebuf(NyasHandle framebuffer)
     {
         for (int i = 0; i < 2; ++i) // TODO: ya sabes
         {
-            //struct NyasTexture *t = _SyncTex(fb->Target[i].Tex);
             _NySetFramebuf(fb->Resource.Id, &fb->Target[i]);
         }
         fb->Resource.Flags &= ~NyasResourceFlags_Dirty;
@@ -909,8 +782,6 @@ void Draw(NyasDrawCmd *cmd)
         _NyCheckHandle(cmd->Shader, Shaders);
         NyasShader *s = &Shaders[cmd->Shader];
         _SyncShader(s);
-        _NyUseShader(s->Resource.Id);
-        GTextures.Sync();
     }
 
     NyasDrawState &s = cmd->State;
@@ -1186,7 +1057,7 @@ static void _TexLoader(void *arg)
     NyAssetLoader::TexArgs *a = (NyAssetLoader::TexArgs *)arg;
     for (int i = 0; i < a->Descriptor.Count; ++i)
     {
-        Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path[i], i);
+        //Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path[i], i);
     }
 }
 
