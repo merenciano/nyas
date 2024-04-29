@@ -1,6 +1,6 @@
-#version 450
+#version 450 core
 
-layout(std140, binding=1) uniform BlockData
+layout(std140, binding=0) uniform u_data 
 {
     mat4 model;
     int sky_index;

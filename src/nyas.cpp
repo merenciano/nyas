@@ -428,10 +428,8 @@ NyasHandle CreateShader(NyasShaderDesc *desc)
     Shaders[ret].Name = desc->Name;
     Shaders[ret].Resource.Id = 0;
     Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
-    Shaders[ret].UnitBlock = NYAS_ALLOC(desc->UnitSize);
-    Shaders[ret].SharedBlock = NYAS_ALLOC(desc->SharedSize);
-    Shaders[ret].UnitSize = desc->UnitSize;
-    Shaders[ret].SharedSize = desc->SharedSize;
+    Shaders[ret].UniformData = NYAS_ALLOC(desc->UniformSize);
+    Shaders[ret].UniformSize = desc->UniformSize;
     return ret;
 }
 
@@ -728,17 +726,16 @@ void _SyncShader(NyasShader *s)
     {
         _NyCreateShader(&s->Resource.Id);
         s->Resource.Flags |= NyasResourceFlags_Created;
+        s->Resource.Flags |= NyasResourceFlags_Dirty;
     }
-
-	_NyUseShader(s->Resource.Id);
 
     if (s->Resource.Flags & NyasResourceFlags_Dirty)
     {
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
         _NyCompileShader(s->Resource.Id, s->Name, s);
-        GTextures.Sync();
 		s->Resource.Flags &= ~NyasResourceFlags_Dirty;
 	}
+	_NyUseShader(s->Resource.Id);
     _NySetShaderUniformBuffer(s);
 }
 

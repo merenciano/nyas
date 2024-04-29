@@ -58,12 +58,7 @@ struct EntityData
     float metallic_map_layer;
 };
 
-layout(std140, binding=1) uniform BlockData
-{
-    EntityData entity[256];
-};
-
-layout(std140, binding=0) uniform SharedData
+layout(std140, binding=0) uniform u_data 
 {
     mat4 vp;
     vec3 camera_pos;
@@ -76,7 +71,9 @@ layout(std140, binding=0) uniform SharedData
     float irr_layer;
     int pref_index;
     float pref_layer;
-    float _pad3[2];
+    float _pad3;
+    float _pad4;
+    EntityData entity[256];
 };
 
 uniform sampler2DArray u_textures[16];

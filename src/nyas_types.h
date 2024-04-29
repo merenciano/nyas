@@ -255,11 +255,10 @@ typedef struct NyasResource
 typedef struct NyasShaderDesc
 {
     const char *Name;
-    int UnitSize;
-    int SharedSize;
+    int UniformSize;
 
-    NyasShaderDesc(const char *id, int unitsz = 0, int sharedsz = 0) :
-        Name(id), UnitSize(unitsz), SharedSize(sharedsz)
+    NyasShaderDesc(const char *id, int uniform_size = 0) :
+        Name(id), UniformSize(uniform_size)
     {
     }
 } NyasShaderDesc;
@@ -280,27 +279,22 @@ struct NyasShader
 {
     NyasResource Resource;
     NyasResource ResUnif;
-    NyasResource ResSharedUnif;
     const char *Name;
     int TexArrLocation;
 	int CubemapArrLocation;
-    void *UnitBlock;
-    void *SharedBlock;
-    int UnitSize;
-    int SharedSize;
+    void *UniformData;
+    int UniformSize;
 
-    NyasShader(NyasShaderDesc *desc) : Name(desc->Name), UnitSize(desc->UnitSize), SharedSize(desc->SharedSize)
+    NyasShader(NyasShaderDesc *desc) : Name(desc->Name), UniformSize(desc->UniformSize)
     {
-        UnitBlock = NYAS_ALLOC(UnitSize);
-        SharedBlock = NYAS_ALLOC(SharedSize);
+        ResUnif.Flags = UniformSize ? NyasResourceFlags_Dirty : NyasResourceFlags_Unused;
+        UniformData = NYAS_ALLOC(UniformSize);
     }
 
     ~NyasShader()
     {
-        NYAS_FREE(UnitBlock);
-        NYAS_FREE(SharedBlock);
-        UnitBlock = NULL;
-        SharedBlock = NULL;
+        NYAS_FREE(UniformData);
+        UniformData = NULL;
     }
 };
 

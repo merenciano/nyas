@@ -43,6 +43,7 @@ struct PbrSharedDesc
     int PrefIdx;
     float PrefLayer;
     float _Padding2[2];
+    PbrDataDesc Entity[NYAS_PIPELINE_MAX_UNITS];
 };
 
 struct PbrMaps
@@ -50,13 +51,12 @@ struct PbrMaps
     azdo::TexHandle Alb, Nor, Rou, Met;
 };
 
-static const struct
+const struct
 {
-    const NyasShaderDesc Pbr;
-    const NyasShaderDesc FullscreenImg;
-    const NyasShaderDesc Sky;
-} G_ShaderDescriptors = { { "pbr", sizeof(PbrDataDesc) * NYAS_PIPELINE_MAX_UNITS, sizeof(PbrSharedDesc) },
-    { "fullscreen-img", 16, 0 }, { "skybox", 20 * sizeof(float), 0 } };
+    NyasShaderDesc Pbr = { "pbr", sizeof(PbrSharedDesc) };
+    NyasShaderDesc FullscreenImg = { "fullscreen-img", 16 };
+    NyasShaderDesc Sky = { "skybox", 20 * sizeof(float) };
+} G_ShaderDescriptors;
 
 struct
 {
@@ -126,7 +126,7 @@ void Init()
 
     ldr.Load(12);
 
-    PbrSharedDesc *shared = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
+    PbrSharedDesc *shared = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData;
     shared->Sunlight[0] = 0.0f;
     shared->Sunlight[1] = -1.0f;
     shared->Sunlight[2] = -0.1f;
@@ -163,7 +163,7 @@ void Init()
 
     float position[3] = { -2.0f, 0.0f, 0.0f };
 
-    auto *pbr_uniform_block = (PbrDataDesc *)Nyas::Shaders[G_Shaders.Pbr].UnitBlock;
+    auto *pbr_uniform_block = (PbrDataDesc *)shared->Entity;
     // CelticGold
     {
         int eidx = Nyas::Entities.Add();
@@ -369,12 +369,11 @@ void Init()
         pbr_uniform_block[eidx] = pbr;
     }
 
-    Nyas::Shaders[G_Shaders.Skybox].UnitBlock = malloc(20*sizeof(float));
-    ((int *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock)[16] = G_Tex.Sky.Index;
-    ((float *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock)[17] = G_Tex.Sky.Layer;
-    //*Nyas::Shaders[G_Shaders.FullscreenImg].Shared = G_FbTex;
-    Nyas::Shaders[G_Shaders.FullscreenImg].UnitBlock = malloc(16);
-    *(azdo::TexHandle *)Nyas::Shaders[G_Shaders.FullscreenImg].UnitBlock = G_FbTex;
+    Nyas::Shaders[G_Shaders.Skybox].UniformData = malloc(20 * sizeof(float));
+    ((int *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[16] = G_Tex.Sky.Index;
+    ((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[17] = G_Tex.Sky.Layer;
+    Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = malloc(16);
+    *(azdo::TexHandle *)Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = G_FbTex;
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
@@ -384,7 +383,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     Nyas::Camera.Navigate();
 
     /* PBR common shader data. */
-    auto *pbr_shared_block = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].SharedBlock;
+    auto *pbr_shared_block = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData;
     mat4_multiply(pbr_shared_block->ViewProj, Nyas::Camera.Proj, Nyas::Camera.View);
     pbr_shared_block->CameraEye = Nyas::Camera.Eye();
 
@@ -415,7 +414,8 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(1 * sizeof(NyasDrawUnit));
         for (int i = 0; i < Nyas::Entities.Count; ++i)
         {
-            auto *pbr_uniform_block = (PbrDataDesc *)Nyas::Shaders[G_Shaders.Pbr].UnitBlock;
+            auto *pbr_uniform_block =
+                (PbrDataDesc *)(((PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData)->Entity);
             mat4_assign(pbr_uniform_block[i].Model, Nyas::Entities[i].Transform);
         }
         draw.Units->Shader = Nyas::Entities[0].Shader;
@@ -428,9 +428,9 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Skybox
     {
         NyasDrawCmd draw;
-        Nyas::Camera.OriginViewProj((float *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock);
-        ((int *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock)[16] = G_Tex.Sky.Index;
-        ((float *)Nyas::Shaders[G_Shaders.Skybox].UnitBlock)[17] = G_Tex.Sky.Layer;
+        Nyas::Camera.OriginViewProj((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData);
+        ((int *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[16] = G_Tex.Sky.Index;
+        ((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[17] = G_Tex.Sky.Layer;
         draw.Shader = G_Shaders.Skybox;
         draw.State.DisableFlags |= NyasDrawFlags_FaceCulling;
         draw.State.Depth = NyasDepthFunc_LessEqual;
@@ -442,6 +442,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         new_frame.Push(draw);
     }
 
+#if 1
     // Frame texture
     {
         NyasDrawCmd draw;
@@ -459,6 +460,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.Units->Instances = 1;
         new_frame.Push(draw);
     }
+#endif
 }
 
 int main(int argc, char **argv)
