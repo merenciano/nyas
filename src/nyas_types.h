@@ -230,23 +230,6 @@ struct NyasSampler
     float BorderColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
-struct NyasTexDesc
-{
-	NyasTexFmt Format = NyasTexFmt_SRGB_8;
-    int Width = 0;
-    int Height = 0;
-	int Levels = 0;
-
-    int Count = 1; // TexArrays
-    NyasTexFlags Flags = NyasTexFlags_None;
-    NyasTexType Type = NyasTexType_2D;
-    
-	NyasTexDesc() = default;
-    NyasTexDesc(NyasTexType type, NyasTexFmt fmt, int w, int h, int count = 1) :
-        Format(fmt), Width(w), Height(h), Count(count), Flags(NyasTexFlags_None), Type(type)
-    {}
-};
-
 typedef struct NyasResource
 {
     uint32_t Id = 0x7FFFFFFF;
@@ -364,17 +347,17 @@ namespace azdo
 		int Levels = 0;
 
 		TexInfo(NyasTexFmt fmt, int w, int h, int lvls) : Format(fmt), Width(w), Height(h), Levels(lvls) {}
-		bool operator==(TexInfo rhs)
-		{
-			return (Format == rhs.Format) && (Width == rhs.Width) && (Height == rhs.Height) &&
-				   (Levels == rhs.Levels);
-		}
 	};
+
+    bool operator==(TexInfo lhs, TexInfo rhs);
 
 	struct TexImage
 	{
 		void *Data[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
 		int Level = 0;
+
+        TexImage(void *data = NULL, int level = 0) : Data {data, NULL, NULL, NULL, NULL, NULL}, Level(level) {}
+        TexImage(void *data[6], int level) : Data {data}, Level(level) {}
 	};
 
 	struct TexArr
@@ -410,7 +393,6 @@ namespace azdo
 
 		std::vector<TexArr> Cubemap;
 		std::vector<ResourceID> CubeData;
-		//std::vector<std::pair<CubemapHandle, CubemapImage>> CubemapUpdates;
 	};
 }
 

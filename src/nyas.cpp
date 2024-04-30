@@ -380,48 +380,6 @@ const char *_GetImgFacePath(const char *path, int face, int face_count)
     }
 }
 
-static int _TexChannels(NyasTexFmt fmt)
-{
-    switch (fmt)
-    {
-        case NyasTexFmt_RGBA_16F:
-        case NyasTexFmt_RGBA_8: return 4;
-        case NyasTexFmt_RGB_16F:
-        case NyasTexFmt_RGB_8:
-        case NyasTexFmt_SRGB_8: return 3;
-        case NyasTexFmt_RG_16F:
-        case NyasTexFmt_RG_8: return 2;
-        case NyasTexFmt_R_16F:
-        case NyasTexFmt_R_8: return 1;
-        default: return 0;
-    }
-}
-
-static int _TexFaces(NyasTexType type)
-{
-    switch (type)
-    {
-        case NyasTexType_2D:
-        case NyasTexType_Array2D: return 1;
-        case NyasTexType_Cubemap:
-        case NyasTexType_ArrayCubemap: return 6;
-        default: return 0;
-    }
-}
-
-static bool _TexFmtFloat(NyasTexFmt fmt)
-{
-    switch (fmt)
-    {
-        case NyasTexFmt_RGBA_16F:
-        case NyasTexFmt_RGB_16F:
-        case NyasTexFmt_RGB_32F:
-        case NyasTexFmt_RG_16F:
-        case NyasTexFmt_R_16F: return true;
-        default: return false;
-    }
-}
-
 NyasHandle CreateShader(NyasShaderDesc *desc)
 {
     NyasHandle ret = _CreateShaderHandle(desc);
@@ -1049,15 +1007,6 @@ void NySched::Wait()
     }
 }
 
-static void _TexLoader(void *arg)
-{
-    NyAssetLoader::TexArgs *a = (NyAssetLoader::TexArgs *)arg;
-    for (int i = 0; i < a->Descriptor.Count; ++i)
-    {
-        //Nyas::LoadTexture(a->Tex, &a->Descriptor, a->Path[i], i);
-    }
-}
-
 static void _MeshLoader(void *arg)
 {
     NyAssetLoader::MeshArgs *a = (NyAssetLoader::MeshArgs *)arg;
@@ -1081,11 +1030,6 @@ static void _EnvLoader(void *args)
 void NyAssetLoader::AddMesh(MeshArgs *args)
 {
     Async.Push({ _MeshLoader, args });
-}
-
-void NyAssetLoader::AddTex(TexArgs *args)
-{
-    Async.Push({ _TexLoader, args });
 }
 
 void NyAssetLoader::AddShader(ShaderArgs *args)
@@ -1112,6 +1056,7 @@ void NyAssetLoader::AddJob(NySched::Job job, bool async)
 
 void NyAssetLoader::Load(int threads)
 {
+    (void)threads;
     /*
     NySched load_sched = NySched(threads);
     for (int i = 0; i < Async.Size; ++i)

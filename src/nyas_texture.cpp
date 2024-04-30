@@ -7,6 +7,11 @@
 #include "stb_image.h"
 
 namespace azdo {
+bool operator==(TexInfo lhs, TexInfo rhs)
+{
+	return !memcmp(&lhs, &rhs, sizeof(TexInfo));
+}
+
 struct _GL_Format
 {
 	GLint InternalFormat;
@@ -105,7 +110,7 @@ void Textures::_UpdateTex()
 			auto Format = _GL_TexFmt(Tex[t.first.Index].Info.Format);
 			int w = Tex[t.first.Index].Info.Width >> t.second.Level;
 			int h = Tex[t.first.Index].Info.Height >> t.second.Level;
-			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data);
+			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data[0]);
 		}
 	}
 	Updates.clear();// TODO: Posible memleak
@@ -119,7 +124,7 @@ TexHandle Textures::Alloc(TexInfo info, NyasTexFlags flags)
 		{
 			if ((Cubemap[i].Info == info) && (Cubemap[i].Count != NYAS_CUBEMAP_ARRAY_SIZE))
 			{
-				return { i, Cubemap[i].Count++ };
+				return { i, Cubemap[i].Count++, flags };
 			}
 		}
 

@@ -157,13 +157,6 @@ struct NySched
 
 struct NyAssetLoader
 {
-    struct TexArgs
-    {
-        NyasTexDesc Descriptor;
-        const char *Path[9];
-        NyasHandle Tex;
-    };
-
     struct MeshArgs
     {
         const char *Path;
@@ -188,7 +181,6 @@ struct NyAssetLoader
     NyArray<NySched::Job> Sequential;
     NyArray<NySched::Job> Async;
     void AddMesh(MeshArgs *args);
-    void AddTex(TexArgs *args);
     void AddShader(ShaderArgs *args);
     void AddEnv(EnvArgs *args);
     void AddJob(NySched::Job job, bool async);
