@@ -5,8 +5,9 @@
 
 namespace nyas::render
 {
-	void _NyCreateTex(NyasTexture *t);
-	void _NySetTex(NyasTexture *t);
+	void _NyCreateTex(NyasTexFlags flags, int unit, NyResourceID *out_id, int count = 1);
+	void _NyAllocTex(NyResourceID id, NyasTexInfo info, int layers = 1);
+	void _NySetTex(NyResourceID id, NyasTexture tex, NyasTexImage img, NyasTexInfo info, int faces = 1);
 	void _NyReleaseTex(uint32_t *id);
 
 	void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);

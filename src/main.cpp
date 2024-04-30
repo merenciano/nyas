@@ -5,7 +5,7 @@
 
 #include <array>
 
-azdo::Textures GTextures;
+NyTextures GTextures;
 
 struct PbrDataDesc
 {
@@ -48,7 +48,7 @@ struct PbrSharedDesc
 
 struct PbrMaps
 {
-    azdo::TexHandle Alb, Nor, Rou, Met;
+    NyasTexture Alb, Nor, Rou, Met;
 };
 
 const struct
@@ -67,20 +67,20 @@ struct
 
 struct
 {
-    azdo::TexHandle Sky;
+    NyasTexture Sky;
     PbrMaps Pbr[9];
 } G_Tex;
 
 NyasHandle G_Framebuf;
-azdo::TexHandle G_FbTex;
+NyasTexture G_FbTex;
 NyasHandle G_Mesh;
 
 void Init()
 {
     NyUtil::LoadBasicGeometries();
-    azdo::TexHandle irradiance;
-    azdo::TexHandle prefilter;
-    azdo::TexHandle lut;
+    NyasTexture irradiance;
+    NyasTexture prefilter;
+    NyasTexture lut;
 
     NyAssetLoader::ShaderArgs fsimgargs = { G_ShaderDescriptors.FullscreenImg,
         &G_Shaders.FullscreenImg };
@@ -141,7 +141,7 @@ void Init()
     G_Framebuf = Nyas::CreateFramebuffer();
     NyVec2i vp = Nyas::GetCurrentCtx()->Platform.WindowSize;
     G_FbTex = GTextures.Alloc({ NyasTexFmt_RGB_32F, vp.X, vp.Y, 1 });
-    azdo::TexHandle fb_depth = GTextures.Alloc({ NyasTexFmt_Depth, vp.X, vp.Y, 1 });
+    NyasTexture fb_depth = GTextures.Alloc({ NyasTexFmt_Depth, vp.X, vp.Y, 1 });
 
     NyasTexTarget color = { G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0 };
     NyasTexTarget depth = { fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0 };
@@ -373,7 +373,7 @@ void Init()
     ((int *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[16] = G_Tex.Sky.Index;
     ((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[17] = G_Tex.Sky.Layer;
     Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = malloc(16);
-    *(azdo::TexHandle *)Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = G_FbTex;
+    *(NyasTexture *)Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = G_FbTex;
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
@@ -466,7 +466,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    Nyas::InitIO("NYAS PBR Material Demo", 600, 400);
+    Nyas::InitIO("NYAS PBR Material Demo", 1024, 720);
     Nyas::Camera.Init(*Nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;

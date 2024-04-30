@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <vector>
 
 typedef int NyasHandle;
 
@@ -20,10 +21,11 @@ typedef unsigned int NyResourceID;
 
 // Basic data types
 struct NyasResource;
-struct NyasTexDesc;
+struct NyasTexInfo;
+struct NyasTexImage;
+struct NyasTexture;
 struct NyasTexTarget;
 struct NyasShaderDesc;
-struct NyasTexture;
 struct NyasMesh;
 struct NyasShader;
 struct NyasMaterial;
@@ -39,7 +41,6 @@ typedef int NyasVtxAttribFlags; // enum NyasVtxAttribFlags_
 typedef int NyasDrawFlags; // enum NyasDrawFlags_
 
 // Enum
-typedef int NyasTexType; // enum NyasTexType_
 typedef int NyasTexFmt; // enum NyasTexFmt_
 typedef int NyasTexFilter; // enum NyasTexFilter_
 typedef int NyasTexWrap; // enum NyasTexWrap_
@@ -49,16 +50,6 @@ typedef int NyasFbAttach; // enum NyasFbAttach_
 typedef int NyasBlendFunc; // enum NyasBlendFunc_
 typedef int NyasDepthFunc; // enum NyasDepthFunc_
 typedef int NyasFaceCull; // enum NyasFaceCull_
-
-enum NyasTexType_
-{
-    NyasTexType_Default,
-    NyasTexType_2D,
-    NyasTexType_Array2D,
-    NyasTexType_Cubemap,
-    NyasTexType_ArrayCubemap,
-    NyasTexType_COUNT
-};
 
 enum NyasTexFmt_
 {
@@ -230,6 +221,35 @@ struct NyasSampler
     float BorderColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
+struct NyasTexInfo
+{
+    NyasTexFmt Format = NyasTexFmt_Default;
+    int Width = 0;
+    int Height = 0;
+    int Levels = 0;
+
+    NyasTexInfo() = default;
+    NyasTexInfo(NyasTexFmt fmt, int w, int h, int lvls) : Format(fmt), Width(w), Height(h), Levels(lvls) {}
+    inline bool operator==(NyasTexInfo o) { return !memcmp(this, &o, sizeof(NyasTexInfo)); }
+};
+
+struct NyasTexImage
+{
+    void *Data[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+    int Level = 0;
+
+    NyasTexImage() = default;
+    NyasTexImage(void *data, int level = 0) : Data {data, NULL, NULL, NULL, NULL, NULL}, Level(level) {}
+    NyasTexImage(void *data[6], int level) : Data {data}, Level(level) {}
+};
+
+struct NyasTexture
+{
+    int16_t Index = -1;
+    int16_t Layer = -1;
+    NyasTexFlags Flags = NyasTexFlags_None;
+};
+
 typedef struct NyasResource
 {
     uint32_t Id = 0x7FFFFFFF;
@@ -280,6 +300,20 @@ struct NyasShader
         NYAS_FREE(UniformData);
         UniformData = NULL;
     }
+};
+
+struct NyasTexTarget
+{
+    NyasTexture Tex;
+    NyasTexFace Face;
+    NyasFbAttach Attach;
+    int MipLevel;
+};
+
+struct NyasFramebuffer
+{
+    NyasResource Resource;
+    NyasTexTarget Target[8];
 };
 
 typedef struct NyasDrawState
@@ -333,81 +367,30 @@ typedef struct NyasDrawCmd
     NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp) {}
 } NyasDrawCmd;
 
-// NEW TYPES
-#include <vector>
-namespace azdo
+struct NyTextures
 {
-	typedef unsigned int ResourceID;
+    struct TexArr
+    {
+        NyasTexInfo Info = {};
+        int16_t Count = 0;
 
-	struct TexInfo
-	{
-		NyasTexFmt Format = NyasTexFmt_RGB_8;
-		int Width = 0;
-		int Height = 0;
-		int Levels = 0;
+        TexArr() = default;
+        TexArr(NyasTexInfo info, int count = 0) : Info(info), Count(count) {};
+    };
 
-		TexInfo(NyasTexFmt fmt, int w, int h, int lvls) : Format(fmt), Width(w), Height(h), Levels(lvls) {}
-	};
+    NyTextures() {_TextureIDs[0] = -1;}
+    NyasTexture Alloc(NyasTexInfo info, NyasTexFlags flags = NyasTexFlags_None);
+    NyasTexture Load(const char *path, NyasTexFmt fmt, int levels);
+    //CubemapHandle LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels);
+    void Update(NyasTexture h, NyasTexImage img);
+    void Sync();
 
-    bool operator==(TexInfo lhs, TexInfo rhs);
+    TexArr Textures[NYAS_TEX_ARRAYS];
+    NyResourceID _TextureIDs[NYAS_TEX_ARRAYS];
 
-	struct TexImage
-	{
-		void *Data[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
-		int Level = 0;
-
-        TexImage(void *data = NULL, int level = 0) : Data {data, NULL, NULL, NULL, NULL, NULL}, Level(level) {}
-        TexImage(void *data[6], int level) : Data {data}, Level(level) {}
-	};
-
-	struct TexArr
-	{
-		TexInfo Info;
-		int16_t Count = 0;
-
-		TexArr(TexInfo info, int count = 0) : Info(info), Count(count) {};
-	};
-
-	struct TexHandle
-	{
-		int16_t Index = -1;
-		int16_t Layer = -1;
-		NyasTexFlags Flags = NyasTexFlags_None;
-	};
-
-	struct Textures
-	{
-		void _Init();
-		void _CreateTex();
-		void _UpdateTex();
-
-		TexHandle Alloc(TexInfo info, NyasTexFlags flags = NyasTexFlags_None);
-		TexHandle Load(const char *path, NyasTexFmt fmt, int levels);
-		//CubemapHandle LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels);
-		void Update(TexHandle h, TexImage img);
-		void Sync();
-
-		std::vector<TexArr> Tex;
-		std::vector<ResourceID> Data;
-		std::vector<std::pair<TexHandle, TexImage>> Updates;
-
-		std::vector<TexArr> Cubemap;
-		std::vector<ResourceID> CubeData;
-	};
-}
-
-struct NyasTexTarget
-{
-    azdo::TexHandle Tex;
-    NyasTexFace Face;
-    NyasFbAttach Attach;
-    int MipLevel;
-};
-
-struct NyasFramebuffer
-{
-    NyasResource Resource;
-    NyasTexTarget Target[8];
+    TexArr Cubemaps[NYAS_CUBEMAP_ARRAYS];
+    NyResourceID _CubemapIDs[NYAS_CUBEMAP_ARRAYS];
+    std::vector<std::pair<NyasTexture, NyasTexImage>> Updates;
 };
 
 #endif // NYAS_TYPES_H

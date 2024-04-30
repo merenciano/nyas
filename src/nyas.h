@@ -17,15 +17,10 @@ struct NyasCamera;
 struct NyasEntity;
 struct NyasCtx;
 
-extern azdo::Textures GTextures;
+extern NyTextures GTextures;
 
 namespace Nyas
 {
-NyasHandle CreateTexture();
-NyasHandle CreateTexture(int w, int h, NyasTexType t, NyasTexFmt f, int count = 1);
-void SetTexture(NyasHandle tex, NyasTexDesc *desc);
-void LoadTexture(NyasHandle tex, NyasTexDesc *desc, const char *path, int index = 0);
-
 NyasHandle CreateFramebuffer();
 void SetFramebufferTarget(NyasHandle fb, int index, NyasTexTarget target);
 
@@ -172,10 +167,10 @@ struct NyAssetLoader
     struct EnvArgs
     {
         const char *Path;
-		azdo::TexHandle *Sky;
-		azdo::TexHandle *Irradiance;
-		azdo::TexHandle *Pref;
-        azdo::TexHandle *LUT;
+		NyasTexture *Sky;
+		NyasTexture *Irradiance;
+		NyasTexture *Pref;
+        NyasTexture *LUT;
     };
 
     NyArray<NySched::Job> Sequential;
@@ -200,7 +195,7 @@ namespace NyUtil
 void LoadBasicGeometries();
 
 // Environment maps
-void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo::TexHandle *irr, azdo::TexHandle *pref);
+void LoadEnv(const char *path, NyasTexture *lut, NyasTexture *sky, NyasTexture *irr, NyasTexture *pref);
 
 } // namespace NyUtil
 

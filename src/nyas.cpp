@@ -1464,7 +1464,7 @@ void LoadBasicGeometries()
     _MeshSetGeometry(NYAS_QUAD, NyasGeometry_Quad);
 }
 
-void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo::TexHandle *irr, azdo::TexHandle *pref)
+void LoadEnv(const char *path, NyasTexture *lut, NyasTexture *sky, NyasTexture *irr, NyasTexture *pref)
 {
     FILE *f = fopen(path, "r");
     char hdr[9];
@@ -1476,29 +1476,9 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo:
         return;
     }
 
-    /**sky = Nyas::CreateTexture();
-    NyasTexture *t = &Nyas::Textures[*sky];
-    t->Resource.Id = 0;
-    t->Resource.Flags = NyasResourceFlags_Dirty;
-    t->Data.Type = NyasTexType_Cubemap;
-    t->Data.Format = NyasTexFmt_RGB_16F;
-    t->Data.Width = 1024;
-    t->Data.Height = 1024;
-
-    size_t size = 1024 * 1024 * 3 * 2; // size * nchannels * sizeof(channel)
-    for (int i = 0; i < 6; ++i)
-    {
-        NyasTexImg img;
-        img.Face = i;
-        img.Pix = NYAS_ALLOC(size);
-        fread(img.Pix, size, 1, f);
-        NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-        t->Img.Push(img);
-    }*/
-
 	*sky = GTextures.Alloc({NyasTexFmt_RGB_16F, 1024, 1024, 1}, NyasTexFlags_Cubemap);
 	size_t size = 1024 * 1024 * 3 * 2;
-	azdo::TexImage sky_img;
+	NyasTexImage sky_img;
 	sky_img.Level = 0;
 	for (int i = 0; i < 6; ++i)
 	{
@@ -1508,27 +1488,8 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo:
 	}
 	GTextures.Update(*sky, sky_img);
 
-    /**irr = Nyas::CreateTexture();
-    t = &Nyas::Textures[*irr];
-    t->Resource.Id = 0;
-    t->Resource.Flags = NyasResourceFlags_Dirty;
-    t->Data.Type = NyasTexType_Cubemap;
-    t->Data.Format = NyasTexFmt_RGB_16F;
-    t->Data.Width = 1024;
-    t->Data.Height = 1024;
-
-    for (int i = 0; i < 6; ++i)
-    {
-        NyasTexImg img;
-        img.Face = i;
-        img.Pix = NYAS_ALLOC(size);
-        fread(img.Pix, size, 1, f);
-        NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-        t->Img.Push(img);
-    }*/
-
 	*irr = GTextures.Alloc({NyasTexFmt_RGB_16F, 1024, 1024, 1}, NyasTexFlags_Cubemap);
-	azdo::TexImage irrad_img;
+	NyasTexImage irrad_img;
 	irrad_img.Level = 0;
 	for (int i = 0; i < 6; ++i)
 	{
@@ -1538,38 +1499,12 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo:
 	}
 	GTextures.Update(*irr, irrad_img);
 
-    /**pref = Nyas::CreateTexture();
-    t = &Nyas::Textures[*pref];
-    t->Resource.Id = 0;
-    t->Resource.Flags = NyasResourceFlags_Dirty;
-    t->Data.Type = NyasTexType_Cubemap;
-    t->Data.Format = NyasTexFmt_RGB_16F;
-    t->Data.Width = 256;
-    t->Data.Height = 256;
-    t->Sampler.MinFilter = NyasTexFilter_LinearMipmapLinear;
-
-    size = 256 * 256 * 3 * 2;
-    for (int lod = 0; lod < 9; ++lod)
-    {
-        for (int face = 0; face < 6; ++face)
-        {
-            NyasTexImg img;
-            img.MipLevel = lod;
-            img.Face = face;
-            img.Pix = NYAS_ALLOC(size);
-            fread(img.Pix, size, 1, f);
-            NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-            t->Img.Push(img);
-        }
-        size /= 4;
-    }*/
-
 	// TODO: Sampler - NyasTexFilter_LinearMipmapLinear
 	*pref = GTextures.Alloc({NyasTexFmt_RGB_16F, 256, 256, 9}, NyasTexFlags_Cubemap);
 	size = 256 * 256 * 3 * 2;
 	for (int lod = 0; lod < 9; ++lod)
 	{
-		azdo::TexImage img;
+		NyasTexImage img;
 		img.Level = lod;
 		for (int face = 0; face < 6; ++face)
 		{
@@ -1580,24 +1515,6 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo:
 		GTextures.Update(*pref, img);
 		size /= 4;
 	}
-
-    /* *lut = Nyas::CreateTexture();
-    t = &Nyas::Textures[*lut];
-    t->Resource.Id = 0;
-    t->Resource.Flags = NyasResourceFlags_Dirty;
-    t->Data.Type = NyasTexType_2D;
-    t->Data.Format = NyasTexFmt_RG_16F;
-    t->Data.Width = 512;
-    t->Data.Height = 512;
-
-    size = 512 * 512 * 2 * 2;
-
-    NyasTexImg img;
-    img.Pix = NYAS_ALLOC(size);
-    fread(img.Pix, size, 1, f);
-    NYAS_ASSERT(img.Pix && "The image couldn't be loaded");
-    t->Img.Push(img);
-     */
 
     size = 512 * 512 * 2 * 2;
 	void *img_pix {NYAS_ALLOC(size)};
