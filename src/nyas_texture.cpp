@@ -7,78 +7,6 @@
 #include "stb_image.h"
 
 namespace azdo {
-typedef unsigned int ResourceID;
-
-struct TexInfo
-{
-    NyasTexFmt Format = NyasTexFmt_RGB_8;
-    int Width = 0;
-    int Height = 0;
-    int Levels = 0;
-
-	TexInfo(NyasTexFmt fmt, int w, int h, int lvls) : Format(fmt), Width(w), Height(h), Levels(lvls) {}
-	bool operator==(TexInfo rhs)
-	{
-		return (Format == rhs.Format) && (Width == rhs.Width) && (Height == rhs.Height) &&
-			(Levels == rhs.Levels);
-	}
-};
-
-struct TexImage
-{
-	void *Data = NULL;
-	int Level = 0;
-};
-
-struct CubemapImage
-{
-	void *Data[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
-	int Level = 0;
-};
-
-struct TexArr
-{
-    TexInfo Info;
-    int Count = 0;
-
-	TexArr(TexInfo ainfo, int acount) : Info(ainfo), Count(acount) {};
-};
-
-struct TexHandle
-{
-    int Index = -1;
-    int Layer = -1;
-};
-
-struct CubemapHandle
-{
-	int Index = -1;
-	int Layer = -1;
-};
-
-struct Textures
-{
-	void _Init();
-	void _CreateTex();
-	void _UpdateTex();
-
-	TexHandle Alloc(TexInfo Info);
-	CubemapHandle CubeAlloc(TexInfo Info);
-	TexHandle Load(const char *path, NyasTexFmt fmt, int levels);
-	CubemapHandle LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels);
-	void Update(TexHandle h, TexImage img);
-	void Update(CubemapHandle h, CubemapImage img);
-	void Sync();
-
-    std::vector<TexArr> Tex;
-    std::vector<ResourceID> Data;
-	std::vector<std::pair<TexHandle, TexImage>> Updates;
-
-	std::vector<TexArr> Cubemap;
-    std::vector<ResourceID> CubeData;
-	std::vector<std::pair<CubemapHandle, CubemapImage>> CubemapUpdates;
-};
-
 struct _GL_Format
 {
 	GLint InternalFormat;
@@ -122,53 +50,47 @@ static int _TexChannels(NyasTexFmt fmt)
 		default: return 0;
 	}
 }
-	void Textures::_Init()
-	{
-		#if 0
-		Data.resize(NYAS_TEX_ARRAYS);
-		glCreateTextures(GL_TEXTURE_2D_ARRAY, NYAS_TEX_ARRAYS, Data.data());
-		CubeData.resize(NYAS_CUBEMAP_ARRAYS);
-		glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, NYAS_CUBEMAP_ARRAYS, CubeData.data());
-		#endif
-	}
 
-	void inline Textures::_CreateTex()
-	{
-		for (int i = 0; i < (int)Tex.size(); ++i)
-		{
-			if (Data[i] == 0x7FFFFFFF)
-			{
-				auto Format = _GL_TexFmt(Tex[i].Info.Format);
-				glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &Data[i]);
-				glTextureStorage3D(Data[i], Tex[i].Info.Levels, Format.InternalFormat, Tex[i].Info.Width, Tex[i].Info.Height, NYAS_TEX_ARRAY_SIZE);
-				glBindTextureUnit(NYAS_CUBEMAP_ARRAYS + i, Data[i]);
-			}
-		}
+void Textures::_Init()
+{
+	#if 0
+	Data.resize(NYAS_TEX_ARRAYS);
+	glCreateTextures(GL_TEXTURE_2D_ARRAY, NYAS_TEX_ARRAYS, Data.data());
+	CubeData.resize(NYAS_CUBEMAP_ARRAYS);
+	glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, NYAS_CUBEMAP_ARRAYS, CubeData.data());
+	#endif
+}
 
-		for (int i = 0; i < (int)Cubemap.size(); ++i)
+void Textures::_CreateTex()
+{
+	for (int i = 0; i < (int)Tex.size(); ++i)
+	{
+		if (Data[i] == 0x7FFFFFFF)
 		{
-			if (CubeData[i] == 0x7FFFFFFF)
-			{
-				auto Format = _GL_TexFmt(Cubemap[i].Info.Format);
-				glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &CubeData[i]);
-				glTextureStorage3D(CubeData[i], Cubemap[i].Info.Levels, Format.InternalFormat, Cubemap[i].Info.Width, Cubemap[i].Info.Height, NYAS_CUBEMAP_ARRAY_SIZE * 6);
-				glBindTextureUnit(i, CubeData[i]);
-			}
+			auto Format = _GL_TexFmt(Tex[i].Info.Format);
+			glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &Data[i]);
+			glTextureStorage3D(Data[i], Tex[i].Info.Levels, Format.InternalFormat, Tex[i].Info.Width, Tex[i].Info.Height, NYAS_TEX_ARRAY_SIZE);
+			glBindTextureUnit(NYAS_CUBEMAP_ARRAYS + i, Data[i]);
 		}
 	}
 
-	void Textures::_UpdateTex()
+	for (int i = 0; i < (int)Cubemap.size(); ++i)
 	{
-		for (auto& t : Updates)
+		if (CubeData[i] == 0x7FFFFFFF)
 		{
-			auto Format = _GL_TexFmt(Tex[t.first.Index].Info.Format);
-			int w = Tex[t.first.Index].Info.Width >> t.second.Level;
-			int h = Tex[t.first.Index].Info.Height >> t.second.Level;
-			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data);
+			auto Format = _GL_TexFmt(Cubemap[i].Info.Format);
+			glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &CubeData[i]);
+			glTextureStorage3D(CubeData[i], Cubemap[i].Info.Levels, Format.InternalFormat, Cubemap[i].Info.Width, Cubemap[i].Info.Height, NYAS_CUBEMAP_ARRAY_SIZE * 6);
+			glBindTextureUnit(i, CubeData[i]);
 		}
-		Updates.clear();// TODO: Posible memleak
+	}
+}
 
-		for (auto& t : CubemapUpdates)
+void Textures::_UpdateTex()
+{
+	for (auto& t : Updates)
+	{
+		if (t.first.Flags & NyasTexFlags_Cubemap)
 		{
 			auto Format = _GL_TexFmt(Cubemap[t.first.Index].Info.Format);
 			int w = Cubemap[t.first.Index].Info.Width >> t.second.Level;
@@ -178,113 +100,120 @@ static int _TexChannels(NyasTexFmt fmt)
 				glTextureSubImage3D(CubeData[t.first.Index], t.second.Level, 0, 0, t.first.Layer * 6 + i, w, h, 1, Format.Format, Format.Type, t.second.Data[i]);
 			}
 		}
-		CubemapUpdates.clear();// TODO: Posible memleak
-	}
-
-	TexHandle Textures::Alloc(TexInfo Info)
-	{
-		for (int i = 0; i < (int)Tex.size(); ++i)
+		else
 		{
-			if (Tex[i].Info == Info && Tex[i].Count != NYAS_TEX_ARRAY_SIZE)
-			{
-				return { i, Tex[i].Count++ };
-			}
+			auto Format = _GL_TexFmt(Tex[t.first.Index].Info.Format);
+			int w = Tex[t.first.Index].Info.Width >> t.second.Level;
+			int h = Tex[t.first.Index].Info.Height >> t.second.Level;
+			glTextureSubImage3D(Data[t.first.Index], t.second.Level, 0, 0, t.first.Layer, w, h, 1, Format.Format, Format.Type, t.second.Data);
 		}
-
-		Tex.emplace_back(Info, 1);
-		Data.emplace_back(0x7FFFFFFF);
-		return {(int)Tex.size() - 1, 0};
 	}
+	Updates.clear();// TODO: Posible memleak
+}
 
-	CubemapHandle Textures::CubeAlloc(TexInfo Info)
+TexHandle Textures::Alloc(TexInfo info, NyasTexFlags flags)
+{
+	if (flags & NyasTexFlags_Cubemap)
 	{
-		for (int i = 0; i < (int)Cubemap.size(); ++i)
+		for (int16_t i = 0; i < (int16_t)Cubemap.size(); ++i)
 		{
-			if ((Cubemap[i].Info == Info) && (Cubemap[i].Count != NYAS_CUBEMAP_ARRAY_SIZE))
+			if ((Cubemap[i].Info == info) && (Cubemap[i].Count != NYAS_CUBEMAP_ARRAY_SIZE))
 			{
 				return { i, Cubemap[i].Count++ };
 			}
 		}
 
-		Cubemap.emplace_back(Info, 1);
+		Cubemap.emplace_back(info, 1);
 		CubeData.emplace_back(0x7FFFFFFF);
-		return {(int)Cubemap.size() - 1, 0};
+		int16_t idx = (int16_t)Cubemap.size() - 1;
+		return {idx, 0, flags};
 	}
-
-	TexHandle Textures::Load(const char *path, NyasTexFmt fmt, int levels)
+	else
 	{
-		int w, h, channels;
-		int ch = _TexChannels(fmt);
-		azdo::TexImage img;
-		img.Level = 0;
-		if (fmt >= NyasTexFmt_BeginFloat)
+		for (int16_t i = 0; i < (int16_t)Tex.size(); ++i)
 		{
-			img.Data = stbi_loadf(path, &w, &h, &channels, ch);
-		}
-		else
-		{
-			img.Data = stbi_load(path, &w, &h, &channels, ch);
-		}
-
-		if (!img.Data)
-		{
-			printf("The image '%s' couldn't be loaded", path);
-		}
-		
-		TexHandle hnd = Alloc({fmt, w, h, levels});
-		Update(hnd, img);
-		return hnd;
-	}
-
-	CubemapHandle Textures::LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels)
-	{
-		int w, h, channels = 0;
-		int ch = _TexChannels(fmt);
-		azdo::CubemapImage img;
-		img.Level = 0;
-		if (fmt >= NyasTexFmt_BeginFloat)
-		{
-			for (int i = 0; i < 6; ++i)
+			if (Tex[i].Info == info && Tex[i].Count != NYAS_TEX_ARRAY_SIZE)
 			{
-				img.Data[i] = stbi_loadf(path[i], &w, &h, &channels, ch);
-				if (!img.Data[0])
-				{
-					printf("The image '%s' couldn't be loaded", path[i]);
-				}
-			}
-		}
-		else
-		{
-			for (int i = 0; i < 6; ++i)
-			{
-				img.Data[i] = stbi_load(path[i], &w, &h, &channels, ch);
-				if (!img.Data[0])
-				{
-					printf("The image '%s' couldn't be loaded", path[i]);
-				}
+				return { i, Tex[i].Count++, flags };
 			}
 		}
 
-		CubemapHandle hnd = CubeAlloc({fmt, w, h, levels});
-		Update(hnd, img);
-		return hnd;
+		Tex.emplace_back(info, 1);
+		Data.emplace_back(0x7FFFFFFF);
+		int16_t idx = (int16_t)Tex.size() - 1;
+		return {idx, 0, flags};
+	}
+}
+
+TexHandle Textures::Load(const char *path, NyasTexFmt fmt, int levels)
+{
+	int w, h, channels;
+	int ch = _TexChannels(fmt);
+	azdo::TexImage img;
+	img.Level = 0;
+	if (fmt >= NyasTexFmt_BeginFloat)
+	{
+		img.Data[0] = stbi_loadf(path, &w, &h, &channels, ch);
+	}
+	else
+	{
+		img.Data[0] = stbi_load(path, &w, &h, &channels, ch);
 	}
 
-	void Textures::Update(TexHandle h, TexImage img)
+	if (!img.Data[0])
 	{
-		Updates.emplace_back(h, img);
+		printf("The image '%s' couldn't be loaded", path);
 	}
 
-	void Textures::Update(CubemapHandle h, CubemapImage img)
+	TexHandle hnd = Alloc({fmt, w, h, levels});
+	Update(hnd, img);
+	return hnd;
+}
+#if 0
+CubemapHandle Textures::LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels)
+{
+	int w, h, channels = 0;
+	int ch = _TexChannels(fmt);
+	azdo::CubemapImage img;
+	img.Level = 0;
+	if (fmt >= NyasTexFmt_BeginFloat)
 	{
-		CubemapUpdates.emplace_back(h, img);
+		for (int i = 0; i < 6; ++i)
+		{
+			img.Data[i] = stbi_loadf(path[i], &w, &h, &channels, ch);
+			if (!img.Data[0])
+			{
+				printf("The image '%s' couldn't be loaded", path[i]);
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < 6; ++i)
+		{
+			img.Data[i] = stbi_load(path[i], &w, &h, &channels, ch);
+			if (!img.Data[0])
+			{
+				printf("The image '%s' couldn't be loaded", path[i]);
+			}
+		}
 	}
 
-	void Textures::Sync()
-	{
-		_CreateTex();
-		_UpdateTex();
-	}
+	CubemapHandle hnd = CubeAlloc({fmt, w, h, levels});
+	Update(hnd, img);
+	return hnd;
+}
+#endif
+void Textures::Update(TexHandle h, TexImage img)
+{
+	Updates.emplace_back(h, img);
+}
+
+void Textures::Sync()
+{
+	_CreateTex();
+	_UpdateTex();
+}
 
 }// namespace azdo
 

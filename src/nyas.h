@@ -179,9 +179,9 @@ struct NyAssetLoader
     struct EnvArgs
     {
         const char *Path;
-		azdo::CubemapHandle *Sky;
-		azdo::CubemapHandle *Irradiance;
-		azdo::CubemapHandle *Pref;
+		azdo::TexHandle *Sky;
+		azdo::TexHandle *Irradiance;
+		azdo::TexHandle *Pref;
         azdo::TexHandle *LUT;
     };
 
@@ -208,7 +208,7 @@ namespace NyUtil
 void LoadBasicGeometries();
 
 // Environment maps
-void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, azdo::CubemapHandle *irr, azdo::CubemapHandle *pref);
+void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo::TexHandle *irr, azdo::TexHandle *pref);
 
 } // namespace NyUtil
 

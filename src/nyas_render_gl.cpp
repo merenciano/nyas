@@ -9,39 +9,6 @@ static const GLint attrib_sizes[NyasVtxAttrib_COUNT] = { 3, 3, 3, 3, 2, 4 };
 static const char *attrib_names[NyasVtxAttrib_COUNT] = { "a_position", "a_normal", "a_tangent",
     "a_bitangent", "a_uv", "a_color" };
 
-struct NyGL_TexDesc
-{
-    GLenum target;
-    GLint min_f;
-    GLint mag_f;
-    GLint ws;
-    GLint wt;
-    GLint wr;
-    float br;
-    float bg;
-    float bb;
-    float ba;
-
-    NyGL_TexDesc(GLenum tg, GLint min, GLint mag, GLint ws, GLint wt, GLint wr, float br, float bg,
-        float bb, float ba) :
-        target(tg),
-        min_f(min), mag_f(mag), ws(ws), wt(wt), wr(wr), br(br), bg(bg), bb(bb), ba(ba)
-    {
-    }
-};
-
-static GLenum _GL_TexTarget(NyasTexType type)
-{
-    switch (type)
-    {
-        case NyasTexType_2D: return GL_TEXTURE_2D;
-        case NyasTexType_Cubemap: return GL_TEXTURE_CUBE_MAP;
-        case NyasTexType_Array2D: return GL_TEXTURE_2D_ARRAY;
-        case NyasTexType_ArrayCubemap: return GL_TEXTURE_CUBE_MAP_ARRAY;
-        default: return 0;
-    }
-}
-
 static GLint _GL_TexFilter(NyasTexFilter f)
 {
     switch (f)
@@ -85,75 +52,8 @@ struct NyGL_TexConfig
         , WrapR(_GL_TexWrap(t->WrapR)) {}
 };
 
-struct _GL_TexFmtResult
-{
-    GLint ifmt;
-    GLenum fmt;
-    GLenum type;
-};
-
-static struct _GL_TexFmtResult _GL_TexFmt(NyasTexFmt fmt)
-{
-    switch (fmt)
-    {
-        case NyasTexFmt_R_8: return { GL_R8, GL_RED, GL_UNSIGNED_BYTE };
-        case NyasTexFmt_RG_8: return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE };
-        case NyasTexFmt_RGB_8: return { GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE };
-        case NyasTexFmt_RGBA_8: return { GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE };
-        case NyasTexFmt_SRGB_8: return { GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE };
-        case NyasTexFmt_R_16F: return { GL_R16F, GL_RED, GL_HALF_FLOAT };
-        case NyasTexFmt_RG_16F: return { GL_RG16F, GL_RG, GL_HALF_FLOAT };
-        case NyasTexFmt_RGB_16F: return { GL_RGB16F, GL_RGB, GL_HALF_FLOAT };
-        case NyasTexFmt_RGBA_16F: return { GL_RGBA16F, GL_RGBA, GL_HALF_FLOAT };
-        case NyasTexFmt_RGB_32F: return { GL_RGB32F, GL_RGB, GL_FLOAT };
-        case NyasTexFmt_Depth: return { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT };
-        case NyasTexFmt_DepthStencil: return { GL_DEPTH24_STENCIL8, GL_DEPTH_COMPONENT, GL_FLOAT };
-        default: NYAS_LOG_ERR("Unrecognized texture format: (%d).", fmt); return { 0, 0, 0 };
-    }
-}
-
 namespace nyas::render
 {
-#if 0
-    void _NyCreateTex(NyasTexture *t)
-    {
-        auto tgt = _GL_TexTarget(t->Data.Type);
-        NyGL_TexConfig smplr = {t};
-        _GL_TexFmtResult fmt = _GL_TexFmt(t->Data.Format);
-        glGenTextures(1, &t->Resource.Id);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(tgt, t->Resource.Id);
-        if (smplr.MinFltr)
-        {
-            glTexParameteri(tgt, GL_TEXTURE_MIN_FILTER, smplr.MinFltr);
-        }
-        if (smplr.MagFltr)
-        {
-            glTexParameteri(tgt, GL_TEXTURE_MAG_FILTER, smplr.MagFltr);
-        }
-        if (smplr.WrapS)
-        {
-            glTexParameteri(tgt, GL_TEXTURE_WRAP_S, smplr.WrapS);
-        }
-        if (smplr.WrapT)
-        {
-            glTexParameteri(tgt, GL_TEXTURE_WRAP_T, smplr.WrapT);
-        }
-        if (smplr.WrapR)
-        {
-            glTexParameteri(tgt, GL_TEXTURE_WRAP_R, smplr.WrapR);
-        }
-        if (smplr.BorderColor[3] > 0.0f)
-        {
-            glTexParameterfv(tgt, GL_TEXTURE_BORDER_COLOR, &smplr.BorderColor[0]);
-        }
-    }
-#endif
-    void _NyReleaseTex(uint32_t *id)
-    {
-        glDeleteTextures(1, id);
-    }
-
     void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid)
     {
         glGenVertexArrays(1, id);

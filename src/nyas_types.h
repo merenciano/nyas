@@ -180,7 +180,8 @@ enum NyasTexFlags_
 {
     NyasTexFlags_None = 0,
     NyasTexFlags_GenMipMaps = 1,
-    NyasTexFlags_FlipVerticallyOnLoad = 1 << 1
+    NyasTexFlags_FlipVerticallyOnLoad = 1 << 1,
+	NyasTexFlags_Cubemap = 1 << 2,
 };
 
 enum NyasDrawFlags_
@@ -349,9 +350,69 @@ typedef struct NyasDrawCmd
     NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp) {}
 } NyasDrawCmd;
 
-// New types
+// NEW TYPES
+#include <vector>
+namespace azdo
+{
+	typedef unsigned int ResourceID;
 
-#include "nyas_texture.cpp"
+	struct TexInfo
+	{
+		NyasTexFmt Format = NyasTexFmt_RGB_8;
+		int Width = 0;
+		int Height = 0;
+		int Levels = 0;
+
+		TexInfo(NyasTexFmt fmt, int w, int h, int lvls) : Format(fmt), Width(w), Height(h), Levels(lvls) {}
+		bool operator==(TexInfo rhs)
+		{
+			return (Format == rhs.Format) && (Width == rhs.Width) && (Height == rhs.Height) &&
+				   (Levels == rhs.Levels);
+		}
+	};
+
+	struct TexImage
+	{
+		void *Data[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+		int Level = 0;
+	};
+
+	struct TexArr
+	{
+		TexInfo Info;
+		int16_t Count = 0;
+
+		TexArr(TexInfo info, int count = 0) : Info(info), Count(count) {};
+	};
+
+	struct TexHandle
+	{
+		int16_t Index = -1;
+		int16_t Layer = -1;
+		NyasTexFlags Flags = NyasTexFlags_None;
+	};
+
+	struct Textures
+	{
+		void _Init();
+		void _CreateTex();
+		void _UpdateTex();
+
+		TexHandle Alloc(TexInfo info, NyasTexFlags flags = NyasTexFlags_None);
+		TexHandle Load(const char *path, NyasTexFmt fmt, int levels);
+		//CubemapHandle LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels);
+		void Update(TexHandle h, TexImage img);
+		void Sync();
+
+		std::vector<TexArr> Tex;
+		std::vector<ResourceID> Data;
+		std::vector<std::pair<TexHandle, TexImage>> Updates;
+
+		std::vector<TexArr> Cubemap;
+		std::vector<ResourceID> CubeData;
+		//std::vector<std::pair<CubemapHandle, CubemapImage>> CubemapUpdates;
+	};
+}
 
 struct NyasTexTarget
 {

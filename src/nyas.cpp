@@ -1519,7 +1519,7 @@ void LoadBasicGeometries()
     _MeshSetGeometry(NYAS_QUAD, NyasGeometry_Quad);
 }
 
-void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, azdo::CubemapHandle *irr, azdo::CubemapHandle *pref)
+void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::TexHandle *sky, azdo::TexHandle *irr, azdo::TexHandle *pref)
 {
     FILE *f = fopen(path, "r");
     char hdr[9];
@@ -1551,9 +1551,9 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, a
         t->Img.Push(img);
     }*/
 
-	*sky = GTextures.CubeAlloc({NyasTexFmt_RGB_16F, 1024, 1024, 1});
+	*sky = GTextures.Alloc({NyasTexFmt_RGB_16F, 1024, 1024, 1}, NyasTexFlags_Cubemap);
 	size_t size = 1024 * 1024 * 3 * 2;
-	azdo::CubemapImage sky_img;
+	azdo::TexImage sky_img;
 	sky_img.Level = 0;
 	for (int i = 0; i < 6; ++i)
 	{
@@ -1582,8 +1582,8 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, a
         t->Img.Push(img);
     }*/
 
-	*irr = GTextures.CubeAlloc({NyasTexFmt_RGB_16F, 1024, 1024, 1});
-	azdo::CubemapImage irrad_img;
+	*irr = GTextures.Alloc({NyasTexFmt_RGB_16F, 1024, 1024, 1}, NyasTexFlags_Cubemap);
+	azdo::TexImage irrad_img;
 	irrad_img.Level = 0;
 	for (int i = 0; i < 6; ++i)
 	{
@@ -1620,11 +1620,11 @@ void LoadEnv(const char *path, azdo::TexHandle *lut, azdo::CubemapHandle *sky, a
     }*/
 
 	// TODO: Sampler - NyasTexFilter_LinearMipmapLinear
-	*pref = GTextures.CubeAlloc({NyasTexFmt_RGB_16F, 256, 256, 9});
+	*pref = GTextures.Alloc({NyasTexFmt_RGB_16F, 256, 256, 9}, NyasTexFlags_Cubemap);
 	size = 256 * 256 * 3 * 2;
 	for (int lod = 0; lod < 9; ++lod)
 	{
-		azdo::CubemapImage img;
+		azdo::TexImage img;
 		img.Level = lod;
 		for (int face = 0; face < 6; ++face)
 		{

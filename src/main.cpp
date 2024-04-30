@@ -67,7 +67,7 @@ struct
 
 struct
 {
-    azdo::CubemapHandle Sky;
+    azdo::TexHandle Sky;
     PbrMaps Pbr[9];
 } G_Tex;
 
@@ -78,8 +78,8 @@ NyasHandle G_Mesh;
 void Init()
 {
     NyUtil::LoadBasicGeometries();
-    azdo::CubemapHandle irradiance;
-    azdo::CubemapHandle prefilter;
+    azdo::TexHandle irradiance;
+    azdo::TexHandle prefilter;
     azdo::TexHandle lut;
 
     NyAssetLoader::ShaderArgs fsimgargs = { G_ShaderDescriptors.FullscreenImg,
