@@ -6,7 +6,7 @@ layout(std140, binding=0) uniform u_data
     float img_layer;
 };
 
-uniform sampler2DArray u_textures[16];
+layout(binding=8) uniform sampler2DArray u_textures[16];
 
 in vec2 uv;
 

@@ -7,7 +7,7 @@ layout(std140, binding=0) uniform u_data
     float sky_layer;
 };
 
-uniform samplerCubeArray u_cubemaps[8];
+layout(binding=0) uniform samplerCubeArray u_cubemaps[8];
 
 out vec4 FragColor;
 in vec3 position;

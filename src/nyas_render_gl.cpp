@@ -116,7 +116,7 @@ void _NyUseMesh(NyasMesh *m, NyasShader *s)
     (void)s;
     if (m)
     {
-        glBindVertexArray(m->Resource.Id);
+        glBindVertexArray(m->Resource.ID);
     }
     else
     {
@@ -139,8 +139,8 @@ static GLsizei _GetAttribStride(int32_t attr_flags)
 
 void _NySetMesh(NyasMesh *mesh, uint32_t shader_id)
 {
-    glBindVertexArray(mesh->Resource.Id);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->ResVtx.Id);
+    glBindVertexArray(mesh->Resource.ID);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->ResVtx.ID);
     glBufferData(GL_ARRAY_BUFFER, mesh->VtxSize, mesh->Vtx, GL_STATIC_DRAW);
 
     GLint offset = 0;
@@ -163,7 +163,7 @@ void _NySetMesh(NyasMesh *mesh, uint32_t shader_id)
         offset += size;
     }
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ResIdx.Id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ResIdx.ID);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->ElementCount * sizeof(NyDrawIdx),
         (const void *)mesh->Indices, GL_STATIC_DRAW);
 
@@ -256,20 +256,9 @@ void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader)
 
     if (shader->UniformSize)
     {
-        glGenBuffers(1, &shader->ResUnif.Id);
-        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
+        glGenBuffers(1, &shader->ResUnif.ID);
+        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.ID);
         glBufferData(GL_UNIFORM_BUFFER, shader->UniformSize, shader->UniformData, GL_DYNAMIC_DRAW);
-    }
-
-    const char *uniforms[] = { "u_textures", "u_cubemaps" };
-    _NyShaderLocations(shader->Resource.Id, &shader->TexArrLocation, &uniforms[0], 2);
-}
-
-void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count)
-{
-    for (int i = 0; i < count; ++i)
-    {
-        o_loc[i] = glGetUniformLocation(id, i_unif[i]);
     }
 }
 
@@ -277,20 +266,10 @@ void _NySetShaderUniformBuffer(NyasShader *shader)
 {
     if (shader->UniformSize)
     {
-        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.Id);
+        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.ID);
         glBufferData(GL_UNIFORM_BUFFER, shader->UniformSize, shader->UniformData, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, shader->ResUnif.Id);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, shader->ResUnif.ID);
     }
-
-    int texunits[NYAS_TEX_ARRAYS + NYAS_CUBEMAP_ARRAYS];
-    for (int i = 0; i < NYAS_TEX_ARRAYS + NYAS_CUBEMAP_ARRAYS; ++i)
-    {
-        texunits[i] = i;
-    }
-    glProgramUniform1iv(shader->Resource.Id, shader->TexArrLocation, NYAS_TEX_ARRAYS,
-        &texunits[NYAS_CUBEMAP_ARRAYS]);
-    glProgramUniform1iv(
-        shader->Resource.Id, shader->CubemapArrLocation, NYAS_CUBEMAP_ARRAYS, texunits);
 }
 
 void _NyUseShader(uint32_t id)
@@ -305,7 +284,7 @@ void _NyReleaseShader(uint32_t id)
 
 void _NyCreateFramebuf(NyasFramebuffer *fb)
 {
-    glGenFramebuffers(1, &fb->Resource.Id);
+    glGenFramebuffers(1, &fb->Resource.ID);
 }
 
 int _GL_FramebufAttach(NyasFbAttach a)
@@ -334,7 +313,7 @@ void _NyUseFramebuf(uint32_t id)
 
 void _NyReleaseFramebuf(NyasFramebuffer *fb)
 {
-    glDeleteFramebuffers(1, &fb->Resource.Id);
+    glDeleteFramebuffers(1, &fb->Resource.ID);
 }
 
 void _NyClear(bool color, bool depth, bool stencil)

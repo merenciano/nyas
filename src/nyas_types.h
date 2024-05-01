@@ -252,14 +252,14 @@ struct NyasTexture
 
 typedef struct NyasResource
 {
-    uint32_t Id = 0x7FFFFFFF;
+    uint32_t ID = NYAS_INVALID_RESOURCE_ID;
     NyasResourceFlags Flags = NyasResourceFlags_Created;
 } NyasResource;
 
 typedef struct NyasShaderDesc
 {
-    const char *Name;
-    int UniformSize;
+    const char *Name = "";
+    int UniformSize = 0;
 
     NyasShaderDesc(const char *id, int uniform_size = 0) :
         Name(id), UniformSize(uniform_size)
@@ -284,8 +284,6 @@ struct NyasShader
     NyasResource Resource;
     NyasResource ResUnif;
     const char *Name;
-    int TexArrLocation;
-	int CubemapArrLocation;
     void *UniformData;
     int UniformSize;
 

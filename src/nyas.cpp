@@ -384,7 +384,7 @@ NyasHandle CreateShader(NyasShaderDesc *desc)
 {
     NyasHandle ret = _CreateShaderHandle(desc);
     Shaders[ret].Name = desc->Name;
-    Shaders[ret].Resource.Id = 0;
+    Shaders[ret].Resource.ID = 0;
     Shaders[ret].Resource.Flags = NyasResourceFlags_Dirty;
     Shaders[ret].UniformData = NYAS_ALLOC(desc->UniformSize);
     Shaders[ret].UniformSize = desc->UniformSize;
@@ -614,16 +614,16 @@ void ReloadMesh(NyasHandle msh, const char *path)
 static NyasHandle _NewMesh(void)
 {
     NyasHandle mesh_handle = _CreateMeshHandle();
-    Meshes[mesh_handle].Resource.Id = 0;
+    Meshes[mesh_handle].Resource.ID = 0;
     Meshes[mesh_handle].Resource.Flags = NyasResourceFlags_Dirty;
     Meshes[mesh_handle].Attribs = 0;
     Meshes[mesh_handle].Vtx = NULL;
     Meshes[mesh_handle].Indices = NULL;
     Meshes[mesh_handle].VtxSize = 0;
     Meshes[mesh_handle].ElementCount = 0;
-    Meshes[mesh_handle].ResVtx.Id = 0;
+    Meshes[mesh_handle].ResVtx.ID = 0;
     Meshes[mesh_handle].ResVtx.Flags = NyasResourceFlags_Dirty;
-    Meshes[mesh_handle].ResIdx.Id = 0;
+    Meshes[mesh_handle].ResIdx.ID = 0;
     Meshes[mesh_handle].ResIdx.Flags = NyasResourceFlags_Dirty;
 
     return mesh_handle;
@@ -644,7 +644,7 @@ NyasHandle LoadMesh(const char *path)
 NyasHandle CreateFramebuffer(void)
 {
     NyasHandle framebuffer = _CreateFramebufHandle();
-    Framebufs[framebuffer].Resource.Id = 0;
+    Framebufs[framebuffer].Resource.ID = 0;
     Framebufs[framebuffer].Resource.Flags = NyasResourceFlags_Dirty;
     for (int i = 0; i < 8; ++i)
     {
@@ -667,13 +667,13 @@ static void _SyncMesh(NyasHandle msh, NyasHandle shader)
 
     if (!(m->Resource.Flags & NyasResourceFlags_Created))
     {
-        _NyCreateMesh(&m->Resource.Id, &m->ResVtx.Id, &m->ResIdx.Id);
+        _NyCreateMesh(&m->Resource.ID, &m->ResVtx.ID, &m->ResIdx.ID);
         m->Resource.Flags |= NyasResourceFlags_Created;
     }
 
     if (m->Resource.Flags & NyasResourceFlags_Dirty)
     {
-        _NySetMesh(m, Shaders[shader].Resource.Id);
+        _NySetMesh(m, Shaders[shader].Resource.ID);
         m->Resource.Flags &= ~NyasResourceFlags_Dirty;
     }
 }
@@ -682,7 +682,7 @@ void _SyncShader(NyasShader *s)
 {
     if (!(s->Resource.Flags & NyasResourceFlags_Created))
     {
-        _NyCreateShader(&s->Resource.Id);
+        _NyCreateShader(&s->Resource.ID);
         s->Resource.Flags |= NyasResourceFlags_Created;
         s->Resource.Flags |= NyasResourceFlags_Dirty;
     }
@@ -690,10 +690,10 @@ void _SyncShader(NyasShader *s)
     if (s->Resource.Flags & NyasResourceFlags_Dirty)
     {
         NYAS_ASSERT(s->Name && *s->Name && "Shader name needed.");
-        _NyCompileShader(s->Resource.Id, s->Name, s);
+        _NyCompileShader(s->Resource.ID, s->Name, s);
 		s->Resource.Flags &= ~NyasResourceFlags_Dirty;
 	}
-	_NyUseShader(s->Resource.Id);
+	_NyUseShader(s->Resource.ID);
     _NySetShaderUniformBuffer(s);
 }
 
@@ -706,12 +706,12 @@ static void _SyncFramebuf(NyasHandle framebuffer)
         fb->Resource.Flags |= NyasResourceFlags_Created;
     }
 
-    _NyUseFramebuf(fb->Resource.Id);
+    _NyUseFramebuf(fb->Resource.ID);
     if (fb->Resource.Flags & NyasResourceFlags_Dirty)
     {
         for (int i = 0; i < 2; ++i) // TODO: ya sabes
         {
-            _NySetFramebuf(fb->Resource.Id, &fb->Target[i]);
+            _NySetFramebuf(fb->Resource.ID, &fb->Target[i]);
         }
         fb->Resource.Flags &= ~NyasResourceFlags_Dirty;
     }

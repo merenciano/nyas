@@ -76,8 +76,8 @@ layout(std140, binding=0) uniform u_data
     EntityData entity[256];
 };
 
-uniform sampler2DArray u_textures[16];
-uniform samplerCubeArray u_cubemaps[8];
+layout(binding=8) uniform sampler2DArray u_textures[16];
+layout(binding=0) uniform samplerCubeArray u_cubemaps[8];
 
 // Normal distribution function (from filament documentation)
 float Distribution_GGX(float noh, float roughness) {

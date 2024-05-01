@@ -10,6 +10,8 @@
 #define NYAS_CUBEMAP_ARRAY_SIZE 8
 #define NYAS_CUBEMAP_ARRAYS 8
 
+#define NYAS_INVALID_RESOURCE_ID 0
+
 // #define NyDrawIdx unsigned int
 // #define NyResourceID void*
 // #define NYAS_ASSERT(_COND) assert(_COND)
