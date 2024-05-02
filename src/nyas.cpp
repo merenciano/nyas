@@ -662,7 +662,7 @@ using namespace nyas::render;
 static void _SyncMesh(NyasHandle msh, NyasHandle shader)
 {
     _NyCheckHandle(msh, Meshes);
-    _NyCheckHandle(shader, Shaders);
+    //_NyCheckHandle(shader, Shaders);
     NyasMesh *m = &Meshes[msh];
 
     if (!(m->Resource.Flags & NyasResourceFlags_Created))
@@ -673,7 +673,7 @@ static void _SyncMesh(NyasHandle msh, NyasHandle shader)
 
     if (m->Resource.Flags & NyasResourceFlags_Dirty)
     {
-        _NySetMesh(m, Shaders[shader].Resource.ID);
+        _NySetMesh(m, GShaders._ShaderIDs[shader]);
         m->Resource.Flags &= ~NyasResourceFlags_Dirty;
     }
 }
@@ -734,9 +734,10 @@ void Draw(NyasDrawCmd *cmd)
 
     if (cmd->Shader != NyasCode_NoOp)
     {
-        _NyCheckHandle(cmd->Shader, Shaders);
-        NyasShader *s = &Shaders[cmd->Shader];
-        _SyncShader(s);
+        //_NyCheckHandle(cmd->Shader, Shaders);
+        //NyasShader *s = &Shaders[cmd->Shader];
+        //_SyncShader(s);
+		GShaders.Sync(cmd->Shader);
     }
 
     NyasDrawState &s = cmd->State;
@@ -825,8 +826,8 @@ void Draw(NyasDrawCmd *cmd)
             _SyncMesh(cmd->Units[i].Mesh, cmd->Units[i].Shader);
         }
 
-        NyasShader *s = &Shaders[cmd->Units[i].Shader];
-        _NyUseMesh(imsh, s);
+        //NyasShader *s = &Shaders[cmd->Units[i].Shader];
+        _NyUseMesh(imsh, NULL);
         _NyDraw(imsh->ElementCount, sizeof(NyDrawIdx) == 4, cmd->Units[i].Instances);
     }
 }

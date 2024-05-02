@@ -6,6 +6,7 @@
 #include <array>
 
 NyTextures GTextures;
+azdo::Shaders GShaders;
 
 struct PbrDataDesc
 {
@@ -60,9 +61,12 @@ const struct
 
 struct
 {
-    NyasHandle FullscreenImg;
-    NyasHandle Skybox;
-    NyasHandle Pbr;
+    //NyasHandle FullscreenImg;
+    //NyasHandle Skybox;
+    //NyasHandle Pbr;
+	NyasHandle PbrShader;
+	NyasHandle SkyShader;
+	NyasHandle ImgShader;
 } G_Shaders;
 
 struct
@@ -77,23 +81,59 @@ NyasHandle G_Mesh;
 
 void Init()
 {
+	{
+		G_Shaders.PbrShader = GShaders.Alloc(sizeof(PbrSharedDesc));
+		azdo::ShaderStageSrc vert_src;
+		vert_src.AddFile("assets/shaders/pbr-vert.glsl");
+
+		azdo::ShaderStageSrc frag_src;
+		frag_src.AddFile("assets/shaders/pbr-frag.glsl");
+
+		GShaders.Update(G_Shaders.PbrShader, NyasShaderStage_Vertex, std::move(vert_src));
+		GShaders.Update(G_Shaders.PbrShader, NyasShaderStage_Fragment, std::move(frag_src));
+	}
+
+	{
+		G_Shaders.SkyShader = GShaders.Alloc(sizeof(20 * sizeof(float)));
+		azdo::ShaderStageSrc vert_src;
+		vert_src.AddFile("assets/shaders/skybox-vert.glsl");
+
+		azdo::ShaderStageSrc frag_src;
+		frag_src.AddFile("assets/shaders/skybox-frag.glsl");
+
+		GShaders.Update(G_Shaders.SkyShader, NyasShaderStage_Vertex, std::move(vert_src));
+		GShaders.Update(G_Shaders.SkyShader, NyasShaderStage_Fragment, std::move(frag_src));
+	}
+
+	{
+		G_Shaders.ImgShader = GShaders.Alloc(16);
+		azdo::ShaderStageSrc vert_src;
+		vert_src.AddFile("assets/shaders/fullscreen-img-vert.glsl");
+
+		azdo::ShaderStageSrc frag_src;
+		frag_src.AddFile("assets/shaders/fullscreen-img-frag.glsl");
+
+		GShaders.Update(G_Shaders.ImgShader, NyasShaderStage_Vertex, std::move(vert_src));
+		GShaders.Update(G_Shaders.ImgShader, NyasShaderStage_Fragment, std::move(frag_src));
+	}
+
     NyUtil::LoadBasicGeometries();
     NyasTexture irradiance;
     NyasTexture prefilter;
     NyasTexture lut;
 
-    NyAssetLoader::ShaderArgs fsimgargs = { G_ShaderDescriptors.FullscreenImg,
-        &G_Shaders.FullscreenImg };
-    NyAssetLoader::ShaderArgs skyargs = { G_ShaderDescriptors.Sky, &G_Shaders.Skybox };
-    NyAssetLoader::ShaderArgs pbrargs = { G_ShaderDescriptors.Pbr, &G_Shaders.Pbr };
+    //NyAssetLoader::ShaderArgs fsimgargs = { G_ShaderDescriptors.FullscreenImg,
+    //    &G_Shaders.FullscreenImg };
+    //NyAssetLoader::ShaderArgs skyargs = { G_ShaderDescriptors.Sky, &G_Shaders.Skybox };
+    //NyAssetLoader::ShaderArgs pbrargs = { G_ShaderDescriptors.Pbr, &G_Shaders.Pbr };
     NyAssetLoader::MeshArgs mesh = { "assets/obj/matball.msh", &G_Mesh };
     NyAssetLoader::EnvArgs envargs = { "assets/env/canyon.env", &G_Tex.Sky, &irradiance, &prefilter,
         &lut };
 
     NyAssetLoader ldr;
-    ldr.AddShader(&fsimgargs);
-    ldr.AddShader(&skyargs);
-    ldr.AddShader(&pbrargs);
+    //ldr.AddShader(&fsimgargs);
+    //ldr.AddShader(&skyargs);
+    //ldr.AddShader(&pbrargs);
     ldr.AddMesh(&mesh);
     ldr.AddEnv(&envargs);
 
@@ -126,7 +166,8 @@ void Init()
 
     ldr.Load(12);
 
-    PbrSharedDesc *shared = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData;
+    //PbrSharedDesc *shared = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData;
+	PbrSharedDesc *shared = (PbrSharedDesc*)GShaders.Shaders[G_Shaders.PbrShader].UnifData;
     shared->Sunlight[0] = 0.0f;
     shared->Sunlight[1] = -1.0f;
     shared->Sunlight[2] = -0.1f;
@@ -171,7 +212,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[0].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[0].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[0].Nor.Index;
@@ -194,7 +235,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[1].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[1].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[1].Nor.Index;
@@ -217,7 +258,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[2].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[2].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[2].Nor.Index;
@@ -241,7 +282,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[3].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[3].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[3].Nor.Index;
@@ -264,7 +305,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[4].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[4].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[4].Nor.Index;
@@ -287,7 +328,7 @@ void Init()
         position[0] = 2.0f;
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[5].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[5].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[5].Nor.Index;
@@ -311,7 +352,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[6].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[6].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[6].Nor.Index;
@@ -334,7 +375,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[7].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[7].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[7].Nor.Index;
@@ -357,7 +398,7 @@ void Init()
         mat4_identity(e->Transform);
         mat4_translation(e->Transform, e->Transform, position);
         e->Mesh = G_Mesh;
-        e->Shader = G_Shaders.Pbr;
+        e->Shader = G_Shaders.PbrShader;
         pbr.AlbedoIdx = G_Tex.Pbr[8].Alb.Index;
         pbr.AlbedoLayer = G_Tex.Pbr[8].Alb.Layer;
         pbr.NormalIdx = G_Tex.Pbr[8].Nor.Index;
@@ -369,11 +410,14 @@ void Init()
         pbr_uniform_block[eidx] = pbr;
     }
 
-    Nyas::Shaders[G_Shaders.Skybox].UniformData = malloc(20 * sizeof(float));
-    ((int *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[16] = G_Tex.Sky.Index;
-    ((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[17] = G_Tex.Sky.Layer;
-    Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = malloc(16);
-    *(NyasTexture *)Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = G_FbTex;
+    //Nyas::Shaders[G_Shaders.SkyShader].UniformData = malloc(20 * sizeof(float));
+    //((int *)Nyas::Shaders[G_Shaders.SkyShader].UniformData)[16] = G_Tex.Sky.Index;
+	((int *)GShaders.Shaders[G_Shaders.SkyShader].UnifData)[16] = G_Tex.Sky.Index;
+    //((float *)Nyas::Shaders[G_Shaders.SkyShader].UniformData)[17] = G_Tex.Sky.Layer;
+	((float *)GShaders.Shaders[G_Shaders.SkyShader].UnifData)[17] = G_Tex.Sky.Layer;
+    //Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = malloc(16);
+    //*(NyasTexture *)Nyas::Shaders[G_Shaders.FullscreenImg].UniformData = G_FbTex;
+	*(NyasTexture *)GShaders.Shaders[G_Shaders.ImgShader].UnifData = G_FbTex;
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
@@ -383,7 +427,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     Nyas::Camera.Navigate();
 
     /* PBR common shader data. */
-    auto *pbr_shared_block = (PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData;
+    auto *pbr_shared_block = (PbrSharedDesc *)GShaders.Shaders[G_Shaders.PbrShader].UnifData;
     mat4_multiply(pbr_shared_block->ViewProj, Nyas::Camera.Proj, Nyas::Camera.View);
     pbr_shared_block->CameraEye = Nyas::Camera.Eye();
 
@@ -391,7 +435,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     {
         NyasDrawCmd draw;
         draw.Framebuf = G_Framebuf;
-        draw.Shader = G_Shaders.Pbr;
+        draw.Shader = G_Shaders.PbrShader;
         draw.State.BgColorR = 0.2f;
         draw.State.BgColorG = 0.2f;
         draw.State.BgColorB = 0.2f;
@@ -415,7 +459,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         for (int i = 0; i < Nyas::Entities.Count; ++i)
         {
             auto *pbr_uniform_block =
-                (PbrDataDesc *)(((PbrSharedDesc *)Nyas::Shaders[G_Shaders.Pbr].UniformData)->Entity);
+                (PbrDataDesc *)(((PbrSharedDesc *)GShaders.Shaders[G_Shaders.PbrShader].UnifData)->Entity);
             mat4_assign(pbr_uniform_block[i].Model, Nyas::Entities[i].Transform);
         }
         draw.Units->Shader = Nyas::Entities[0].Shader;
@@ -428,15 +472,15 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Skybox
     {
         NyasDrawCmd draw;
-        Nyas::Camera.OriginViewProj((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData);
-        ((int *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[16] = G_Tex.Sky.Index;
-        ((float *)Nyas::Shaders[G_Shaders.Skybox].UniformData)[17] = G_Tex.Sky.Layer;
-        draw.Shader = G_Shaders.Skybox;
+        Nyas::Camera.OriginViewProj((float *)GShaders.Shaders[G_Shaders.SkyShader].UnifData);
+        ((int *)GShaders.Shaders[G_Shaders.SkyShader].UnifData)[16] = G_Tex.Sky.Index;
+        ((float *)GShaders.Shaders[G_Shaders.SkyShader].UnifData)[17] = G_Tex.Sky.Layer;
+        draw.Shader = G_Shaders.SkyShader;
         draw.State.DisableFlags |= NyasDrawFlags_FaceCulling;
         draw.State.Depth = NyasDepthFunc_LessEqual;
         draw.UnitCount = 1;
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Shader = G_Shaders.Skybox;
+        draw.Units->Shader = G_Shaders.SkyShader;
         draw.Units->Mesh = NYAS_CUBE;
         draw.Units->Instances = 1;
         new_frame.Push(draw);
@@ -447,7 +491,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     {
         NyasDrawCmd draw;
         draw.Framebuf = NyasCode_Default;
-        draw.Shader = G_Shaders.FullscreenImg;
+        draw.Shader = G_Shaders.ImgShader;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
         draw.State.ViewportMaxX = vp.X;
@@ -455,7 +499,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.State.DisableFlags |= NyasDrawFlags_DepthTest;
         draw.UnitCount = 1;
         draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Shader = G_Shaders.FullscreenImg;
+        draw.Units->Shader = G_Shaders.ImgShader;
         draw.Units->Mesh = NYAS_QUAD;
         draw.Units->Instances = 1;
         new_frame.Push(draw);
@@ -466,7 +510,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    Nyas::InitIO("NYAS PBR Material Demo", 1024, 720);
+    Nyas::InitIO("NYAS PBR Material Demo", 400, 300);
     Nyas::Camera.Init(*Nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;

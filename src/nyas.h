@@ -18,6 +18,7 @@ struct NyasEntity;
 struct NyasCtx;
 
 extern NyTextures GTextures;
+extern azdo::Shaders GShaders;
 
 namespace Nyas
 {
