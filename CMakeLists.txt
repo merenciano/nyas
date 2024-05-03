@@ -13,6 +13,7 @@ set_target_properties(nyas PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_S
 target_compile_definitions(nyas PUBLIC
 	_GLFW_X11
 	NYAS_GL3
+	MATHC_USE_UNIONS
 )
 
 target_compile_options(nyas PUBLIC

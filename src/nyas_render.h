@@ -5,26 +5,19 @@
 
 namespace nyas::render
 {
+	void _NySetProcLoader(void *(*load_fn)(const char *));
 	void _NyCreateTex(NyasTexFlags flags, int unit, NyResourceID *out_id, int count = 1);
 	void _NyAllocTex(NyResourceID id, NyasTexInfo info, int layers = 1);
 	void _NySetTex(NyResourceID id, NyasTexture tex, NyasTexImage img, NyasTexInfo info, int faces = 1);
-	void _NyReleaseTex(uint32_t *id);
+
+	void _NyCreatePipeline(NyResourceID *id, NyasPipeline *pipeline);
+	void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb);
+	void _NyUsePipeline(NyResourceID id, NyasPipeline pipeline);
 
 	void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
-	void _NyUseMesh(NyasMesh *m, NyasShader *s);
+	void _NyUseMesh(NyasMesh *m);
 	void _NySetMesh(NyasMesh *mesh, uint32_t shader_id);
 	void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
-
-	void _NyCreateShader(uint32_t *id);
-	void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader);
-	void _NyUseShader(uint32_t id);
-	void _NyReleaseShader(uint32_t id);
-	void _NyShaderLocations(uint32_t id, int *o_loc, const char **i_unif, int count);
-	void _NySetShaderData(int loc, float *data, int v4count);
-	void _NySetShaderTex(int loc, int *tex, int count, int texunit_offset);
-	void _NySetShaderCubemap(int loc, int *tex, int count, int texunit_offset);
-	void _NySetShaderTexArray(int loc, int *tex, int count, int texunit_offset);
-	void _NySetShaderUniformBuffer(NyasShader *shader);
 
 	void _NyCreateFramebuf(NyasFramebuffer *fb);
 	void _NySetFramebuf(uint32_t fb_id, NyasTexTarget *tt);

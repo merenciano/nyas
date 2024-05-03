@@ -1,4 +1,4 @@
-#version 450 core
+//#version 450 core
 
 #define COLOR                entity[v_in.instance_id].color
 #define USE_ALBEDO_MAP       entity[v_in.instance_id].use_albedo_map
@@ -76,8 +76,8 @@ layout(std140, binding=0) uniform u_data
     EntityData entity[256];
 };
 
-layout(binding=8) uniform sampler2DArray u_textures[16];
-layout(binding=0) uniform samplerCubeArray u_cubemaps[8];
+//layout(binding=8) uniform sampler2DArray u_textures[16];
+//layout(binding=0) uniform samplerCubeArray u_cubemaps[8];
 
 // Normal distribution function (from filament documentation)
 float Distribution_GGX(float noh, float roughness) {

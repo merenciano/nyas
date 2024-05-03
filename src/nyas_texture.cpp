@@ -1,7 +1,6 @@
 #include "nyas_render.h"
 #include "nyas_types.h"
 
-#include <future>
 #include <stdio.h>
 #include <vector>
 

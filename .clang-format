@@ -3,11 +3,11 @@ BasedOnStyle: Microsoft
 AccessModifierOffset: '0'
 AlignAfterOpenBracket: DontAlign
 AlignConsecutiveMacros: 'false'
-AlignConsecutiveAssignments: 'false'
-AlignConsecutiveDeclarations: 'false'
+AlignConsecutiveAssignments: 'true'
+AlignConsecutiveDeclarations: 'true'
 AlignEscapedNewlines: Right
 AlignOperands: 'true'
-AlignTrailingComments: 'false'
+AlignTrailingComments: 'true'
 AllowAllArgumentsOnNextLine: 'true'
 AllowAllConstructorInitializersOnNextLine: 'true'
 AllowShortCaseLabelsOnASingleLine: 'true'

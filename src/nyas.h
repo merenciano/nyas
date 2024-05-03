@@ -1,3 +1,13 @@
+/*
+    TODO:
+    * Change flag values from enum to constexpr unsigned int (see constexpr 'inline' unsigned int)
+    * glTF Import/Export
+    * Async resource loader
+    * Math lib
+    * Vertex attributes in NyasPipeline. Vertex layout and in/out in NyasShaderSrc.
+
+*/
+
 #ifndef NYAS_H
 #define NYAS_H
 
@@ -18,7 +28,7 @@ struct NyasEntity;
 struct NyasCtx;
 
 extern NyTextures GTextures;
-extern azdo::Shaders GShaders;
+extern NyPipelines GShaders;
 
 namespace Nyas
 {
@@ -29,9 +39,6 @@ void SetFramebufferTarget(NyasHandle fb, int index, NyasTexTarget target);
 NyasHandle CreateMesh();
 NyasHandle LoadMesh(const char *path);
 void ReloadMesh(NyasHandle mesh, const char *path);
-
-NyasHandle CreateShader(const NyasShaderDesc *desc);
-void ReloadShader(NyasHandle shader);
 
 void Draw(NyasDrawCmd *command);
 
@@ -50,7 +57,7 @@ typedef struct NyasCtx
     NyasIO IO;
 } NyasCtx;
 
-typedef struct NyasCamera
+struct NyasCamera
 {
     float View[16];
     float Proj[16];
@@ -91,7 +98,7 @@ typedef struct NyasCamera
         mat4_look_at(View, pos, target, NyVec3::Up());
         mat4_perspective_fov(Proj, to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
     }
-} NyasCamera;
+};
 
 typedef struct NyasEntity
 {
@@ -103,8 +110,6 @@ typedef struct NyasEntity
 namespace Nyas
 {
 extern NyPool<NyasMesh> Meshes;
-extern NyPool<NyasTexture> Textures;
-extern NyPool<NyasShader> Shaders;
 extern NyPool<NyasFramebuffer> Framebufs;
 extern NyPool<NyasEntity> Entities;
 extern NyasCamera Camera;
@@ -133,56 +138,6 @@ struct NyChrono
     int64_t Elapsed() { return GetTime() - Start; }
 };
 
-struct NySched
-{
-    struct Job
-    {
-        void (*Func)(void *);
-        void *Args;
-        Job() : Func(NULL), Args(NULL) {}
-        Job(void (*func)(void *), void *args) : Func(func), Args(args) {}
-    };
-
-    struct _NyScheduler *_Sched;
-
-    NySched(int thread_count);
-    ~NySched();
-    void Do(Job job);
-    void Wait();
-};
-
-struct NyAssetLoader
-{
-    struct MeshArgs
-    {
-        const char *Path;
-        NyasHandle *Mesh;
-    };
-
-    struct ShaderArgs
-    {
-        NyasShaderDesc Descriptor;
-        NyasHandle *Shader;
-    };
-
-    struct EnvArgs
-    {
-        const char *Path;
-		NyasTexture *Sky;
-		NyasTexture *Irradiance;
-		NyasTexture *Pref;
-        NyasTexture *LUT;
-    };
-
-    NyArray<NySched::Job> Sequential;
-    NyArray<NySched::Job> Async;
-    void AddMesh(MeshArgs *args);
-    void AddShader(ShaderArgs *args);
-    void AddEnv(EnvArgs *args);
-    void AddJob(NySched::Job job, bool async);
-    void Load(int threads);
-};
-
 enum NyasGeometry
 {
     NyasGeometry_Quad,
@@ -194,10 +149,8 @@ enum NyasGeometry
 namespace NyUtil
 {
 void LoadBasicGeometries();
-
 // Environment maps
 void LoadEnv(const char *path, NyasTexture *lut, NyasTexture *sky, NyasTexture *irr, NyasTexture *pref);
-
 } // namespace NyUtil
 
 // Geometry

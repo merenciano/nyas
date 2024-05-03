@@ -1,91 +1,63 @@
 #include "nyas_types.h"
+#include "nyas_render.h"
 
-#include <map>
 #include <stdio.h>
-#include <glad/glad.h>
 
-GLenum _GL_ShaderType(NyasShaderStage stage)
+NyasShaderSrc &NyasShaderSrc::AddFile(const char *path)
 {
-    switch (stage)
+    FILE *f = fopen(path, "rb");
+    if (!f)
     {
-        case NyasShaderStage_Compute: return GL_COMPUTE_SHADER;
-        case NyasShaderStage_Vertex: return GL_VERTEX_SHADER;
-        case NyasShaderStage_TessCtrl: return GL_TESS_CONTROL_SHADER;
-        case NyasShaderStage_TessEval: return GL_TESS_EVALUATION_SHADER;
-        case NyasShaderStage_Geometry: return GL_GEOMETRY_SHADER;
-        case NyasShaderStage_Fragment: return GL_FRAGMENT_SHADER;
-        default: assert(false);
+        NYAS_LOG_ERR("File open failed for %s. Ignoring shader AddSource.", path);
+        return *this;
     }
+
+    do
+    {
+        constexpr int BUFSIZE = 1024;
+        char         *buf     = (char *)NYAS_ALLOC(BUFSIZE);
+        int           ret     = fread(buf, 1, BUFSIZE, f);
+        SrcStr.emplace_back(buf);
+        SrcLen.emplace_back(ret);
+    } while (!feof(f));
+
+    fclose(f);
+    return *this;
 }
 
-void azdo::Shaders::Sync(NyasHandle shader_handle)
+NyasHandle NyPipelines::Load(int unif_size, NyasShaderStage *stages, const char **paths, int count)
 {
-    if (!Updates.empty())
+    NyasHandle h = Alloc(unif_size);
+    NyasPipelineBuilder pb = h;
+
+    for (int i = 0; i < count; ++i)
     {
-        GLint err;
-        GLchar out_log[2048];
-        std::map<NyResourceID, NyResourceID[NyasShaderStage_COUNT]> shader_ids;
-
-        for (auto &[h, stage, src] : Updates)
-        {
-            if (_ShaderIDs[h] == NYAS_INVALID_RESOURCE_ID)
-            {
-                _ShaderIDs[h] = glCreateProgram();
-            }
-
-            shader_ids[_ShaderIDs[h]][stage] = glCreateShader(_GL_ShaderType(stage));
-            glShaderSource(shader_ids[_ShaderIDs[h]][stage], src.SrcStr.size(), src.SrcStr.data(),
-                src.SrcLen.data());
-            glCompileShader(shader_ids[_ShaderIDs[h]][stage]);
-            glGetShaderiv(shader_ids[_ShaderIDs[h]][stage], GL_COMPILE_STATUS, &err);
-            if (!err)
-            {
-                glGetShaderInfoLog(shader_ids[_ShaderIDs[h]][stage], 2048, NULL, out_log);
-                NYAS_LOG_ERR("Stage(%d):\n%s\n", stage, out_log);
-            }
-            glAttachShader(_ShaderIDs[h], shader_ids[_ShaderIDs[h]][stage]);
-        }
-
-        Updates.clear();
-
-        for (auto &[prog, shad] : shader_ids)
-        {
-            glLinkProgram(prog);
-            glGetProgramiv(prog, GL_LINK_STATUS, &err);
-            if (!err)
-            {
-                glGetProgramInfoLog(prog, 2048, NULL, out_log);
-                NYAS_LOG_ERR("Program link error:\n%s\n", out_log);
-            }
-
-            for (int i = 0; i < NyasShaderStage_COUNT; ++i)
-            {
-                if (shad[i] != NYAS_INVALID_RESOURCE_ID)
-                {
-                    glDetachShader(prog, shad[i]);
-                    glDeleteShader(shad[i]);
-                }
-            }
-
-            for (int i = 0; i < _ShaderIDs.size(); ++i)
-            {
-                if (_ShaderIDs[i] == prog && Shaders[i].UnifSize)
-                {
-                    glGenBuffers(1, &Shaders[i].UnifBuffer.ID);
-                    glBindBuffer(GL_UNIFORM_BUFFER, Shaders[i].UnifBuffer.ID);
-                    glBufferData(GL_UNIFORM_BUFFER, Shaders[i].UnifSize, Shaders[i].UnifData,
-                        GL_DYNAMIC_DRAW);
-                }
-            }
-        }
+        pb.Source[stages[i]].AddFile(paths[i]);
     }
 
-    glUseProgram(_ShaderIDs[shader_handle]);
-    if (Shaders[shader_handle].UnifSize)
+    Update(std::move(pb));
+    return h;
+}
+
+NyasHandle NyPipelines::Load(int unif_size, const char *vert_path, const char *frag_path)
+{
+    NyasShaderStage stages[] = { NyasShaderStage_Vertex, NyasShaderStage_Fragment };
+    const char *paths[] = {vert_path, frag_path};
+    return Load(unif_size, stages, paths, 2);
+}
+
+void NyPipelines::Sync(NyasHandle shader_handle)
+{
+    for (auto &pb : Updates)
     {
-        glBindBuffer(GL_UNIFORM_BUFFER, Shaders[shader_handle].UnifBuffer.ID);
-        glBufferData(GL_UNIFORM_BUFFER, Shaders[shader_handle].UnifSize,
-            Shaders[shader_handle].UnifData, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, Shaders[shader_handle].UnifBuffer.ID);
+        if (InternalIDs[pb.Pipeline] == NYAS_INVALID_RESOURCE_ID)
+        {
+            nyas::render::_NyCreatePipeline(&InternalIDs[pb.Pipeline], &Pipelines[pb.Pipeline]);
+        }
+
+        nyas::render::_NyBuildPipeline(InternalIDs[pb.Pipeline], &pb);
     }
+
+    Updates.clear();
+    nyas::render::_NyUsePipeline(InternalIDs[shader_handle], Pipelines[shader_handle]);
 }

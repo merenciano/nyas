@@ -1,4 +1,4 @@
-#version 450 core
+//#version 450 core
 
 layout(std140, binding=0) uniform u_data 
 {

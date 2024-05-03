@@ -37,12 +37,12 @@ static GLint _GL_TexWrap(NyasTexWrap w)
 
 struct NyGL_TexConfig
 {
-    GLenum MinFltr = GL_LINEAR;
-    GLenum MagFltr = GL_LINEAR;
-    GLenum WrapS = GL_CLAMP_TO_EDGE;
-    GLenum WrapT = GL_CLAMP_TO_EDGE;
-    GLenum WrapR = GL_CLAMP_TO_EDGE;
-    float BorderColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    GLenum MinFltr        = GL_LINEAR;
+    GLenum MagFltr        = GL_LINEAR;
+    GLenum WrapS          = GL_CLAMP_TO_EDGE;
+    GLenum WrapT          = GL_CLAMP_TO_EDGE;
+    GLenum WrapR          = GL_CLAMP_TO_EDGE;
+    float  BorderColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
     NyGL_TexConfig(NyasSampler *t) :
         MinFltr(_GL_TexFilter(t->MinFilter)), MagFltr(_GL_TexFilter(t->MagFilter)),
@@ -53,7 +53,7 @@ struct NyGL_TexConfig
 
 struct _GL_Format
 {
-    GLint InternalFormat;
+    GLint  InternalFormat;
     GLenum Format;
     GLenum Type;
 };
@@ -78,8 +78,23 @@ static inline _GL_Format _GL_TexFmt(NyasTexFmt Format)
     }
 }
 
+static GLenum _GL_ShaderType(NyasShaderStage stage)
+{
+    switch (stage)
+    {
+        case NyasShaderStage_Vertex: return GL_VERTEX_SHADER;
+        case NyasShaderStage_Fragment: return GL_FRAGMENT_SHADER;
+        default: assert(false);
+    }
+}
+
 namespace nyas::render
 {
+void _NySetProcLoader(void *(*load_fn)(const char *))
+{
+    gladLoadGLLoader(load_fn);
+}
+
 void _NyCreateTex(NyasTexFlags flags, int unit, NyResourceID *out_id, int count)
 {
     GLenum t = (flags & NyasTexFlags_Cubemap) ? GL_TEXTURE_CUBE_MAP_ARRAY : GL_TEXTURE_2D_ARRAY;
@@ -104,6 +119,70 @@ void _NySetTex(NyResourceID id, NyasTexture tex, NyasTexImage img, NyasTexInfo i
     }
 }
 
+void _NyCreatePipeline(NyResourceID *id, NyasPipeline *pipeline)
+{
+    *id = glCreateProgram();
+    glGenBuffers(1, &pipeline->DataID);
+    glBindBuffer(GL_UNIFORM_BUFFER, pipeline->DataID);
+    glBufferData(GL_UNIFORM_BUFFER, pipeline->DataSize, pipeline->Data, GL_DYNAMIC_DRAW);
+}
+
+void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb)
+{
+    NyResourceID shader_ids[NyasShaderStage_COUNT];
+    GLchar out_log[2048];
+    GLint err;
+    for (int i = 0; i < NyasShaderStage_COUNT; ++i)
+    {
+        if (pb->Source[i].SrcStr.empty()) 
+        {
+            shader_ids[i] = NYAS_INVALID_RESOURCE_ID;
+            continue;
+        }
+
+        shader_ids[i] = glCreateShader(_GL_ShaderType(i));
+        glShaderSource(shader_ids[i], pb->Source[i].SrcStr.size(), pb->Source[i].SrcStr.data(), pb->Source[i].SrcLen.data());
+        glCompileShader(shader_ids[i]);
+        glGetShaderiv(shader_ids[i], GL_COMPILE_STATUS, &err);
+        if (!err)
+        {
+            glGetShaderInfoLog(shader_ids[i], 2048, NULL, out_log);
+            NYAS_LOG_ERR("Stage(%d):\n%s\n", i, out_log);
+        }
+
+        glAttachShader(id, shader_ids[i]);
+    }
+
+    glLinkProgram(id);
+    glGetProgramiv(id, GL_LINK_STATUS, &err);
+    if (!err)
+    {
+        glGetProgramInfoLog(id, 2048, NULL, out_log);
+        NYAS_LOG_ERR("Program link error:\n%s\n", out_log);
+    }
+
+    for (int i = 0; i < NyasShaderStage_COUNT; ++i)
+    {
+        if (shader_ids[i] != NYAS_INVALID_RESOURCE_ID)
+        {
+            glDetachShader(id, shader_ids[i]);
+            glDeleteShader(shader_ids[i]);
+        }
+    }
+}
+
+void _NyUsePipeline(NyResourceID id, NyasPipeline pipeline)
+{
+    glUseProgram(id);
+    if (pipeline.DataSize)
+    {
+        glBindBuffer(GL_UNIFORM_BUFFER, pipeline.DataID);
+        glBufferData(GL_UNIFORM_BUFFER, pipeline.DataSize,
+            pipeline.Data, GL_DYNAMIC_DRAW);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, pipeline.DataID);
+    }
+}
+
 void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid)
 {
     glGenVertexArrays(1, id);
@@ -111,9 +190,8 @@ void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid)
     glGenBuffers(1, iid);
 }
 
-void _NyUseMesh(NyasMesh *m, NyasShader *s)
+void _NyUseMesh(NyasMesh *m)
 {
-    (void)s;
     if (m)
     {
         glBindVertexArray(m->Resource.ID);
@@ -143,7 +221,7 @@ void _NySetMesh(NyasMesh *mesh, uint32_t shader_id)
     glBindBuffer(GL_ARRAY_BUFFER, mesh->ResVtx.ID);
     glBufferData(GL_ARRAY_BUFFER, mesh->VtxSize, mesh->Vtx, GL_STATIC_DRAW);
 
-    GLint offset = 0;
+    GLint   offset = 0;
     GLsizei stride = _GetAttribStride(mesh->Attribs);
     for (int i = 0; i < NyasVtxAttrib_COUNT; ++i)
     {
@@ -152,7 +230,7 @@ void _NySetMesh(NyasMesh *mesh, uint32_t shader_id)
             continue;
         }
 
-        GLint size = attrib_sizes[i];
+        GLint size       = attrib_sizes[i];
         GLint attrib_pos = glGetAttribLocation(shader_id, attrib_names[i]);
         if (attrib_pos >= 0)
         {
@@ -177,109 +255,6 @@ void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid)
     glDeleteVertexArrays(1, id);
     glDeleteBuffers(1, vid);
     glDeleteBuffers(1, iid);
-}
-
-void _NyCreateShader(uint32_t *id)
-{
-    *id = glCreateProgram();
-}
-
-void _NyCompileShader(uint32_t id, const char *name, NyasShader *shader)
-{
-    // For shader hot-recompilations
-    GLuint shaders[8];
-    GLsizei attach_count;
-    glGetAttachedShaders(id, 8, &attach_count, shaders);
-    for (int i = 0; i < attach_count; ++i)
-    {
-        glDetachShader(id, shaders[i]);
-    }
-
-    size_t shsrc_size; // Shader source size in bytes
-    char *shsrc;
-    char vert_path[256] = { '\0' };
-    char frag_path[256] = { '\0' };
-    strcpy(frag_path, "assets/shaders/");
-    strcat(frag_path, name);
-    strcpy(vert_path, frag_path);
-    strcat(vert_path, "-vert.glsl");
-    strcat(frag_path, "-frag.glsl");
-
-    GLint err;
-    GLchar output_log[1024];
-
-    GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-    GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
-
-    if (Nyas::ReadFile(vert_path, &shsrc, &shsrc_size) != NyasCode_Ok)
-    {
-        NYAS_ASSERT(!"Error loading shader vert file.");
-    }
-
-    glShaderSource(vert, 1, (const char *const *)&shsrc, NULL);
-    glCompileShader(vert);
-    glGetShaderiv(vert, GL_COMPILE_STATUS, &err);
-    if (!err)
-    {
-        glGetShaderInfoLog(vert, 1024, NULL, output_log);
-        NYAS_LOG_ERR("%s vert:\n%s\n", name, output_log);
-    }
-    NYAS_FREE(shsrc);
-
-    if (Nyas::ReadFile(frag_path, &shsrc, &shsrc_size) != NyasCode_Ok)
-    {
-        NYAS_ASSERT(!"Error loading shader frag file.");
-    }
-
-    glShaderSource(frag, 1, (const char *const *)&shsrc, NULL);
-    glCompileShader(frag);
-    glGetShaderiv(frag, GL_COMPILE_STATUS, &err);
-    if (!err)
-    {
-        glGetShaderInfoLog(frag, 1024, NULL, output_log);
-        NYAS_LOG_ERR("%s frag:\n%s\n", name, output_log);
-    }
-    NYAS_FREE(shsrc);
-
-    glAttachShader(id, vert);
-    glAttachShader(id, frag);
-    glLinkProgram(id);
-    glGetProgramiv(id, GL_LINK_STATUS, &err);
-    if (!err)
-    {
-        glGetProgramInfoLog(id, 1024, NULL, output_log);
-        NYAS_LOG_ERR("%s program:\n%s\n", name, output_log);
-    }
-
-    glDeleteShader(vert);
-    glDeleteShader(frag);
-
-    if (shader->UniformSize)
-    {
-        glGenBuffers(1, &shader->ResUnif.ID);
-        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.ID);
-        glBufferData(GL_UNIFORM_BUFFER, shader->UniformSize, shader->UniformData, GL_DYNAMIC_DRAW);
-    }
-}
-
-void _NySetShaderUniformBuffer(NyasShader *shader)
-{
-    if (shader->UniformSize)
-    {
-        glBindBuffer(GL_UNIFORM_BUFFER, shader->ResUnif.ID);
-        glBufferData(GL_UNIFORM_BUFFER, shader->UniformSize, shader->UniformData, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, shader->ResUnif.ID);
-    }
-}
-
-void _NyUseShader(uint32_t id)
-{
-    glUseProgram(id);
-}
-
-void _NyReleaseShader(uint32_t id)
-{
-    glDeleteProgram(id);
 }
 
 void _NyCreateFramebuf(NyasFramebuffer *fb)

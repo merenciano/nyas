@@ -1,12 +1,8 @@
-#version 450 core
-
 layout(std140, binding=0) uniform u_data
 {
     int img_index;
     float img_layer;
 };
-
-layout(binding=8) uniform sampler2DArray u_textures[16];
 
 in vec2 uv;
 
