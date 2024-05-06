@@ -97,41 +97,7 @@ NyasTexture NyTextures::Load(const char *path, NyasTexFmt fmt, int levels)
     Update(hnd, img);
     return hnd;
 }
-#if 0
-CubemapHandle Textures::LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels)
-{
-	int w, h, channels = 0;
-	int ch = _TexChannels(fmt);
-	CubemapImage img;
-	img.Level = 0;
-	if (fmt >= NyasTexFmt_BeginFloat)
-	{
-		for (int i = 0; i < 6; ++i)
-		{
-			img.Data[i] = stbi_loadf(path[i], &w, &h, &channels, ch);
-			if (!img.Data[0])
-			{
-				printf("The image '%s' couldn't be loaded", path[i]);
-			}
-		}
-	}
-	else
-	{
-		for (int i = 0; i < 6; ++i)
-		{
-			img.Data[i] = stbi_load(path[i], &w, &h, &channels, ch);
-			if (!img.Data[0])
-			{
-				printf("The image '%s' couldn't be loaded", path[i]);
-			}
-		}
-	}
 
-	CubemapHandle hnd = CubeAlloc({fmt, w, h, levels});
-	Update(hnd, img);
-	return hnd;
-}
-#endif
 void NyTextures::Update(NyasTexture h, NyasTexImage img)
 {
     Updates.emplace_back(h, img);
@@ -139,10 +105,10 @@ void NyTextures::Update(NyasTexture h, NyasTexImage img)
 
 void NyTextures::Sync()
 {
-    if (_TextureIDs[0] == (NyResourceID)-1)
+    if (TexInternalIDs[0] == (NyResourceID)-1)
     {
-        nyas::render::_NyCreateTex(NyasTexFlags_Cubemap, 0, _CubemapIDs, NYAS_CUBEMAP_ARRAYS);
-    	nyas::render::_NyCreateTex(0, NYAS_CUBEMAP_ARRAYS, _TextureIDs, NYAS_TEX_ARRAYS);
+        nyas::render::_NyCreateTex(NyasTexFlags_Cubemap, 0, CubemapInternalIDs, NYAS_CUBEMAP_ARRAYS);
+    	nyas::render::_NyCreateTex(0, NYAS_CUBEMAP_ARRAYS, TexInternalIDs, NYAS_TEX_ARRAYS);
     }
 
     for (const auto &[tex, img] : Updates)
@@ -152,14 +118,14 @@ void NyTextures::Sync()
             if (img.Data[0])
             {
                 nyas::render::_NySetTex(
-                    _CubemapIDs[tex.Index], tex, img, Cubemaps[tex.Index].Info, 6);
+                    CubemapInternalIDs[tex.Index], tex, img, Cubemaps[tex.Index].Info, 6);
             }
             else
             {
                 // If Data[0] is NULL: this entry was added from Alloc(..)
                 // so tex storage init is expected.
                 nyas::render::_NyAllocTex(
-                    _CubemapIDs[tex.Index], Cubemaps[tex.Index].Info, NYAS_CUBEMAP_ARRAY_SIZE * 6);
+                    CubemapInternalIDs[tex.Index], Cubemaps[tex.Index].Info, NYAS_CUBEMAP_ARRAY_SIZE * 6);
             }
         }
         else
@@ -167,14 +133,14 @@ void NyTextures::Sync()
             if (img.Data[0])
             {
                 nyas::render::_NySetTex(
-                    _TextureIDs[tex.Index], tex, img, Textures[tex.Index].Info, 1);
+                    TexInternalIDs[tex.Index], tex, img, Textures[tex.Index].Info, 1);
             }
             else
             {
                 // If Data[0] is NULL: this entry was added from Alloc(..)
                 // so tex storage init is expected.
                 nyas::render::_NyAllocTex(
-                    _TextureIDs[tex.Index], Textures[tex.Index].Info, NYAS_TEX_ARRAY_SIZE);
+                    TexInternalIDs[tex.Index], Textures[tex.Index].Info, NYAS_TEX_ARRAY_SIZE);
             }
         }
     }

@@ -7,6 +7,9 @@
 #include <string.h>
 #include <vector>
 
+#define NYAS_STR2(X) #X
+#define NYAS_STR(X) NYAS_STR2(X)
+
 typedef int NyasHandle;
 
 #ifndef NyDrawIdx
@@ -303,18 +306,19 @@ typedef struct NyasDrawState
     NyasFaceCull  FaceCulling;
     NyasDrawFlags EnableFlags;
     NyasDrawFlags DisableFlags;
-    int           ViewportMinX; // if (viewport_min_x == viewport_max_x): no-op
-    int           ViewportMinY;
-    int           ViewportMaxX;
-    int           ViewportMaxY;
-    int           ScissorMinX; // if (scissor_min_x == scissor_max_x): no-op
-    int           ScissorMinY;
-    int           ScissorMaxX;
-    int           ScissorMaxY;
-    float         BgColorR; // if (bg_color_a == -1.0f): no-op
-    float         BgColorG;
-    float         BgColorB;
-    float         BgColorA;
+
+    int   ViewportMinX; // if (viewport_min_x == viewport_max_x): no-op
+    int   ViewportMinY;
+    int   ViewportMaxX;
+    int   ViewportMaxY;
+    int   ScissorMinX; // if (scissor_min_x == scissor_max_x): no-op
+    int   ScissorMinY;
+    int   ScissorMaxX;
+    int   ScissorMaxY;
+    float BgColorR; // if (bg_color_a == -1.0f): no-op
+    float BgColorG;
+    float BgColorB;
+    float BgColorA;
 
     NyasDrawState() :
         BlendSrc(NyasBlendFunc_Default), BlendDst(NyasBlendFunc_Default),
@@ -348,32 +352,28 @@ typedef struct NyasDrawCmd
 
 struct NyTextures
 {
-    struct TexArr
+    struct NyTexArray
     {
         NyasTexInfo Info  = {};
         int16_t     Count = 0;
 
-        TexArr() = default;
-        TexArr(NyasTexInfo info, int count = 0) : Info(info), Count(count) {};
+        NyTexArray() = default;
+        NyTexArray(NyasTexInfo info, int count = 0) : Info(info), Count(count) {};
     };
 
-    NyTextures() { _TextureIDs[0] = -1; }
+    NyTextures() { TexInternalIDs[0] = -1; }
     NyasTexture Alloc(NyasTexInfo info, NyasTexFlags flags = NyasTexFlags_None);
     NyasTexture Load(const char *path, NyasTexFmt fmt, int levels);
-    // CubemapHandle LoadCubemap(const char *path[6], NyasTexFmt fmt, int levels);
-    void Update(NyasTexture h, NyasTexImage img);
-    void Sync();
+    void        Update(NyasTexture h, NyasTexImage img);
+    void        Sync();
 
-    TexArr       Textures[NYAS_TEX_ARRAYS];
-    NyResourceID _TextureIDs[NYAS_TEX_ARRAYS];
+    NyTexArray   Textures[NYAS_TEX_ARRAYS];
+    NyTexArray   Cubemaps[NYAS_CUBEMAP_ARRAYS];
+    NyResourceID TexInternalIDs[NYAS_TEX_ARRAYS];
+    NyResourceID CubemapInternalIDs[NYAS_CUBEMAP_ARRAYS];
 
-    TexArr                                            Cubemaps[NYAS_CUBEMAP_ARRAYS];
-    NyResourceID                                      _CubemapIDs[NYAS_CUBEMAP_ARRAYS];
     std::vector<std::pair<NyasTexture, NyasTexImage>> Updates;
 };
-
-#define NYAS_STR2(X) #X
-#define NYAS_STR(X) NYAS_STR2(X)
 
 // clang-format off
 #define NYAS_SHADER_HEADER(_VERSION) \

@@ -6,7 +6,6 @@
 #include <time.h>
 
 #include <GLFW/glfw3.h>
-#include <mathc.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -36,7 +35,7 @@
 NyasCtx  DefaultCtx;
 NyasCtx *G_Ctx = &DefaultCtx;
 
-namespace Nyas
+namespace nyas
 {
 NyPool<NyasMesh>        Meshes;
 NyPool<NyasFramebuffer> Framebufs;
@@ -773,9 +772,8 @@ NyasHandle NYAS_QUAD;
 
 void NyasCamera::Navigate()
 {
-    NyVec3 eye = Eye();
-    NyVec3 fwd = Fwd();
-    vec3_negative(fwd, vec3_normalize(fwd, fwd));
+    nym::vec3_t eye = Eye();
+    nym::vec3_t fwd = nym::vec3_t::normal(Fwd()) * -1.0f;
     static NyVec2 mouse_down_pos;
     float         speed = G_Ctx->Cfg.Navigation.Speed * G_Ctx->Platform.DeltaTime;
 
@@ -792,43 +790,39 @@ void NyasCamera::Navigate()
         NyVec2 offset   = { (curr_pos.X - mouse_down_pos.X) * G_Ctx->Cfg.Navigation.DragSensibility,
               (mouse_down_pos.Y - curr_pos.Y) * G_Ctx->Cfg.Navigation.DragSensibility };
 
-        vec3_add(
-            fwd, fwd, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), -offset.X));
-        vec3_add(fwd, fwd, vec3_multiply_f(tmp_vec, NyVec3::Up(), offset.Y));
-
+        fwd += (nym::vec3_t::cross(NyVec3::Up(), fwd) * -offset.X) + ((nym::vec3_t)NyVec3::Up() * offset.Y);
         mouse_down_pos = curr_pos;
     }
 
     // Position
     if (G_Ctx->IO.Keys[NyasKey_W] == NyasKeyState_PRESSED)
     {
-        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, fwd, speed));
+        eye += fwd * speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_S] == NyasKeyState_PRESSED)
     {
-        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, fwd, -speed));
+        eye += fwd * -speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_A] == NyasKeyState_PRESSED)
     {
-        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), speed));
+        eye += nym::vec3_t::cross(NyVec3::Up(), fwd) * speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_D] == NyasKeyState_PRESSED)
     {
-        vec3_add(
-            eye, eye, vec3_multiply_f(tmp_vec, vec3_cross(tmp_vec, NyVec3::Up(), fwd), -speed));
+        eye += nym::vec3_t::cross(NyVec3::Up(), fwd) * -speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_Space] == NyasKeyState_PRESSED)
     {
-        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, NyVec3::Up(), speed));
+        eye += (nym::vec3_t)NyVec3::Up() * speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_LeftShift] == NyasKeyState_PRESSED)
     {
-        vec3_add(eye, eye, vec3_multiply_f(tmp_vec, NyVec3::Up(), -speed));
+        eye += (nym::vec3_t)NyVec3::Up() * -speed;
     }
 
     mat4_look_at(View, eye, vec3_add(tmp_vec, eye, fwd), NyVec3::Up());
@@ -1202,7 +1196,7 @@ namespace NyUtil
 {
 static void _MeshSetGeometry(NyasHandle msh, NyasGeometry geo)
 {
-    NyasMesh *m = &Nyas::Meshes[msh];
+    NyasMesh *m = &nyas::Meshes[msh];
 
     switch (geo)
     {
@@ -1216,9 +1210,9 @@ static void _MeshSetGeometry(NyasHandle msh, NyasGeometry geo)
 
 void LoadBasicGeometries()
 {
-    NYAS_SPHERE = Nyas::CreateMesh();
-    NYAS_CUBE   = Nyas::CreateMesh();
-    NYAS_QUAD   = Nyas::CreateMesh();
+    NYAS_SPHERE = nyas::CreateMesh();
+    NYAS_CUBE   = nyas::CreateMesh();
+    NYAS_QUAD   = nyas::CreateMesh();
     _MeshSetGeometry(NYAS_SPHERE, NyasGeometry_Sphere);
     _MeshSetGeometry(NYAS_CUBE, NyasGeometry_Cube);
     _MeshSetGeometry(NYAS_QUAD, NyasGeometry_Quad);

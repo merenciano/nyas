@@ -30,7 +30,7 @@ struct NyasCtx;
 extern NyTextures GTextures;
 extern NyPipelines GShaders;
 
-namespace Nyas
+namespace nyas
 {
 NyasHandle CreateFramebuffer();
 void SetFramebufferTarget(NyasHandle fb, int index, NyasTexTarget target);
@@ -96,7 +96,7 @@ struct NyasCamera
         Far = far;
         Fov = fov;
         mat4_look_at(View, pos, target, NyVec3::Up());
-        mat4_perspective_fov(Proj, to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
+        mat4_perspective_fov(Proj, ny::to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
     }
 };
 
@@ -107,13 +107,13 @@ typedef struct NyasEntity
     NyasHandle Shader;
 } NyasEntity;
 
-namespace Nyas
+namespace nyas
 {
 extern NyPool<NyasMesh> Meshes;
 extern NyPool<NyasFramebuffer> Framebufs;
 extern NyPool<NyasEntity> Entities;
 extern NyasCamera Camera;
-} // namespace Nyas
+} // namespace nyas
 
 // ---
 // [UTILS]

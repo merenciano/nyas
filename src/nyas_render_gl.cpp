@@ -278,7 +278,7 @@ void _NySetFramebuf(uint32_t fb_id, NyasTexTarget *tt)
     glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
     GLint slot = _GL_FramebufAttach(tt->Attach);
     glFramebufferTextureLayer(
-        GL_FRAMEBUFFER, slot, GTextures._TextureIDs[tt->Tex.Index], tt->MipLevel, tt->Tex.Layer);
+        GL_FRAMEBUFFER, slot, GTextures.TexInternalIDs[tt->Tex.Index], tt->MipLevel, tt->Tex.Layer);
 }
 
 void _NyUseFramebuf(uint32_t id)

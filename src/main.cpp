@@ -1,6 +1,5 @@
 
 #include "nyas.h"
-#include <mathc.h>
 #include <stdio.h>
 
 #include <array>
@@ -101,7 +100,7 @@ void Init()
         GShaders.Update(ImgShader, NyasShaderStage_Fragment, std::move(frag_src));
     }
 #endif
-    G_Mesh = Nyas::LoadMesh("assets/obj/matball.msh");
+    G_Mesh = nyas::LoadMesh("assets/obj/matball.msh");
 
     NyasTexture irradiance;
     NyasTexture prefilter;
@@ -148,19 +147,19 @@ void Init()
     pbr_data->PrefIdx     = prefilter.Index;
     pbr_data->PrefLayer   = (float)prefilter.Layer;
 
-    G_Framebuf           = Nyas::CreateFramebuffer();
-    NyVec2i vp           = Nyas::GetCurrentCtx()->Platform.WindowSize;
+    G_Framebuf           = nyas::CreateFramebuffer();
+    NyVec2i vp           = nyas::GetCurrentCtx()->Platform.WindowSize;
     G_FbTex              = GTextures.Alloc({ NyasTexFmt_RGB_32F, vp.X, vp.Y, 1 });
     NyasTexture fb_depth = GTextures.Alloc({ NyasTexFmt_Depth, vp.X, vp.Y, 1 });
 
     NyasTexTarget color = { G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0 };
     NyasTexTarget depth = { fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0 };
-    Nyas::SetFramebufferTarget(G_Framebuf, 0, color);
-    Nyas::SetFramebufferTarget(G_Framebuf, 1, depth);
+    nyas::SetFramebufferTarget(G_Framebuf, 0, color);
+    nyas::SetFramebufferTarget(G_Framebuf, 1, depth);
 
     for (int i = 0; i < 9; ++i)
     {
-        auto &e = Nyas::Entities[Nyas::Entities.Add()];
+        auto &e = nyas::Entities[nyas::Entities.Add()];
         memcpy(e.Transform,
             smat4_translation(smat4_identity(), { (i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f }).v,
             16 * sizeof(float));
@@ -197,14 +196,14 @@ void Init()
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
 {
-    Nyas::PollIO();
-    NyVec2i vp = Nyas::GetCurrentCtx()->Platform.WindowSize;
-    Nyas::Camera.Navigate();
+    nyas::PollIO();
+    NyVec2i vp = nyas::GetCurrentCtx()->Platform.WindowSize;
+    nyas::Camera.Navigate();
 
     /* PBR common shader data. */
     auto *pbr_shared_block = (PbrData *)GShaders.Pipelines[PbrShader].Data;
-    mat4_multiply(pbr_shared_block->ViewProj, Nyas::Camera.Proj, Nyas::Camera.View);
-    pbr_shared_block->CameraEye = Nyas::Camera.Eye();
+    mat4_multiply(pbr_shared_block->ViewProj, nyas::Camera.Proj, nyas::Camera.View);
+    pbr_shared_block->CameraEye = nyas::Camera.Eye();
 
     // Scene entities
     {
@@ -231,15 +230,15 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 
         draw.UnitCount = 1;
         draw.Units     = (NyasDrawUnit *)NyFrameAllocator::Alloc(1 * sizeof(NyasDrawUnit));
-        for (int i = 0; i < Nyas::Entities.Count; ++i)
+        for (int i = 0; i < nyas::Entities.Count; ++i)
         {
             auto *pbr_uniform_block =
                 (PbrUnitData *)(((PbrData *)GShaders.Pipelines[PbrShader].Data)->Entity);
-            mat4_assign(pbr_uniform_block[i].Model, Nyas::Entities[i].Transform);
+            mat4_assign(pbr_uniform_block[i].Model, nyas::Entities[i].Transform);
         }
-        draw.Units->Shader    = Nyas::Entities[0].Shader;
-        draw.Units->Mesh      = Nyas::Entities[0].Mesh;
-        draw.Units->Instances = Nyas::Entities.Count;
+        draw.Units->Shader    = nyas::Entities[0].Shader;
+        draw.Units->Mesh      = nyas::Entities[0].Mesh;
+        draw.Units->Instances = nyas::Entities.Count;
 
         new_frame.Push(draw);
     }
@@ -247,7 +246,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Skybox
     {
         NyasDrawCmd draw;
-        Nyas::Camera.OriginViewProj(GShaders.Pipelines[SkyShader].Data);
+        nyas::Camera.OriginViewProj(GShaders.Pipelines[SkyShader].Data);
         ((int *)GShaders.Pipelines[SkyShader].Data)[16] = G_Tex.Sky.Index;
         GShaders.Pipelines[SkyShader].Data[17]          = G_Tex.Sky.Layer;
         draw.Shader                                     = SkyShader;
@@ -283,16 +282,16 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    Nyas::InitIO("NYAS PBR Material Demo", 2000, 1200);
-    Nyas::Camera.Init(*Nyas::GetCurrentCtx());
+    nyas::InitIO("NYAS PBR Material Demo", 2000, 1200);
+    nyas::Camera.Init(*nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;
-    while (!Nyas::GetCurrentCtx()->Platform.WindowClosed)
+    while (!nyas::GetCurrentCtx()->Platform.WindowClosed)
     {
         // NewFrame
         float delta_time = NyChrono::Seconds((double)frame_chrono.Elapsed());
         frame_chrono.Restart();
-        Nyas::GetCurrentCtx()->Platform.DeltaTime = delta_time;
+        nyas::GetCurrentCtx()->Platform.DeltaTime = delta_time;
         // Build
         NyArray<NyasDrawCmd, NyFrameAllocator> frame;
         BuildFrame(frame);
@@ -300,10 +299,10 @@ int main(int argc, char **argv)
         // Render
         for (int i = 0; i < frame.Size; ++i)
         {
-            Nyas::Draw(&frame[i]);
+            nyas::Draw(&frame[i]);
         }
 
-        Nyas::WindowSwap();
+        nyas::WindowSwap();
     }
 
     return 0;
