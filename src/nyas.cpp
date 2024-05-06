@@ -437,21 +437,16 @@ static void _SetMeshObj(NyasMesh *mesh, const char *path)
             v3[13] = attrib.texcoords[2 * idx.vt_idx + 1];
 
             // Calculate tangent and bitangent
-            float delta_p1[3], delta_p2[3], delta_uv1[2], delta_uv2[2];
-            vec3_subtract(delta_p1, v2, v1);
-            vec3_subtract(delta_p2, v3, v1);
-            vec2_subtract(delta_uv1, &v2[12], &v1[12]);
-            vec2_subtract(delta_uv2, &v3[12], &v1[12]);
+			nym::vec3_t delta_p1 = (nym::vec3_t)&v2[0] - (nym::vec3_t)&v1[0];
+			nym::vec3_t delta_p2 = (nym::vec3_t)&v3[0] - (nym::vec3_t)&v1[0];
+			nym::vec2_t delta_uv1 = (nym::vec2_t)&v2[12] - (nym::vec2_t)&v1[12];
+			nym::vec2_t delta_uv2 = (nym::vec2_t)&v3[12] - (nym::vec2_t)&v1[12];
             float r = 1.0f / (delta_uv1[0] * delta_uv2[1] - delta_uv1[1] * delta_uv2[0]);
 
-            float tn[3], bitn[3], tmp[3];
-            vec3_multiply_f(tn, delta_p1, delta_uv2[1]);
-            vec3_multiply_f(tmp, delta_p2, delta_uv1[1]);
-            vec3_multiply_f(tn, vec3_subtract(tn, tn, tmp), r);
-
-            vec3_multiply_f(bitn, delta_p2, delta_uv1[0]);
-            vec3_multiply_f(tmp, delta_p1, delta_uv2[0]);
-            vec3_multiply_f(bitn, vec3_subtract(bitn, bitn, tmp), r);
+			nym::vec3_t tn = delta_p1 * delta_uv2[1];
+			nym::vec3_t bitn = delta_p2 * delta_uv1[0];
+			tn = (tn - (delta_p1 * delta_uv1[1])) * r;
+			bitn = (bitn - (delta_p1 * delta_uv2[0])) * r;
 
             v1[6] = tn[0];
             v1[7] = tn[1];
@@ -783,14 +778,13 @@ void NyasCamera::Navigate()
         mouse_down_pos = G_Ctx->IO.MousePosition;
     }
 
-    float tmp_vec[3];
     if (G_Ctx->IO.MouseButton[NyasMouseButton_Right] == NyasKeyState_PRESSED)
     {
         NyVec2 curr_pos = G_Ctx->IO.MousePosition;
         NyVec2 offset   = { (curr_pos.X - mouse_down_pos.X) * G_Ctx->Cfg.Navigation.DragSensibility,
               (mouse_down_pos.Y - curr_pos.Y) * G_Ctx->Cfg.Navigation.DragSensibility };
 
-        fwd += (nym::vec3_t::cross(NyVec3::Up(), fwd) * -offset.X) + ((nym::vec3_t)NyVec3::Up() * offset.Y);
+        fwd += (nym::vec3_t::cross(nym::vec3_t::up(), fwd) * -offset.X) + (nym::vec3_t::up() * offset.Y);
         mouse_down_pos = curr_pos;
     }
 
@@ -807,32 +801,32 @@ void NyasCamera::Navigate()
 
     if (G_Ctx->IO.Keys[NyasKey_A] == NyasKeyState_PRESSED)
     {
-        eye += nym::vec3_t::cross(NyVec3::Up(), fwd) * speed;
+        eye += nym::vec3_t::cross(nym::vec3_t::up(), fwd) * speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_D] == NyasKeyState_PRESSED)
     {
-        eye += nym::vec3_t::cross(NyVec3::Up(), fwd) * -speed;
+        eye += nym::vec3_t::cross(nym::vec3_t::up(), fwd) * -speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_Space] == NyasKeyState_PRESSED)
     {
-        eye += (nym::vec3_t)NyVec3::Up() * speed;
+        eye += (nym::vec3_t)nym::vec3_t::up() * speed;
     }
 
     if (G_Ctx->IO.Keys[NyasKey_LeftShift] == NyasKeyState_PRESSED)
     {
-        eye += (nym::vec3_t)NyVec3::Up() * -speed;
+        eye += nym::vec3_t::up() * -speed;
     }
 
-    mat4_look_at(View, eye, vec3_add(tmp_vec, eye, fwd), NyVec3::Up());
+    mat4_look_at(View, eye, eye + fwd, nym::vec3_t::up());
 
     // Zoom
     if (G_Ctx->IO.MouseScroll.Y != 0.0f)
     {
         Fov -= G_Ctx->IO.MouseScroll.Y * G_Ctx->Cfg.Navigation.ScrollSensibility;
-        Fov = clampf(Fov, 1.0f, 120.0f);
-        mat4_perspective(Proj, to_radians(Fov),
+        Fov = nym::clamp(Fov, 1.0f, 120.0f);
+        mat4_perspective(Proj, nym::to_radians(Fov),
             (float)G_Ctx->Platform.WindowSize.X / (float)G_Ctx->Platform.WindowSize.Y, 0.1f, Far);
     }
 }

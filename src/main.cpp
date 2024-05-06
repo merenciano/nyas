@@ -161,7 +161,7 @@ void Init()
     {
         auto &e = nyas::Entities[nyas::Entities.Add()];
         memcpy(e.Transform,
-            smat4_translation(smat4_identity(), { (i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f }).v,
+            nym::mat4_t::translation({ (i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f }).v,
             16 * sizeof(float));
         e.Mesh   = G_Mesh;
         e.Shader = PbrShader;

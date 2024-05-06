@@ -96,7 +96,7 @@ struct NyasCamera
         Far = far;
         Fov = fov;
         mat4_look_at(View, pos, target, NyVec3::Up());
-        mat4_perspective_fov(Proj, ny::to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
+        mat4_perspective_fov(Proj, nym::to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
     }
 };
 
