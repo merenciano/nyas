@@ -826,8 +826,7 @@ void NyasCamera::Navigate()
     {
         Fov -= G_Ctx->IO.MouseScroll.Y * G_Ctx->Cfg.Navigation.ScrollSensibility;
         Fov = nym::clamp(Fov, 1.0f, 120.0f);
-        mat4_perspective(Proj, nym::to_radians(Fov),
-            (float)G_Ctx->Platform.WindowSize.X / (float)G_Ctx->Platform.WindowSize.Y, 0.1f, Far);
+		Proj = nym::mat4_t::perspective(nym::to_radians(Fov), G_Ctx->Platform.WindowSize.X, (float)G_Ctx->Platform.WindowSize.Y, 0.1f, Far);
     }
 }
 

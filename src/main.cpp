@@ -9,7 +9,7 @@ NyPipelines GShaders;
 
 struct PbrUnitData
 {
-    float Model[16];
+	nym::mat4_t Model;
     float Color[3];
     float UseAlbedo;
     float TilingX;
@@ -32,8 +32,8 @@ struct PbrUnitData
 
 struct PbrData
 {
-    float       ViewProj[16];
-    NyVec3      CameraEye;
+    nym::mat4_t ViewProj;
+    nym::vec3_t CameraEye;
     float       _Padding;
     float       Sunlight[4]; // Alpha for light intensity
     int         LutIdx;
@@ -246,7 +246,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Skybox
     {
         NyasDrawCmd draw;
-        nyas::Camera.OriginViewProj(GShaders.Pipelines[SkyShader].Data);
+        nyas::Camera.OriginViewProj(*(nym::mat4_t*)GShaders.Pipelines[SkyShader].Data);
         ((int *)GShaders.Pipelines[SkyShader].Data)[16] = G_Tex.Sky.Index;
         GShaders.Pipelines[SkyShader].Data[17]          = G_Tex.Sky.Layer;
         draw.Shader                                     = SkyShader;
@@ -282,7 +282,7 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    nyas::InitIO("NYAS PBR Material Demo", 2000, 1200);
+    nyas::InitIO("NYAS PBR Material Demo", 400, 300);
     nyas::Camera.Init(*nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;

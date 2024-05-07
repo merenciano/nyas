@@ -581,6 +581,7 @@ namespace nym
 		static mat4_t translation(vec3_t offset);
 		static mat4_t identity();
 
+		mat4_t() = default;
 		mat4_t(float (&& args)[16])
 		{ memcpy(v, args, sizeof(v)); }
 

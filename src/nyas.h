@@ -59,27 +59,26 @@ typedef struct NyasCtx
 
 struct NyasCamera
 {
-    float View[16];
-    float Proj[16];
+    nym::mat4_t View;
+	nym::mat4_t Proj;
     float Far;
     float Fov;
-    NyasCamera() { memset(this, 0, sizeof(*this)); }
+    NyasCamera() = default;
     void Navigate();
 
     // Position.
-    inline NyVec3 Eye() const
+    inline nym::vec3_t Eye() const
     {
-        float inv[16];
-        mat4_inverse(inv, View);
-        return { inv[12], inv[13], inv[14] };
+        nym::mat4_t inverse = nym::mat4_t::inv(View);
+        return { inverse[12], inverse[13], inverse[14] };
     }
 
-    inline NyVec3 Fwd() const { return { View[2], View[6], View[10] }; } // Forward vector.
+    inline nym::vec3_t Fwd() const { return { View[2], View[6], View[10] }; } // Forward vector.
 
     // Matrix with zeroed translation (i.e., projection * vec4(vec3(view)). For skybox.
-    inline float *OriginViewProj(float out[16])
+    inline void OriginViewProj(nym::mat4_t& out)
     {
-        mat4_assign(out, View);
+		out = View;
         out[3] = 0.0f;
         out[7] = 0.0f;
         out[11] = 0.0f;
@@ -87,16 +86,16 @@ struct NyasCamera
         out[13] = 0.0f;
         out[14] = 0.0f;
         out[15] = 0.0f;
-        return mat4_multiply(out, Proj, out);
+		out = Proj * out;
     }
 
-    inline void Init(const NyasCtx& ctx, NyVec3 pos = { 0.0f, 2.0f, 2.0f },
-        NyVec3 target = { 0.0f, 0.0f, -1.0f }, float far = 300.0f, float fov = 70.0f)
+    inline void Init(const NyasCtx& ctx, nym::vec3_t pos = { 0.0f, 2.0f, 2.0f },
+					 nym::vec3_t target = { 0.0f, 0.0f, -1.0f }, float far = 300.0f, float fov = 70.0f)
     {
         Far = far;
         Fov = fov;
-        mat4_look_at(View, pos, target, NyVec3::Up());
-        mat4_perspective_fov(Proj, nym::to_radians(Fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, Far);
+		View = nym::mat4_t::look_at(pos, target, nym::vec3_t::up());
+		Proj = nym::mat4_t::perspective(nym::to_radians(fov), ctx.Platform.WindowSize.X, ctx.Platform.WindowSize.Y, 0.01f, far);
     }
 };
 
