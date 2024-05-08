@@ -280,6 +280,8 @@ namespace nym
 
 		static constexpr vec2_t normal(vec2_t vec);
 
+		constexpr vec2_t() : x(0.0f), y(0.0f) {}
+
 		constexpr vec2_t(float ax, float ay) : x(ax), y(ay)
 		{}
 

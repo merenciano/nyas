@@ -270,8 +270,10 @@ typedef struct NyasIO
 {
     NyasKeyState Keys[348 + 1]; // TODO: Get last key value from the enum.
     NyasKeyState MouseButton[3];
-    NyVec2 MousePosition;
-    NyVec2 MouseScroll; // x horizontal and y vertical scrolls
+    nym::vec2_t MousePosition;
+	nym::vec2_t MouseScroll; // x horizontal and y vertical scrolls
+
+	NyasIO() {memset(&Keys[0], 0, sizeof(Keys) + sizeof(MouseButton));}
 } NyasIO;
 
 struct NyAllocator
