@@ -488,7 +488,7 @@ namespace nym
 
 	constexpr vec3_t vec3_t::cross(vec3_t lhs, vec3_t rhs)
 	{
-		return vec3_cross(lhs, lhs, rhs);
+		return {lhs[1] * rhs[2] - lhs[2] * rhs[1], lhs[2] * rhs[0] - lhs[0] * rhs[2], lhs[0] * rhs[1] - lhs[1] * rhs[0]};
 	}
 
 	constexpr float vec3_t::magnitude(vec3_t vec)
