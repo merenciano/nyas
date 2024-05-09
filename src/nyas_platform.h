@@ -244,7 +244,7 @@ typedef struct NyasPlatform
 
     float DeltaTime;
 	void *InternalWindow;
-    NyVec2i WindowSize; // In pixels
+    nym::vec2i_t WindowSize; // In pixels
     bool WindowClosed;
     bool WindowHovered;
     bool WindowFocused;

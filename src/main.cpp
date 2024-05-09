@@ -148,9 +148,9 @@ void Init()
     pbr_data->PrefLayer   = (float)prefilter.Layer;
 
     G_Framebuf           = nyas::CreateFramebuffer();
-    NyVec2i vp           = nyas::GetCurrentCtx()->Platform.WindowSize;
-    G_FbTex              = GTextures.Alloc({ NyasTexFmt_RGB_32F, vp.X, vp.Y, 1 });
-    NyasTexture fb_depth = GTextures.Alloc({ NyasTexFmt_Depth, vp.X, vp.Y, 1 });
+    nym::vec2i_t vp           = nyas::GetCurrentCtx()->Platform.WindowSize;
+    G_FbTex              = GTextures.Alloc({ NyasTexFmt_RGB_32F, vp.x, vp.y, 1 });
+    NyasTexture fb_depth = GTextures.Alloc({ NyasTexFmt_Depth, vp.x, vp.y, 1 });
 
     NyasTexTarget color = { G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0 };
     NyasTexTarget depth = { fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0 };
@@ -197,7 +197,7 @@ void Init()
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
 {
     nyas::PollIO();
-    NyVec2i vp = nyas::GetCurrentCtx()->Platform.WindowSize;
+    nym::vec2i_t vp = nyas::GetCurrentCtx()->Platform.WindowSize;
     nyas::Camera.Navigate();
 
     /* PBR common shader data. */
@@ -216,8 +216,8 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.State.BgColorA     = 1.0f;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
-        draw.State.ViewportMaxX = vp.X;
-        draw.State.ViewportMaxY = vp.Y;
+        draw.State.ViewportMaxX = vp.x;
+        draw.State.ViewportMaxY = vp.y;
         draw.State.EnableFlags |= NyasDrawFlags_ColorClear;
         draw.State.EnableFlags |= NyasDrawFlags_DepthClear;
         draw.State.EnableFlags |= NyasDrawFlags_Blend;
@@ -267,8 +267,8 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.Shader             = ImgShader;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
-        draw.State.ViewportMaxX = vp.X;
-        draw.State.ViewportMaxY = vp.Y;
+        draw.State.ViewportMaxX = vp.x;
+        draw.State.ViewportMaxY = vp.y;
         draw.State.DisableFlags |= NyasDrawFlags_DepthTest;
         draw.UnitCount        = 1;
         draw.Units            = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));

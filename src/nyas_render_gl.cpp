@@ -450,19 +450,19 @@ void _NyDisableScissor(void)
     glDisable(GL_SCISSOR_TEST);
 }
 
-void _NyViewport(NyRect rect)
+void _NyViewport(nym::rect_t rect)
 {
-    if (rect.X != rect.W)
+    if (rect.x != rect.w)
     {
-        glViewport(rect.X, rect.Y, rect.W, rect.H);
+        glViewport(rect.x, rect.y, rect.w, rect.h);
     }
 }
 
-void _NyScissor(NyRect rect)
+void _NyScissor(nym::rect_t rect)
 {
-    if (rect.X != rect.W)
+    if (rect.x != rect.w)
     {
-        glScissor(rect.X, rect.Y, rect.W, rect.H);
+        glScissor(rect.x, rect.y, rect.w, rect.h);
     }
 }
 } // namespace nyas::render

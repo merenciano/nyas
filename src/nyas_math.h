@@ -255,6 +255,10 @@ constexpr float clamp(float value, float min, float max) {
   return value < min ? min : value > max ? max : value;
 }
 
+struct vec2i_t {
+	int x, y;
+};
+
 struct vec2_t {
   static constexpr float dot(vec2_t lhs, vec2_t rhs);
 
@@ -505,6 +509,10 @@ constexpr inline vec3_t vec3_t::operator/(float k) const {
 }
 
 inline void vec3_t::normalize() { *this = normal(*this); }
+
+struct rect_t {
+	int x, y, w, h;
+};
 
 struct mat4_t {
   static mat4_t look_at(vec3_t eye, vec3_t target, vec3_t up);

@@ -284,8 +284,8 @@ namespace nyas
 		_NyReadInput();
 		G_Ctx->Platform.WindowClosed =
 				glfwWindowShouldClose((GLFWwindow *) G_Ctx->Platform.InternalWindow);
-		glfwGetWindowSize((GLFWwindow *) G_Ctx->Platform.InternalWindow, &G_Ctx->Platform.WindowSize.X,
-						  &G_Ctx->Platform.WindowSize.Y);
+		glfwGetWindowSize((GLFWwindow *) G_Ctx->Platform.InternalWindow, &G_Ctx->Platform.WindowSize.x,
+						  &G_Ctx->Platform.WindowSize.y);
 
 		if (G_Ctx->Platform.ShowCursor)
 		{
@@ -833,7 +833,7 @@ void NyasCamera::Navigate()
 	{
 		Fov -= G_Ctx->IO.MouseScroll.y * G_Ctx->Cfg.Navigation.ScrollSensibility;
 		Fov = nym::clamp(Fov, 1.0f, 120.0f);
-		Proj = nym::mat4_t::perspective(nym::to_radians(Fov), G_Ctx->Platform.WindowSize.X, (float) G_Ctx->Platform.WindowSize.Y, 0.1f, Far);
+		Proj = nym::mat4_t::perspective(nym::to_radians(Fov), G_Ctx->Platform.WindowSize.x, (float) G_Ctx->Platform.WindowSize.y, 0.1f, Far);
 	}
 }
 

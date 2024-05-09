@@ -44,8 +44,8 @@ namespace nyas::render
 	void _NyDisableStencilTest();
 	void _NyEnableStencilMask();
 	void _NyDisableStencilMask();
-	void _NyViewport(NyRect rect);
-	void _NyScissor(NyRect rect);
+	void _NyViewport(nym::rect_t rect);
+	void _NyScissor(nym::rect_t rect);
 }
 
 #endif //NYAS_RENDER_H
