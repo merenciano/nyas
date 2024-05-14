@@ -10,6 +10,8 @@
 #define NYAS_STR2(X) #X
 #define NYAS_STR(X) NYAS_STR2(X)
 
+typedef int NyasHandle;
+
 #ifndef NyDrawIdx
 typedef unsigned short NyDrawIdx;
 #endif
@@ -42,7 +44,6 @@ typedef int NyasVtxAttribFlags; // enum NyasVtxAttribFlags_
 typedef int NyasDrawFlags;      // enum NyasDrawFlags_
 
 // Enum
-typedef int NyasResourceType;
 typedef int NyasTexFmt;      // enum NyasTexFmt_
 typedef int NyasTexFilter;   // enum NyasTexFilter_
 typedef int NyasTexWrap;     // enum NyasTexWrap_
@@ -220,34 +221,6 @@ enum NyasResourceFlags_
     NyasResourceFlags_Mapped            = 1 << 7,
 };
 
-enum NyasResourceType_
-{
-	NyasResourceType_None,
-	NyasResourceType_Texture,
-	NyasResourceType_Mesh,
-	NyasResourceType_Pipeline,
-	NyasResourceType_Framebuffer,
-	NyasResourceType_Count
-};
-
-typedef unsigned int NyasFlags;
-constexpr NyasFlags NyasHandleFlags_None = 0;
-constexpr NyasFlags NyasHandleFlags_Dirty = 1;
-constexpr NyasFlags NyasHandleFlags_Released = 1 << 1;
-constexpr NyasFlags NyasHandleFlags_DataLoadInProgress = 1 << 2;
-constexpr NyasFlags NyasHandleFlags_DataReleasePending = 1 << 3;
-constexpr NyasFlags NyasHandleFlags_WaitForLoadAsync = 1 << 4;
-constexpr NyasFlags NyasHandleFlags_Fallback = 1 << 5;
-
-struct NyasHandle
-{
-	int ID = NYAS_INVALID_HANDLE;
-	NyasResourceType Type = NyasResourceType_None;
-	NyasFlags Flags = NyasHandleFlags_None;
-	NyasFlags TypeFlags = NyasHandleFlags_None;
-	NyasHandle(int id, NyasResourceType type) : ID(id), Type(type) {}
-};
-
 struct NyasSampler
 {
     NyasTexFilter MinFilter      = NyasTexFilter_Linear;
@@ -280,7 +253,9 @@ struct NyasTexImage
 
     NyasTexImage() = default;
     NyasTexImage(void *data, int level = 0) :
-        Data { data, NULL, NULL, NULL, NULL, NULL }, Level(level) {}
+        Data { data, NULL, NULL, NULL, NULL, NULL }, Level(level)
+    {
+    }
     NyasTexImage(void *data[6], int level) : Data { data }, Level(level) {}
 };
 
