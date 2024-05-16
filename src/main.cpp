@@ -129,10 +129,15 @@ void Init()
 
     for (int i = 0; i < 9; ++i)
     {
-        G_Tex.Pbr[i].Alb = GTextures.Load(texpaths[i * 4], NyasTexFmt_SRGB_8, 1);
-        G_Tex.Pbr[i].Nor = GTextures.Load(texpaths[i * 4 + 1], NyasTexFmt_RGB_8, 1);
-        G_Tex.Pbr[i].Rou = GTextures.Load(texpaths[i * 4 + 2], NyasTexFmt_R_8, 1);
-        G_Tex.Pbr[i].Met = GTextures.Load(texpaths[i * 4 + 3], NyasTexFmt_R_8, 1);
+		G_Tex.Pbr[i].Alb = GTextures.Alloc({NyasTexFmt_SRGB_8, 2048, 2048, 1}, NyasTexFlags_None);
+		G_Tex.Pbr[i].Nor = GTextures.Alloc({NyasTexFmt_RGB_8, 2048, 2048, 1}, NyasTexFlags_None);
+		G_Tex.Pbr[i].Rou = GTextures.Alloc({NyasTexFmt_R_8, 2048, 2048, 1}, NyasTexFlags_None);
+		G_Tex.Pbr[i].Met = GTextures.Alloc({NyasTexFmt_R_8, 2048, 2048, 1}, NyasTexFlags_None);
+
+        GTextures.Load(G_Tex.Pbr[i].Alb, texpaths[i * 4]);
+        GTextures.Load(G_Tex.Pbr[i].Nor, texpaths[i * 4 + 1]);
+        GTextures.Load(G_Tex.Pbr[i].Rou, texpaths[i * 4 + 2]);
+        GTextures.Load(G_Tex.Pbr[i].Met, texpaths[i * 4 + 3]);
     }
 
     auto *pbr_data        = (PbrData *)GShaders.Pipelines[PbrShader].Data;

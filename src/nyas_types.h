@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <vector>
+#include <future>
 
 #define NYAS_STR2(X) #X
 #define NYAS_STR(X) NYAS_STR2(X)
@@ -363,8 +364,8 @@ struct NyTextures
 
     NyTextures() { TexInternalIDs[0] = -1; }
     NyasTexture Alloc(NyasTexInfo info, NyasTexFlags flags = NyasTexFlags_None);
-    NyasTexture Load(const char *path, NyasTexFmt fmt, int levels);
-    void        Update(NyasTexture h, NyasTexImage img);
+    void        Load(NyasTexture handle, const char *path);
+    void        Update(NyasTexture handle, NyasTexImage img);
     void        Sync();
 
     NyTexArray   Textures[NYAS_TEX_ARRAYS];
@@ -372,7 +373,7 @@ struct NyTextures
     NyResourceID TexInternalIDs[NYAS_TEX_ARRAYS];
     NyResourceID CubemapInternalIDs[NYAS_CUBEMAP_ARRAYS];
 
-    std::vector<std::pair<NyasTexture, NyasTexImage>> Updates;
+    std::vector<std::pair<NyasTexture, std::future<NyasTexImage>>> Updates;
 };
 
 // clang-format off

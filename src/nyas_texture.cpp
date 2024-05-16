@@ -40,7 +40,7 @@ NyasTexture NyTextures::Alloc(NyasTexInfo info, NyasTexFlags flags)
                             "This texture array should be default-initialized.");
                 Cubemaps[i].Info = info;
                 Cubemaps[i].Count = 1;
-                Updates.emplace_back(NyasTexture({ i, 0, flags }), NyasTexImage(NULL));
+				Update(NyasTexture({ i, 0, flags }), NyasTexImage(NULL));
                 return { i, 0, flags };
             }
         }
@@ -63,7 +63,7 @@ NyasTexture NyTextures::Alloc(NyasTexInfo info, NyasTexFlags flags)
                             "This texture array should be default-initialized.");
                 Textures[i].Info = info;
                 Textures[i].Count = 1;
-                Updates.emplace_back(NyasTexture({ i, 0, flags }), NyasTexImage(NULL));
+				Update(NyasTexture({ i, 0, flags }), NyasTexImage(NULL));
                 return { i, 0, flags };
             }
         }
@@ -73,34 +73,37 @@ NyasTexture NyTextures::Alloc(NyasTexInfo info, NyasTexFlags flags)
     }
 }
 
-NyasTexture NyTextures::Load(const char *path, NyasTexFmt fmt, int levels)
+void NyTextures::Load(NyasTexture handle, const char *path)
 {
-    int w, h, channels;
-    int ch = _TexChannels(fmt);
-    NyasTexImage img;
-    img.Level = 0;
-    if (fmt >= NyasTexFmt_BeginFloat)
-    {
-        img.Data[0] = stbi_loadf(path, &w, &h, &channels, ch);
-    }
-    else
-    {
-        img.Data[0] = stbi_load(path, &w, &h, &channels, ch);
-    }
+	auto LoadImg = [](const char *path, NyasTexFmt fmt)
+	{
+		NyasTexImage img;
+		int w, h, channels;
+		img.Level = 0;
+		if (fmt >= NyasTexFmt_BeginFloat)
+		{
+			img.Data[0] = stbi_loadf(path, &w, &h, &channels, _TexChannels(fmt));
+		}
+		else
+		{
+			img.Data[0] = stbi_load(path, &w, &h, &channels, _TexChannels(fmt));
+		}
 
-    if (!img.Data[0])
-    {
-        printf("The image '%s' couldn't be loaded", path);
-    }
+		if (!img.Data[0])
+		{
+			printf("The image '%s' couldn't be loaded", path);
+		}
+		return img;
+	};
 
-    NyasTexture hnd = Alloc({ fmt, w, h, levels });
-    Update(hnd, img);
-    return hnd;
+    Updates.emplace_back(handle, std::async(std::launch::async, LoadImg, path, Textures[handle.Index].Info.Format));
 }
 
 void NyTextures::Update(NyasTexture h, NyasTexImage img)
 {
-    Updates.emplace_back(h, img);
+	auto ImgPromise = std::promise<NyasTexImage>();
+	Updates.emplace_back(h, std::async(std::launch::deferred, [](NyasTexImage img){return img;}, img));
+	ImgPromise.set_value(NyasTexImage(NULL));
 }
 
 void NyTextures::Sync()
@@ -111,8 +114,9 @@ void NyTextures::Sync()
     	nyas::render::_NyCreateTex(0, NYAS_CUBEMAP_ARRAYS, TexInternalIDs, NYAS_TEX_ARRAYS);
     }
 
-    for (const auto &[tex, img] : Updates)
+    for (auto &[tex, future_img] : Updates)
     {
+		NyasTexImage img = future_img.get();
         if (tex.Flags & NyasTexFlags_Cubemap)
         {
             if (img.Data[0])
