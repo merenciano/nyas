@@ -376,6 +376,42 @@ struct NyTextures
     std::vector<std::pair<NyasTexture, std::future<NyasTexImage>>> Updates;
 };
 
+struct NyMeshes
+{
+	struct DrawMeshCmd
+	{
+		uint32_t IndexCount;
+		uint32_t InstanceCount;
+		uint32_t IndexStart; // first index
+		int32_t BaseVertex;
+		uint32_t BaseInstance;
+	};
+
+	struct MeshUnit
+	{
+		int Vtx;
+		int Idx;
+		int Count;
+	};
+
+	struct MeshData
+	{
+		std::vector<float> Vertices;
+		std::vector<NyDrawIdx> Indices;
+	};
+
+	NyasHandle Alloc();
+
+	NyResourceID VtxBuffer;
+	NyResourceID IdxBuffer;
+
+	std::vector<float> VtxData;
+	std::vector<NyDrawIdx> IdxData;
+	std::vector<MeshUnit> Meshes;
+
+	std::vector<std::pair<NyasHandle, std::future<MeshData>>> Updates;
+};
+
 // clang-format off
 #define NYAS_SHADER_HEADER(_VERSION) \
 		"#version " #_VERSION "\n"\

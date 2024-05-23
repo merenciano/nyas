@@ -34,6 +34,7 @@ target_sources(nyas PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas_texture.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas_shader.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/nyas_mesh.cpp
 )
 
 target_link_libraries(nyas PRIVATE
