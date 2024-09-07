@@ -196,6 +196,9 @@ bool InitIO(const char *title, int win_w, int win_h) {
     return false;
   }
 
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+
   G_Ctx->Platform.InternalWindow =
       glfwCreateWindow(win_w, win_h, title, NULL, NULL);
   if (!G_Ctx->Platform.InternalWindow) {
@@ -654,10 +657,21 @@ void Draw(NyasDrawCmd *cmd) {
       _SyncMesh(cmd->Units[i].Mesh, cmd->Units[i].Shader);
     }
 
-    _NyUseMesh(imsh);
+    _NyUseMesh(imsh->Resource.ID);
     _NyDraw(imsh->ElementCount, sizeof(NyDrawIdx) == 4,
             cmd->Units[i].Instances);
   }
+
+  if (cmd->Commands.size())
+  {
+    GMeshes.ShaderInternalID = GShaders.InternalIDs[cmd->Shader];
+    GMeshes.Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal |
+                  NyasVtxAttribFlags_Tangent | NyasVtxAttribFlags_Bitangent |
+                  NyasVtxAttribFlags_UV;
+    GMeshes.Sync();
+    _NyDraw(cmd->Commands.data(), cmd->Commands.size());
+  }
+
 }
 } // namespace nyas
 

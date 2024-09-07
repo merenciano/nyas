@@ -1,4 +1,4 @@
-//#version 450 core
+//#version 460 core
 
 struct EntityData
 {
@@ -57,14 +57,14 @@ out Vertex
 
 void main()
 {
-    v_out.position = vec3(entity[gl_InstanceID].model * vec4(a_position, 1.0));
-    v_out.uv = vec2(a_uv.x * entity[gl_InstanceID].tiling.x, a_uv.y * entity[gl_InstanceID].tiling.y);
+    v_out.position = vec3(entity[gl_DrawID].model * vec4(a_position, 1.0));
+    v_out.uv = vec2(a_uv.x * entity[gl_DrawID].tiling.x, a_uv.y * entity[gl_DrawID].tiling.y);
 
-    v_out.instance_id = gl_InstanceID;
-    v_out.instance_idf = float(gl_InstanceID);
+    v_out.instance_id = gl_DrawID;
+    v_out.instance_idf = float(gl_DrawID);
 
     // Pass tangent space basis vectors (for normal mapping).
-    v_out.tbn = mat3(entity[gl_InstanceID].model) * mat3(normalize(a_tangent), normalize(a_bitangent), normalize(a_normal));
+    v_out.tbn = mat3(entity[gl_DrawID].model) * mat3(normalize(a_tangent), normalize(a_bitangent), normalize(a_normal));
 
-    gl_Position = vp * entity[gl_InstanceID].model * vec4(a_position, 1.0);
+    gl_Position = vp * entity[gl_DrawID].model * vec4(a_position, 1.0);
 }

@@ -6,6 +6,7 @@
 
 NyTextures  GTextures;
 NyPipelines GShaders;
+NyMeshes GMeshes;
 
 struct PbrUnitData
 {
@@ -63,7 +64,6 @@ struct
 
 NyasHandle  G_Framebuf;
 NyasTexture G_FbTex;
-NyasHandle  G_Mesh;
 
 void Init()
 {
@@ -100,7 +100,9 @@ void Init()
         GShaders.Update(ImgShader, NyasShaderStage_Fragment, std::move(frag_src));
     }
 #endif
-    G_Mesh = nyas::LoadMesh("assets/obj/matball.msh");
+    NyasHandle G_Mesh = GMeshes.Alloc();
+    GMeshes.Load(G_Mesh, "assets/obj/matball.msh");
+    //nyas::LoadMesh("assets/obj/matball.msh");
 
     NyasTexture irradiance;
     NyasTexture prefilter;
@@ -233,17 +235,26 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.State.Depth       = NyasDepthFunc_Less;
         draw.State.FaceCulling = NyasFaceCull_Back;
 
-        draw.UnitCount = 1;
-        draw.Units     = (NyasDrawUnit *)NyFrameAllocator::Alloc(1 * sizeof(NyasDrawUnit));
+        //draw.UnitCount = 1;
+        //draw.Units     = (NyasDrawUnit *)NyFrameAllocator::Alloc(1 * sizeof(NyasDrawUnit));
         for (int i = 0; i < nyas::Entities.Count; ++i)
         {
             auto *pbr_uniform_block =
                 (PbrUnitData *)(((PbrData *)GShaders.Pipelines[PbrShader].Data)->Entity);
             mat4_assign(pbr_uniform_block[i].Model, nyas::Entities[i].Transform);
+            NyMeshes::MeshUnit mesh = GMeshes.Meshes[nyas::Entities[i].Mesh];
+            NyasDrawElementCmd cmd;
+            cmd.IndexCount = mesh.Count;
+            cmd.InstanceCount = 1;
+            cmd.IndexStart = mesh.Idx;
+            cmd.BaseVertex = mesh.Vtx;
+            cmd.BaseInstance = 0;
+            draw.Commands.emplace_back(cmd);
         }
-        draw.Units->Shader    = nyas::Entities[0].Shader;
-        draw.Units->Mesh      = nyas::Entities[0].Mesh;
-        draw.Units->Instances = nyas::Entities.Count;
+        //draw.Units->Shader    = nyas::Entities[0].Shader;
+        //draw.Units->Mesh      = nyas::Entities[0].Mesh;
+        //draw.Units->Instances = nyas::Entities.Count;
+        draw.UnitCount = 0;
 
         new_frame.Push(draw);
     }
@@ -287,7 +298,12 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
 int main(int argc, char **argv)
 {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    nyas::InitIO("NYAS PBR Material Demo", 400, 300);
+    if (!nyas::InitIO("NYAS PBR Material Demo", 1920, 1080))
+    {
+        NYAS_LOG_ERR("Error creating glfw window. Aborting execution...");
+        return 1;
+    }
+
     nyas::Camera.Init(*nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;

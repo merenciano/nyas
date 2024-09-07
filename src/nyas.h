@@ -29,6 +29,7 @@ struct NyasCtx;
 
 extern NyTextures GTextures;
 extern NyPipelines GShaders;
+extern NyMeshes GMeshes;
 
 namespace nyas
 {

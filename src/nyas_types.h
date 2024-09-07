@@ -341,6 +341,15 @@ typedef struct NyasDrawUnit
     NyasDrawUnit() : Instances(1) {}
 } NyasDrawUnit;
 
+struct NyasDrawElementCmd
+{
+    uint32_t IndexCount;
+    uint32_t InstanceCount;
+    uint32_t IndexStart; // first index
+    int32_t BaseVertex;
+    uint32_t BaseInstance;
+};
+
 typedef struct NyasDrawCmd
 {
     NyasDrawState State;
@@ -348,6 +357,7 @@ typedef struct NyasDrawCmd
     int           UnitCount;
     NyasHandle    Framebuf;
     NyasHandle    Shader;
+    std::vector<NyasDrawElementCmd> Commands; // TODO: GL_DRAW_INDIRECT_BUFFER
     NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp) {}
 } NyasDrawCmd;
 
@@ -378,20 +388,12 @@ struct NyTextures
 
 struct NyMeshes
 {
-	struct DrawMeshCmd
-	{
-		uint32_t IndexCount;
-		uint32_t InstanceCount;
-		uint32_t IndexStart; // first index
-		int32_t BaseVertex;
-		uint32_t BaseInstance;
-	};
-
 	struct MeshUnit
 	{
-		int Vtx;
+        MeshUnit(int vtx, int idx, int count) : Vtx(vtx), Idx(idx), Count(count) {}
+		int Vtx; // VertexBase
 		int Idx;
-		int Count;
+		int Count; //Index
 	};
 
 	struct MeshData
@@ -400,10 +402,18 @@ struct NyMeshes
 		std::vector<NyDrawIdx> Indices;
 	};
 
-	NyasHandle Alloc();
+    NyMeshes() {InternalID = -1;}
+    NyasHandle Alloc();
+	void Load(NyasHandle handle, const char *path);
+    void Update(NyasHandle handle, std::vector<float> vert, std::vector<NyDrawIdx> ind);
+    void Sync();
 
-	NyResourceID VtxBuffer;
-	NyResourceID IdxBuffer;
+    NyResourceID InternalID;
+	NyResourceID VtxInternalID;
+	NyResourceID IdxInternalID;
+
+    NyResourceID ShaderInternalID;
+    NyasVtxAttribFlags Attribs;
 
 	std::vector<float> VtxData;
 	std::vector<NyDrawIdx> IdxData;

@@ -1,4 +1,4 @@
-//#version 450 core
+//#version 460 core
 
 #define COLOR                entity[v_in.instance_id].color
 #define USE_ALBEDO_MAP       entity[v_in.instance_id].use_albedo_map

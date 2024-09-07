@@ -14,8 +14,9 @@ namespace nyas::render
 	void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb);
 	void _NyUsePipeline(NyResourceID id, NyasPipeline pipeline);
 
-	void _NyCreateMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
-	void _NyUseMesh(NyasMesh *m);
+	void _NyCreateMesh(NyResourceID *id, NyResourceID *vid, NyResourceID *iid);
+	void _NyUseMesh(NyResourceID id);
+	void _NySetMesh(const NyMeshes *meshes);
 	void _NySetMesh(NyasMesh *mesh, uint32_t shader_id);
 	void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
 
@@ -26,6 +27,7 @@ namespace nyas::render
 
 	void _NyClear(bool color = true, bool depth = true, bool stencil = false);
 	void _NyDraw(int elem_count, int index_type, int instances = 1);
+	void _NyDraw(NyasDrawElementCmd *commands, int count);
 	void _NyClearColor(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f);
 	void _NyEnableScissor();
 	void _NyDisableScissor();
