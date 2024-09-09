@@ -1,12 +1,13 @@
 #ifndef NYAS_PLATFORM_H
 #define NYAS_PLATFORM_H
 
+#include "nyconfig.h"
+
+#include "nyas_math.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
-#include "nyconfig.h"
-#include "nyas_math.h"
 
 #ifndef NYAS_ASSERT
 #include <assert.h>
@@ -58,25 +59,23 @@
     NYAS_PRINT(__VA_ARGS__);                                                                       \
     NYAS_PRINT("\n")
 
-
 struct NyasPlatform;
 struct NyasIO;
 
-typedef int NyasKey; // enum NyasKey_
-typedef int NyasKeyState; // enum NyasKeyState_
+typedef int NyasKey;         // enum NyasKey_
+typedef int NyasKeyState;    // enum NyasKeyState_
 typedef int NyasMouseButton; // enum NyasMouseButton_
-typedef int NyasCode; // enum NyasCode_
-typedef int NyasError; // enum NyasError_
+typedef int NyasCode;        // enum NyasCode_
+typedef int NyasError;       // enum NyasError_
 
-enum NyasKey_
-{
+enum NyasKey_ {
     NyasKey_Invalid = 0,
     NyasKey_Space = 32,
     NyasKey_Apostrophe = 39, /* ' */
-    NyasKey_Comma = 44, /* , */
-    NyasKey_Minus = 45, /* - */
-    NyasKey_Period = 46, /* . */
-    NyasKey_Slash = 47, /* / */
+    NyasKey_Comma = 44,      /* , */
+    NyasKey_Minus = 45,      /* - */
+    NyasKey_Period = 46,     /* . */
+    NyasKey_Slash = 47,      /* / */
     NyasKey_0 = 48,
     NyasKey_1 = 49,
     NyasKey_2 = 50,
@@ -88,7 +87,7 @@ enum NyasKey_
     NyasKey_8 = 56,
     NyasKey_9 = 57,
     NyasKey_Semicolon = 59, /* ; */
-    NyasKey_Equal = 61, /* = */
+    NyasKey_Equal = 61,     /* = */
     NyasKey_A = 65,
     NyasKey_B = 66,
     NyasKey_C = 67,
@@ -115,12 +114,12 @@ enum NyasKey_
     NyasKey_X = 88,
     NyasKey_Y = 89,
     NyasKey_Z = 90,
-    NyasKey_LeftBracket = 91, /* [ */
-    NyasKey_Backslash = 92, /* \ */
+    NyasKey_LeftBracket = 91,  /* [ */
+    NyasKey_Backslash = 92,    /* \ */
     NyasKey_RightBracket = 93, /* ] */
-    NyasKey_GraveAccent = 96, /* ` */
-    NyasKey_World1 = 161, /* non-US #1 */
-    NyasKey_World2 = 162, /* non-US #2 */
+    NyasKey_GraveAccent = 96,  /* ` */
+    NyasKey_World1 = 161,      /* non-US #1 */
+    NyasKey_World2 = 162,      /* non-US #2 */
     NyasKey_Escape = 256,
     NyasKey_Enter = 257,
     NyasKey_Tab = 258,
@@ -193,24 +192,21 @@ enum NyasKey_
     NyasKey_Menu = 348
 };
 
-enum NyasKeyState_
-{
+enum NyasKeyState_ {
     NyasKeyState_RELEASED = 0, /* Not pressed */
-    NyasKeyState_DOWN = 1, /* From released to pressed this frame */
-    NyasKeyState_UP = 2, /* From pressed to released this frame */
-    NyasKeyState_PRESSED = 3, /* Pressed */
+    NyasKeyState_DOWN = 1,     /* From released to pressed this frame */
+    NyasKeyState_UP = 2,       /* From pressed to released this frame */
+    NyasKeyState_PRESSED = 3,  /* Pressed */
 };
 
-enum NyasMouseButton_
-{
+enum NyasMouseButton_ {
     NyasMouseButton_Left,
     NyasMouseButton_Right,
     NyasMouseButton_Middle,
     NyasMouseButton_COUNT
 };
 
-enum NyasCode_
-{
+enum NyasCode_ {
     NyasCode_Null = 0,
     NyasCode_Ok = 0,
     NyasCode_Error = -1,
@@ -219,8 +215,7 @@ enum NyasCode_
     NyasCode_None = -53,
 };
 
-enum NyasError_
-{
+enum NyasError_ {
     NyasError_Memory = -100,
     NyasError_Null = -101,
     NyasError_Alloc = -110,
@@ -235,71 +230,62 @@ enum NyasError_
     NyasError_SwitchBadLabel = -501, // Usually unwanted default cases.
 };
 
-typedef struct NyasPlatform
-{
+typedef struct NyasPlatform {
     void *(*Alloc)(size_t size);
     void (*Free)(void *ptr);
     int64_t (*GetTime)(); // Get system time in nanoseconds.
-	int (*ReadFile)(const char *path, char **out_dst, size_t *out_size);
+    int (*ReadFile)(const char *path, char **out_dst, size_t *out_size);
 
     float DeltaTime;
-	void *InternalWindow;
+    void *InternalWindow;
     nym::vec2i_t WindowSize; // In pixels
     bool WindowClosed;
     bool WindowHovered;
     bool WindowFocused;
 
-	bool ShowCursor;
+    bool ShowCursor;
     bool CaptureMouse;
     bool CaptureKeyboard;
 
-	NyasPlatform() : DeltaTime(1.0f / 60.0f), InternalWindow(NULL), WindowClosed(false), ShowCursor(true) {}
+    NyasPlatform()
+        : DeltaTime(1.0f / 60.0f), InternalWindow(NULL), WindowClosed(false), ShowCursor(true) {}
 } NyasPlatform;
 
-typedef struct NyasConfig
-{
-    struct
-	{
-		float Speed;
-		float DragSensibility;
-		float ScrollSensibility;
-	} Navigation;
+typedef struct NyasConfig {
+    struct {
+        float Speed;
+        float DragSensibility;
+        float ScrollSensibility;
+    } Navigation;
 } NyasConfig;
 
-typedef struct NyasIO
-{
+typedef struct NyasIO {
     NyasKeyState Keys[348 + 1]; // TODO: Get last key value from the enum.
     NyasKeyState MouseButton[3];
     nym::vec2_t MousePosition;
-	nym::vec2_t MouseScroll; // x horizontal and y vertical scrolls
+    nym::vec2_t MouseScroll; // x horizontal and y vertical scrolls
 
-	NyasIO() {memset(&Keys[0], 0, sizeof(Keys) + sizeof(MouseButton));}
+    NyasIO() { memset(&Keys[0], 0, sizeof(Keys) + sizeof(MouseButton)); }
 } NyasIO;
 
-struct NyAllocator
-{
-    static inline void *Alloc(size_t size, void *_ = NULL)
-    {
+struct NyAllocator {
+    static inline void *Alloc(size_t size, void *_ = NULL) {
         NY_UNUSED(_);
         return NYAS_ALLOC(size);
     }
-    static inline void Free(void *ptr, void *_ = NULL)
-    {
+    static inline void Free(void *ptr, void *_ = NULL) {
         NY_UNUSED(_);
         NYAS_FREE(ptr);
     }
 };
 
-template<size_t CAP> struct NyCircularAllocator
-{
+template <size_t CAP> struct NyCircularAllocator {
     static char Arena[CAP];
     static ptrdiff_t Offset;
-    static inline void *Alloc(size_t size, void *_ = NULL)
-    {
+    static inline void *Alloc(size_t size, void *_ = NULL) {
         NY_UNUSED(_);
 
-        if (Offset + size > CAP)
-        {
+        if (Offset + size > CAP) {
             Offset = size;
             return (void *)Arena;
         }
@@ -308,39 +294,34 @@ template<size_t CAP> struct NyCircularAllocator
         Offset += size;
         return ret;
     }
-    static inline void Free(void *ptr, void *_ = NULL)
-    {
+    static inline void Free(void *ptr, void *_ = NULL) {
         NY_UNUSED(_);
         NY_UNUSED(ptr);
     }
 };
 
-template<size_t CAP> char NyCircularAllocator<CAP>::Arena[CAP] = { 0 };
-template<size_t CAP> ptrdiff_t NyCircularAllocator<CAP>::Offset = { 0 };
+template <size_t CAP> char NyCircularAllocator<CAP>::Arena[CAP] = {0};
+template <size_t CAP> ptrdiff_t NyCircularAllocator<CAP>::Offset = {0};
 typedef NyCircularAllocator<NYAS_FRAME_ALLOCATOR_ARENA_SIZE> NyFrameAllocator;
 
-template<typename T, typename A = NyAllocator> struct NyBuffer
-{
+template <typename T, typename A = NyAllocator> struct NyBuffer {
     T *Data;
     int Capacity;
 
     inline NyBuffer() : Data(NULL), Capacity(0) {}
     inline NyBuffer(int capacity) { Reserve(capacity); }
-    inline ~NyBuffer()
-    {
+    inline ~NyBuffer() {
         A::Free(Data);
         Data = NULL;
         Capacity = 0;
     }
-    inline void Reserve(int capacity)
-    {
-        if (capacity < Capacity)
-        {
+    inline void Reserve(int capacity) {
+        if (capacity < Capacity) {
             return;
         }
         T *data = (T *)A::Alloc(capacity * sizeof(T));
         NYAS_ASSERT(data);
-        memcpy(data, Data, sizeof(T) * Capacity);
+        memcpy((void *)data, (const void *)Data, sizeof(T) * Capacity);
         A::Free(Data);
         Data = data;
         Capacity = capacity;
@@ -351,25 +332,21 @@ template<typename T, typename A = NyAllocator> struct NyBuffer
 };
 
 // Dynamic array.
-template<typename T, typename A = NyAllocator> struct NyArray
-{
+template <typename T, typename A = NyAllocator> struct NyArray {
     NyBuffer<T, A> Buf;
     int Size;
 
     inline NyArray() : Buf(), Size(0) {}
     inline NyArray(int capacity) : Buf(capacity), Size(0) {}
     inline ~NyArray() { Size = 0; }
-    inline void Push(const T &value)
-    {
-        if (Buf.Capacity == Size)
-        {
+    inline void Push(const T &value) {
+        if (Buf.Capacity == Size) {
             Buf.Reserve(Size > 4 ? Size * 2 : 8);
         }
         Buf[Size] = value;
         ++Size;
     }
-    inline void Pop()
-    {
+    inline void Pop() {
         NYAS_ASSERT(Size > 0);
         --Size;
     }
@@ -379,16 +356,14 @@ template<typename T, typename A = NyAllocator> struct NyArray
 };
 
 // Basic pool, uses internal array index as id (key).
-template<typename T, typename A = NyAllocator> struct NyPool
-{
+template <typename T, typename A = NyAllocator> struct NyPool {
     NyArray<T, A> Arr;
     int Count;
     int Next;
 
     inline NyPool() : Arr(), Count(0), Next(0) {}
     inline NyPool(int capacity) : Arr(capacity), Count(0), Next(0) {}
-    inline ~NyPool()
-    {
+    inline ~NyPool() {
         Count = 0;
         Next = 0;
     }
@@ -396,16 +371,12 @@ template<typename T, typename A = NyAllocator> struct NyPool
     inline const T &operator[](int i) const { return Arr[i]; }
     inline T &operator[](int i) { return Arr[i]; }
 
-    inline int Add(const T &value = T())
-    {
+    inline int Add(const T &value = T()) {
         int ret = Next;
-        if (Next == Arr.Size)
-        {
+        if (Next == Arr.Size) {
             Arr.Push(value);
             ++Next;
-        }
-        else
-        {
+        } else {
             Next = *(int *)&Arr[Next];
             Arr[ret] = value;
         }
@@ -413,8 +384,7 @@ template<typename T, typename A = NyAllocator> struct NyPool
         return ret;
     }
 
-    inline void Remove(int id)
-    {
+    inline void Remove(int id) {
         *(int *)&Arr[id] = Next;
         Next = id;
         --Count;

@@ -1,5 +1,3 @@
-//#version 460 core
-
 layout(std140, binding=0) uniform u_data 
 {
     mat4 model;
@@ -10,9 +8,9 @@ layout(std140, binding=0) uniform u_data
 //layout(binding=0) uniform samplerCubeArray u_cubemaps[8];
 
 out vec4 FragColor;
-in vec3 position;
+in vec3 uv;
 
 void main() 
 {
-    FragColor = texture(u_cubemaps[sky_index], vec4(position, sky_layer));
+    FragColor = texture(u_cubemaps[sky_index], vec4(uv, sky_layer));
 }

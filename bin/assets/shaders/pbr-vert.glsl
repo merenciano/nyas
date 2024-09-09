@@ -1,5 +1,3 @@
-//#version 460 core
-
 struct EntityData
 {
     mat4 model;

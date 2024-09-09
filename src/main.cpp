@@ -1,16 +1,16 @@
 
 #include "nyas.h"
-#include <stdio.h>
+#include "nyas_types.h"
 
 #include <array>
+#include <stdio.h>
 
-NyTextures  GTextures;
+NyTextures GTextures;
 NyPipelines GShaders;
 NyMeshes GMeshes;
 
-struct PbrUnitData
-{
-	nym::mat4_t Model;
+struct PbrUnitData {
+    nym::mat4_t Model;
     float Color[3];
     float UseAlbedo;
     float TilingX;
@@ -21,34 +21,32 @@ struct PbrUnitData
     float Metallic;
     float UseNormalMap;
     float _Padding;
-    int   AlbedoIdx;
+    int AlbedoIdx;
     float AlbedoLayer;
-    int   NormalIdx;
+    int NormalIdx;
     float NormalLayer;
-    int   RoughnessIdx;
+    int RoughnessIdx;
     float RoughnessLayer;
-    int   MetallicIdx;
+    int MetallicIdx;
     float MetallicLayer;
 };
 
-struct PbrData
-{
+struct PbrData {
     nym::mat4_t ViewProj;
     nym::vec3_t CameraEye;
-    float       _Padding;
-    float       Sunlight[4]; // Alpha for light intensity
-    int         LutIdx;
-    float       LutLayer;
-    int         IrrIdx;
-    float       IrrLayer;
-    int         PrefIdx;
-    float       PrefLayer;
-    float       _Padding2[2];
+    float _Padding;
+    float Sunlight[4]; // Alpha for light intensity
+    int LutIdx;
+    float LutLayer;
+    int IrrIdx;
+    float IrrLayer;
+    int PrefIdx;
+    float PrefLayer;
+    float _Padding2[2];
     PbrUnitData Entity[NYAS_PIPELINE_MAX_UNITS];
 };
 
-struct PbrMaps
-{
+struct PbrMaps {
     NyasTexture Alb, Nor, Rou, Met;
 };
 
@@ -56,53 +54,26 @@ NyasHandle PbrShader;
 NyasHandle SkyShader;
 NyasHandle ImgShader;
 
-struct
-{
+struct {
     NyasTexture Sky;
-    PbrMaps     Pbr[9];
+    PbrMaps Pbr[9];
 } G_Tex;
 
-NyasHandle  G_Framebuf;
+NyasHandle G_Framebuf;
 NyasTexture G_FbTex;
 
-void Init()
-{
-    PbrShader = GShaders.Load(sizeof(PbrData), "assets/shaders/pbr-vert.glsl", "assets/shaders/pbr-frag.glsl");
-    SkyShader = GShaders.Load(20 * sizeof(float), "assets/shaders/skybox-vert.glsl", "assets/shaders/skybox-frag.glsl");
-    ImgShader = GShaders.Load(16, "assets/shaders/fullscreen-img-vert.glsl", "assets/shaders/fullscreen-img-frag.glsl");
+void Init() {
+    PbrShader = GShaders.Load(
+        sizeof(PbrData), "assets/shaders/pbr-vert.glsl", "assets/shaders/pbr-frag.glsl");
+    SkyShader = GShaders.Load(
+        20 * sizeof(float), "assets/shaders/skybox-vert.glsl", "assets/shaders/skybox-frag.glsl");
+    ImgShader = GShaders.Load(
+        16, "assets/shaders/fullscreen-img-vert.glsl", "assets/shaders/fullscreen-img-frag.glsl");
 
-    #if 0
-    {
-        PbrShader = GShaders.Alloc(sizeof(PbrData));
-        NyasShaderSrc vert_src;
-        vert_src.AddFile("assets/shaders/pbr-vert.glsl");
-        NyasShaderSrc frag_src;
-        frag_src.AddFile("assets/shaders/pbr-frag.glsl");
-        GShaders.Update(PbrShader, NyasShaderStage_Vertex, std::move(vert_src));
-        GShaders.Update(PbrShader, NyasShaderStage_Fragment, std::move(frag_src));
-    }
-    {
-        SkyShader = GShaders.Alloc(20 * sizeof(float));
-        NyasShaderSrc vert_src;
-        vert_src.AddFile("assets/shaders/skybox-vert.glsl");
-        NyasShaderSrc frag_src;
-        frag_src.AddFile("assets/shaders/skybox-frag.glsl");
-        GShaders.Update(SkyShader, NyasShaderStage_Vertex, std::move(vert_src));
-        GShaders.Update(SkyShader, NyasShaderStage_Fragment, std::move(frag_src));
-    }
-    {
-        ImgShader = GShaders.Alloc(16);
-        NyasShaderSrc vert_src;
-        vert_src.AddFile("assets/shaders/fullscreen-img-vert.glsl");
-        NyasShaderSrc frag_src;
-        frag_src.AddFile("assets/shaders/fullscreen-img-frag.glsl");
-        GShaders.Update(ImgShader, NyasShaderStage_Vertex, std::move(vert_src));
-        GShaders.Update(ImgShader, NyasShaderStage_Fragment, std::move(frag_src));
-    }
-#endif
     NyasHandle G_Mesh = GMeshes.Alloc();
     GMeshes.Load(G_Mesh, "assets/obj/matball.msh");
-    //nyas::LoadMesh("assets/obj/matball.msh");
+    NyasHandle G_Mesh2 = GMeshes.Alloc();
+    GMeshes.Load(G_Mesh2, "assets/obj/slender.msh");
 
     NyasTexture irradiance;
     NyasTexture prefilter;
@@ -110,31 +81,54 @@ void Init()
     NyUtil::LoadEnv("assets/env/canyon.env", &lut, &G_Tex.Sky, &irradiance, &prefilter);
     NyUtil::LoadBasicGeometries();
 
-    std::array<const char *, 36> texpaths { "assets/tex/celtic-gold/celtic-gold_A.png",
-        "assets/tex/celtic-gold/celtic-gold_N.png", "assets/tex/celtic-gold/celtic-gold_R.png",
-        "assets/tex/celtic-gold/celtic-gold_M.png", "assets/tex/peeling/peeling_A.png",
-        "assets/tex/peeling/peeling_N.png", "assets/tex/peeling/peeling_R.png",
-        "assets/tex/peeling/peeling_M.png", "assets/tex/rusted/rusted_A.png",
-        "assets/tex/rusted/rusted_N.png", "assets/tex/rusted/rusted_R.png",
-        "assets/tex/rusted/rusted_M.png", "assets/tex/tiles/tiles_A.png",
-        "assets/tex/tiles/tiles_N.png", "assets/tex/tiles/tiles_R.png",
-        "assets/tex/tiles/tiles_M.png", "assets/tex/ship-panels/ship-panels_A.png",
-        "assets/tex/ship-panels/ship-panels_N.png", "assets/tex/ship-panels/ship-panels_R.png",
-        "assets/tex/ship-panels/ship-panels_M.png", "assets/tex/shore/shore_A.png",
-        "assets/tex/shore/shore_N.png", "assets/tex/shore/shore_R.png",
-        "assets/tex/shore/shore_M.png", "assets/tex/cliff/cliff_A.png",
-        "assets/tex/cliff/cliff_N.png", "assets/tex/cliff/cliff_R.png",
-        "assets/tex/cliff/cliff_M.png", "assets/tex/granite/granite_A.png",
-        "assets/tex/granite/granite_N.png", "assets/tex/granite/granite_R.png",
-        "assets/tex/granite/granite_M.png", "assets/tex/foam/foam_A.png",
-        "assets/tex/foam/foam_N.png", "assets/tex/foam/foam_R.png", "assets/tex/foam/foam_M.png" };
+    NyasHandle Sphere = GMeshes.Alloc();
+    GMeshes.Update(
+        Sphere, nyas::Meshes[NYAS_SPHERE].Vtx, nyas::Meshes[NYAS_SPHERE].VtxSize / sizeof(float),
+        nyas::Meshes[NYAS_SPHERE].Indices, nyas::Meshes[NYAS_SPHERE].ElementCount);
 
-    for (int i = 0; i < 9; ++i)
-    {
-		G_Tex.Pbr[i].Alb = GTextures.Alloc({NyasTexFmt_SRGB_8, 2048, 2048, 1}, NyasTexFlags_None);
-		G_Tex.Pbr[i].Nor = GTextures.Alloc({NyasTexFmt_RGB_8, 2048, 2048, 1}, NyasTexFlags_None);
-		G_Tex.Pbr[i].Rou = GTextures.Alloc({NyasTexFmt_R_8, 2048, 2048, 1}, NyasTexFlags_None);
-		G_Tex.Pbr[i].Met = GTextures.Alloc({NyasTexFmt_R_8, 2048, 2048, 1}, NyasTexFlags_None);
+    std::array<const char *, 36> texpaths{
+        "assets/tex/celtic-gold/celtic-gold_A.png",
+        "assets/tex/celtic-gold/celtic-gold_N.png",
+        "assets/tex/celtic-gold/celtic-gold_R.png",
+        "assets/tex/celtic-gold/celtic-gold_M.png",
+        "assets/tex/peeling/peeling_A.png",
+        "assets/tex/peeling/peeling_N.png",
+        "assets/tex/peeling/peeling_R.png",
+        "assets/tex/peeling/peeling_M.png",
+        "assets/tex/rusted/rusted_A.png",
+        "assets/tex/rusted/rusted_N.png",
+        "assets/tex/rusted/rusted_R.png",
+        "assets/tex/rusted/rusted_M.png",
+        "assets/tex/tiles/tiles_A.png",
+        "assets/tex/tiles/tiles_N.png",
+        "assets/tex/tiles/tiles_R.png",
+        "assets/tex/tiles/tiles_M.png",
+        "assets/tex/ship-panels/ship-panels_A.png",
+        "assets/tex/ship-panels/ship-panels_N.png",
+        "assets/tex/ship-panels/ship-panels_R.png",
+        "assets/tex/ship-panels/ship-panels_M.png",
+        "assets/tex/shore/shore_A.png",
+        "assets/tex/shore/shore_N.png",
+        "assets/tex/shore/shore_R.png",
+        "assets/tex/shore/shore_M.png",
+        "assets/tex/cliff/cliff_A.png",
+        "assets/tex/cliff/cliff_N.png",
+        "assets/tex/cliff/cliff_R.png",
+        "assets/tex/cliff/cliff_M.png",
+        "assets/tex/granite/granite_A.png",
+        "assets/tex/granite/granite_N.png",
+        "assets/tex/granite/granite_R.png",
+        "assets/tex/granite/granite_M.png",
+        "assets/tex/foam/foam_A.png",
+        "assets/tex/foam/foam_N.png",
+        "assets/tex/foam/foam_R.png",
+        "assets/tex/foam/foam_M.png"};
+
+    for (int i = 0; i < 9; ++i) {
+        G_Tex.Pbr[i].Alb = GTextures.Alloc({NyasTexFmt_SRGB_8, 2048, 2048, 1}, NyasTexFlags_None);
+        G_Tex.Pbr[i].Nor = GTextures.Alloc({NyasTexFmt_RGB_8, 2048, 2048, 1}, NyasTexFlags_None);
+        G_Tex.Pbr[i].Rou = GTextures.Alloc({NyasTexFmt_R_8, 2048, 2048, 1}, NyasTexFlags_None);
+        G_Tex.Pbr[i].Met = GTextures.Alloc({NyasTexFmt_R_8, 2048, 2048, 1}, NyasTexFlags_None);
 
         GTextures.Load(G_Tex.Pbr[i].Alb, texpaths[i * 4]);
         GTextures.Load(G_Tex.Pbr[i].Nor, texpaths[i * 4 + 1]);
@@ -142,67 +136,65 @@ void Init()
         GTextures.Load(G_Tex.Pbr[i].Met, texpaths[i * 4 + 3]);
     }
 
-    auto *pbr_data        = (PbrData *)GShaders.Pipelines[PbrShader].Data;
+    auto *pbr_data = (PbrData *)GShaders.Pipelines[PbrShader].Data;
     pbr_data->Sunlight[0] = 0.0f;
     pbr_data->Sunlight[1] = -1.0f;
     pbr_data->Sunlight[2] = -0.1f;
     pbr_data->Sunlight[3] = 0.0f;
-    pbr_data->LutIdx      = lut.Index;
-    pbr_data->LutLayer    = (float)lut.Layer;
-    pbr_data->IrrIdx      = irradiance.Index;
-    pbr_data->IrrLayer    = (float)irradiance.Layer;
-    pbr_data->PrefIdx     = prefilter.Index;
-    pbr_data->PrefLayer   = (float)prefilter.Layer;
+    pbr_data->LutIdx = lut.Index;
+    pbr_data->LutLayer = (float)lut.Layer;
+    pbr_data->IrrIdx = irradiance.Index;
+    pbr_data->IrrLayer = (float)irradiance.Layer;
+    pbr_data->PrefIdx = prefilter.Index;
+    pbr_data->PrefLayer = (float)prefilter.Layer;
 
-    G_Framebuf           = nyas::CreateFramebuffer();
-    nym::vec2i_t vp           = nyas::GetCurrentCtx()->Platform.WindowSize;
-    G_FbTex              = GTextures.Alloc({ NyasTexFmt_RGB_32F, vp.x, vp.y, 1 });
-    NyasTexture fb_depth = GTextures.Alloc({ NyasTexFmt_Depth, vp.x, vp.y, 1 });
+    G_Framebuf = nyas::CreateFramebuffer();
+    nym::vec2i_t vp = nyas::GetCurrentCtx()->Platform.WindowSize;
+    G_FbTex = GTextures.Alloc({NyasTexFmt_RGB_32F, vp.x, vp.y, 1});
+    NyasTexture fb_depth = GTextures.Alloc({NyasTexFmt_Depth, vp.x, vp.y, 1});
 
-    NyasTexTarget color = { G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0 };
-    NyasTexTarget depth = { fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0 };
+    NyasTexTarget color = {G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0};
+    NyasTexTarget depth = {fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0};
     nyas::SetFramebufferTarget(G_Framebuf, 0, color);
     nyas::SetFramebufferTarget(G_Framebuf, 1, depth);
 
-    for (int i = 0; i < 9; ++i)
-    {
+    for (int i = 0; i < 9; ++i) {
         auto &e = nyas::Entities[nyas::Entities.Add()];
-        memcpy(e.Transform,
-            nym::mat4_t::translation({ (i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f }).v,
+        memcpy(
+            e.Transform, nym::mat4_t::translation({(i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f}).v,
             16 * sizeof(float));
-        e.Mesh   = G_Mesh;
+        e.Mesh = !i ? Sphere : i > 2 ? G_Mesh2 : G_Mesh;
         e.Shader = PbrShader;
 
-        auto &mat           = pbr_data->Entity[i];
-        mat.Color[0]        = 1.0f;
-        mat.Color[1]        = 1.0f;
-        mat.Color[2]        = 1.0f;
-        mat.TilingX         = 2.0f;
-        mat.TilingY         = 2.0f;
-        mat.Reflectance     = 0.5f;
-        mat.UseAlbedo       = 1.0f;
+        auto &mat = pbr_data->Entity[i];
+        mat.Color[0] = 1.0f;
+        mat.Color[1] = 1.0f;
+        mat.Color[2] = 1.0f;
+        mat.TilingX = 2.0f;
+        mat.TilingY = 2.0f;
+        mat.Reflectance = 0.5f;
+        mat.UseAlbedo = 1.0f;
         mat.UseRougAndMetal = 1.0f;
-        mat.Metallic        = 0.5f;
-        mat.Roughness       = 0.5f;
-        mat.UseNormalMap    = 1.0f;
+        mat.Metallic = 0.5f;
+        mat.Roughness = 0.5f;
+        mat.UseNormalMap = 1.0f;
 
-        mat.AlbedoIdx      = G_Tex.Pbr[i].Alb.Index;
-        mat.AlbedoLayer    = G_Tex.Pbr[i].Alb.Layer;
-        mat.NormalIdx      = G_Tex.Pbr[i].Nor.Index;
-        mat.NormalLayer    = G_Tex.Pbr[i].Nor.Layer;
-        mat.RoughnessIdx   = G_Tex.Pbr[i].Rou.Index;
+        mat.AlbedoIdx = G_Tex.Pbr[i].Alb.Index;
+        mat.AlbedoLayer = G_Tex.Pbr[i].Alb.Layer;
+        mat.NormalIdx = G_Tex.Pbr[i].Nor.Index;
+        mat.NormalLayer = G_Tex.Pbr[i].Nor.Layer;
+        mat.RoughnessIdx = G_Tex.Pbr[i].Rou.Index;
         mat.RoughnessLayer = G_Tex.Pbr[i].Rou.Layer;
-        mat.MetallicIdx    = G_Tex.Pbr[i].Met.Index;
-        mat.MetallicLayer  = G_Tex.Pbr[i].Met.Layer;
+        mat.MetallicIdx = G_Tex.Pbr[i].Met.Index;
+        mat.MetallicLayer = G_Tex.Pbr[i].Met.Layer;
     }
 
-    ((int *)GShaders.Pipelines[SkyShader].Data)[16]    = G_Tex.Sky.Index;
-    GShaders.Pipelines[SkyShader].Data[17]             = G_Tex.Sky.Layer;
+    ((int *)GShaders.Pipelines[SkyShader].Data)[16] = G_Tex.Sky.Index;
+    GShaders.Pipelines[SkyShader].Data[17] = G_Tex.Sky.Layer;
     *(NyasTexture *)GShaders.Pipelines[ImgShader].Data = G_FbTex;
 }
 
-void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame)
-{
+void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame) {
     nyas::PollIO();
     nym::vec2i_t vp = nyas::GetCurrentCtx()->Platform.WindowSize;
     nyas::Camera.Navigate();
@@ -215,30 +207,18 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Scene entities
     {
         NyasDrawCmd draw;
-        draw.Framebuf           = G_Framebuf;
-        draw.Shader             = PbrShader;
-        draw.State.BgColorR     = 0.2f;
-        draw.State.BgColorG     = 0.2f;
-        draw.State.BgColorB     = 0.2f;
-        draw.State.BgColorA     = 1.0f;
+        draw.Framebuf = G_Framebuf;
+        draw.Shader = PbrShader;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
         draw.State.ViewportMaxX = vp.x;
         draw.State.ViewportMaxY = vp.y;
-        draw.State.EnableFlags |= NyasDrawFlags_ColorClear;
         draw.State.EnableFlags |= NyasDrawFlags_DepthClear;
-        draw.State.EnableFlags |= NyasDrawFlags_Blend;
         draw.State.EnableFlags |= NyasDrawFlags_DepthTest;
         draw.State.EnableFlags |= NyasDrawFlags_DepthWrite;
-        draw.State.BlendSrc    = NyasBlendFunc_One;
-        draw.State.BlendDst    = NyasBlendFunc_Zero;
-        draw.State.Depth       = NyasDepthFunc_Less;
-        draw.State.FaceCulling = NyasFaceCull_Back;
+        draw.State.Depth = NyasDepthFunc_Less;
 
-        //draw.UnitCount = 1;
-        //draw.Units     = (NyasDrawUnit *)NyFrameAllocator::Alloc(1 * sizeof(NyasDrawUnit));
-        for (int i = 0; i < nyas::Entities.Count; ++i)
-        {
+        for (int i = 0; i < nyas::Entities.Count; ++i) {
             auto *pbr_uniform_block =
                 (PbrUnitData *)(((PbrData *)GShaders.Pipelines[PbrShader].Data)->Entity);
             mat4_assign(pbr_uniform_block[i].Model, nyas::Entities[i].Transform);
@@ -247,14 +227,12 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
             cmd.IndexCount = mesh.Count;
             cmd.InstanceCount = 1;
             cmd.IndexStart = mesh.Idx;
-            cmd.BaseVertex = mesh.Vtx;
+            cmd.BaseVertex = mesh.Vtx / 14;
             cmd.BaseInstance = 0;
             draw.Commands.emplace_back(cmd);
         }
-        //draw.Units->Shader    = nyas::Entities[0].Shader;
-        //draw.Units->Mesh      = nyas::Entities[0].Mesh;
-        //draw.Units->Instances = nyas::Entities.Count;
         draw.UnitCount = 0;
+        draw.Units = NULL;
 
         new_frame.Push(draw);
     }
@@ -262,16 +240,15 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Skybox
     {
         NyasDrawCmd draw;
-        nyas::Camera.OriginViewProj(*(nym::mat4_t*)GShaders.Pipelines[SkyShader].Data);
+        nyas::Camera.OriginViewProj(*(nym::mat4_t *)GShaders.Pipelines[SkyShader].Data);
         ((int *)GShaders.Pipelines[SkyShader].Data)[16] = G_Tex.Sky.Index;
-        GShaders.Pipelines[SkyShader].Data[17]          = G_Tex.Sky.Layer;
-        draw.Shader                                     = SkyShader;
-        draw.State.DisableFlags |= NyasDrawFlags_FaceCulling;
-        draw.State.Depth      = NyasDepthFunc_LessEqual;
-        draw.UnitCount        = 1;
-        draw.Units            = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Shader    = SkyShader;
-        draw.Units->Mesh      = NYAS_CUBE;
+        GShaders.Pipelines[SkyShader].Data[17] = G_Tex.Sky.Layer;
+        draw.Shader = SkyShader;
+        draw.State.Depth = NyasDepthFunc_LessEqual;
+        draw.UnitCount = 1;
+        draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
+        draw.Units->Shader = SkyShader;
+        draw.Units->Mesh = NYAS_CUBE;
         draw.Units->Instances = 1;
         new_frame.Push(draw);
     }
@@ -279,27 +256,25 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     // Frame texture
     {
         NyasDrawCmd draw;
-        draw.Framebuf           = NyasCode_Default;
-        draw.Shader             = ImgShader;
+        draw.Framebuf = NyasCode_Default;
+        draw.Shader = ImgShader;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
         draw.State.ViewportMaxX = vp.x;
         draw.State.ViewportMaxY = vp.y;
-        draw.State.DisableFlags |= NyasDrawFlags_DepthTest;
-        draw.UnitCount        = 1;
-        draw.Units            = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Shader    = ImgShader;
-        draw.Units->Mesh      = NYAS_QUAD;
+        draw.State.Depth = NyasDepthFunc_Always;
+        draw.UnitCount = 1;
+        draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
+        draw.Units->Shader = ImgShader;
+        draw.Units->Mesh = NYAS_QUAD;
         draw.Units->Instances = 1;
         new_frame.Push(draw);
     }
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     NY_UNUSED(argc), NY_UNUSED(argv);
-    if (!nyas::InitIO("NYAS PBR Material Demo", 1920, 1080))
-    {
+    if (!nyas::InitIO("NYAS PBR Material Demo", 1600, 900)) {
         NYAS_LOG_ERR("Error creating glfw window. Aborting execution...");
         return 1;
     }
@@ -307,8 +282,7 @@ int main(int argc, char **argv)
     nyas::Camera.Init(*nyas::GetCurrentCtx());
     Init();
     NyChrono frame_chrono;
-    while (!nyas::GetCurrentCtx()->Platform.WindowClosed)
-    {
+    while (!nyas::GetCurrentCtx()->Platform.WindowClosed) {
         // NewFrame
         float delta_time = NyChrono::Seconds((double)frame_chrono.Elapsed());
         frame_chrono.Restart();
@@ -318,8 +292,7 @@ int main(int argc, char **argv)
         BuildFrame(frame);
 
         // Render
-        for (int i = 0; i < frame.Size; ++i)
-        {
+        for (int i = 0; i < frame.Size; ++i) {
             nyas::Draw(&frame[i]);
         }
 
