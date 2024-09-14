@@ -1,14 +1,15 @@
 ﻿BasedOnStyle: LLVM 
 TabWidth: 4
 IndentWidth: 4
-InsertNewlineAtEOF: True
+InsertNewlineAtEOF: true
 Language: Cpp
+AlwaysBreakTemplateDeclarations: true
 ColumnLimit: 100
 MaxEmptyLinesToKeep: 1
 PointerAlignment: Right
 ReferenceAlignment: Pointer
 RemoveParentheses: MultipleParentheses
-RemoveSemicolon: True
+RemoveSemicolon: true
 
 PenaltyBreakString: 1000000
 PenaltyBreakScopeResolution: 99
@@ -24,10 +25,10 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^"nyas'
     Priority: 2
-    CaseSensitive: True
+    CaseSensitive: true
   - Regex: '^((<|")(glfw|glad)/)'
     Priority: 3
-    CaseSensitive: False
+    CaseSensitive: false
   - Regex: '<[[:alnum:].]+>'
     Priority: 4
   - Regex: '.*'

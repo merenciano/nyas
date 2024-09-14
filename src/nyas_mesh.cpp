@@ -1,8 +1,11 @@
-#include "tinyobj_loader_c.h"
-
 #include "nyas.h"
 #include "nyas_render.h"
 #include "nyas_types.h"
+
+#include <set>
+
+#define TINYOBJ_LOADER_C_IMPLEMENTATION
+#include "tinyobj_loader_c.h"
 
 static void
 _NyReadFile(void *_1, const char *path, int _2, const char *_3, char **buf, size_t *size) {
@@ -22,7 +25,7 @@ static NyDrawIdx _CheckVertex(const float *v, const float *end, const float *new
     return i;
 }
 
-void _SetMeshObj(NyMeshes::MeshData *mesh, const char *path) {
+void _SetMeshObj(NyMeshes::LoadedMesh *mesh, const char *path) {
     tinyobj_attrib_t attrib;
     tinyobj_shape_t *shapes = NULL;
     size_t shape_count;
@@ -86,14 +89,14 @@ void _SetMeshObj(NyMeshes::MeshData *mesh, const char *path) {
             v3[13] = attrib.texcoords[2 * idx.vt_idx + 1];
 
             // Calculate tangent and bitangent
-            nym::vec3_t delta_p1 = (nym::vec3_t)&v2[0] - (nym::vec3_t)&v1[0];
-            nym::vec3_t delta_p2 = (nym::vec3_t)&v3[0] - (nym::vec3_t)&v1[0];
-            nym::vec2_t delta_uv1 = (nym::vec2_t)&v2[12] - (nym::vec2_t)&v1[12];
-            nym::vec2_t delta_uv2 = (nym::vec2_t)&v3[12] - (nym::vec2_t)&v1[12];
+            nyas::Vec3 delta_p1 = (nyas::Vec3)&v2[0] - (nyas::Vec3)&v1[0];
+            nyas::Vec3 delta_p2 = (nyas::Vec3)&v3[0] - (nyas::Vec3)&v1[0];
+            nyas::Vec2 delta_uv1 = (nyas::Vec2)&v2[12] - (nyas::Vec2)&v1[12];
+            nyas::Vec2 delta_uv2 = (nyas::Vec2)&v3[12] - (nyas::Vec2)&v1[12];
             float r = 1.0f / (delta_uv1[0] * delta_uv2[1] - delta_uv1[1] * delta_uv2[0]);
 
-            nym::vec3_t tn = delta_p1 * delta_uv2[1];
-            nym::vec3_t bitn = delta_p2 * delta_uv1[0];
+            nyas::Vec3 tn = delta_p1 * delta_uv2[1];
+            nyas::Vec3 bitn = delta_p2 * delta_uv1[0];
             tn = (tn - (delta_p1 * delta_uv1[1])) * r;
             bitn = (bitn - (delta_p1 * delta_uv2[0])) * r;
 
@@ -149,7 +152,7 @@ void _SetMeshObj(NyMeshes::MeshData *mesh, const char *path) {
     tinyobj_materials_free(mats, mats_count);
 }
 
-static void _SetMeshMsh(NyMeshes::MeshData *mesh, const char *path) {
+static void _SetMeshMsh(NyMeshes::LoadedMesh *mesh, const char *path) {
     char *data;
     size_t sz;
     _NyReadFile(NULL, path, 0, NULL, &data, &sz);
@@ -161,9 +164,6 @@ static void _SetMeshMsh(NyMeshes::MeshData *mesh, const char *path) {
     mesh->Vertices.clear();
     mesh->Indices.clear();
 
-    /*mesh->Attribs = NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal |
-                    NyasVtxAttribFlags_Tangent | NyasVtxAttribFlags_Bitangent |
-                    NyasVtxAttribFlags_UV;*/
     mesh->Vertices.resize(*(size_t *)data / sizeof(float));
     data += sizeof(size_t);
     memcpy(mesh->Vertices.data(), data, mesh->Vertices.size() * sizeof(float));
@@ -176,15 +176,17 @@ static void _SetMeshMsh(NyMeshes::MeshData *mesh, const char *path) {
     NYAS_FREE(data - mesh->Vertices.size() * sizeof(float) - (2 * sizeof(size_t)));
 }
 
-NyasHandle NyMeshes::Alloc() {
+NyasHandle NyMeshes::Alloc(NyasVtxAttribFlags attribs) {
     NyasHandle handle = Meshes.size();
-    Meshes.emplace_back(0, 0, 0);
+    Meshes.emplace_back(attribs, 0, 0, 0);
+    auto &data = Data.emplace_back();
+    data.Attribs = attribs;
     return handle;
 }
 
 void NyMeshes::Load(NyasHandle handle, const char *path) {
     auto LoadMesh = [](const char *path) {
-        MeshData mesh;
+        LoadedMesh mesh;
         size_t len = strlen(path);
         const char *extension = path + len;
         while (*--extension != '.') {
@@ -204,32 +206,65 @@ void NyMeshes::Load(NyasHandle handle, const char *path) {
 }
 
 void NyMeshes::Update(NyasHandle handle, float *vtx, int vtx_count, NyDrawIdx *ind, int ind_count) {
-    MeshData mesh;
+    LoadedMesh mesh;
     mesh.Vertices.insert(mesh.Vertices.end(), vtx, vtx + vtx_count);
     mesh.Indices.insert(mesh.Indices.end(), ind, ind + ind_count);
     Updates.emplace_back(
         handle,
-        std::async(std::launch::deferred, [](MeshData &&mesh) { return mesh; }, std::move(mesh)));
+        std::async(std::launch::deferred, [](LoadedMesh &&mesh) { return mesh; }, std::move(mesh)));
 }
 
-void NyMeshes::Sync() {
-    if ((int)InternalID == -1) {
-        nyas::render::_NyCreateMesh(&InternalID, &VtxInternalID, &IdxInternalID);
+NyMeshes::NyMeshArray *NyMeshes::GetData(NyasVtxAttribFlags attribs) {
+    NyMeshArray *data = NULL;
+    for (auto &attr_data : Data) {
+        if (attr_data.Attribs == attribs) {
+            data = &attr_data;
+        }
     }
 
+    NYAS_ASSERT(data);
+    return data;
+}
+
+static int _GetStrideUnits(NyasVtxAttribFlags attribs) {
+    int stride = 0;
+    for (int i = 0; i < NyasVtxAttrib_COUNT; ++i) {
+        if (attribs & (1 << i)) {
+            stride += nyas::render::AttribSizes[i];
+        }
+    }
+    return stride;
+}
+
+void NyMeshes::Sync(NyasVtxAttribFlags attribs) {
+    std::set<NyMeshArray *> Dirty;
     for (auto &[hnd, future_mesh] : Updates) {
-        MeshData mesh = future_mesh.get();
-        Meshes[hnd].Vtx = VtxData.size();
-        Meshes[hnd].Idx = IdxData.size();
-        Meshes[hnd].Count = mesh.Indices.size();
-        VtxData.insert(VtxData.end(), mesh.Vertices.begin(), mesh.Vertices.end());
-        IdxData.insert(IdxData.end(), mesh.Indices.begin(), mesh.Indices.end());
+        LoadedMesh loaded = future_mesh.get();
+        NyMeshArray *data = GetData(Meshes[hnd].Attribs);
+        Meshes[hnd].Vertex = data->VtxData.size() / _GetStrideUnits(data->Attribs);
+        Meshes[hnd].Index = data->IdxData.size();
+        Meshes[hnd].Count = loaded.Indices.size();
+        data->VtxData.insert(data->VtxData.end(), loaded.Vertices.begin(), loaded.Vertices.end());
+        data->IdxData.insert(data->IdxData.end(), loaded.Indices.begin(), loaded.Indices.end());
+        Dirty.emplace(data);
     }
-
-    if (Updates.size()) {
-        nyas::render::_NySetMesh(this);
-    }
-
-    nyas::render::_NyUseMesh(InternalID);
     Updates.clear();
+
+    if (!Dirty.empty()) {
+        for (NyMeshArray *mesh : Dirty) {
+            if ((int)mesh->VaoID == -1) {
+                NYAS_ASSERT((int)mesh->VtxID == -1);
+                NYAS_ASSERT((int)mesh->IdxID == -1);
+                nyas::render::_NyCreateMesh(mesh->Attribs, &mesh->VaoID, &mesh->VtxID, &mesh->IdxID);
+            }
+
+            NYAS_ASSERT((int)mesh->VaoID != -1);
+            NYAS_ASSERT((int)mesh->VtxID != -1);
+            NYAS_ASSERT((int)mesh->IdxID != -1);
+            nyas::render::_NySetMesh(mesh);
+        }
+    }
+
+    NyMeshArray *mesh = GetData(attribs);
+    nyas::render::_NyUseMesh(mesh->VaoID);
 }

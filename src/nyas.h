@@ -3,11 +3,6 @@
     * Change flag values from enum to constexpr unsigned int (see constexpr
    'inline' unsigned int)
     * glTF Import/Export
-    * Async resource loader
-    * Math lib
-    * Vertex attributes in NyasPipeline. Vertex layout and in/out in
-   NyasShaderSrc.
-
 */
 
 #ifndef NYAS_H
@@ -33,16 +28,9 @@ struct NyasCtx;
 extern NyTextures GTextures;
 extern NyPipelines GShaders;
 extern NyMeshes GMeshes;
+extern NyFramebuffers GFb;
 
 namespace nyas {
-NyasHandle CreateFramebuffer();
-void SetFramebufferTarget(NyasHandle fb, int index, NyasTexTarget target);
-
-// TODO(Renderer): Unificar load y reload
-NyasHandle CreateMesh();
-NyasHandle LoadMesh(const char *path);
-void ReloadMesh(NyasHandle mesh, const char *path);
-
 void Draw(NyasDrawCmd *command);
 
 NyasCtx *GetCurrentCtx();
@@ -53,31 +41,31 @@ void WindowSwap();
 int ReadFile(const char *path, char **dst, size_t *size);
 } // namespace nyas
 
-typedef struct NyasCtx {
+struct NyasCtx {
     NyasPlatform Platform;
     NyasConfig Cfg;
     NyasIO IO;
-} NyasCtx;
+};
 
 struct NyasCamera {
-    nym::mat4_t View;
-    nym::mat4_t Proj;
+    nyas::Mat4 View;
+    nyas::Mat4 Proj;
     float Far;
     float Fov;
     NyasCamera() = default;
     void Navigate();
 
     // Position.
-    inline nym::vec3_t Eye() const {
-        nym::mat4_t inverse = nym::mat4_t::inv(View);
+    inline nyas::Vec3 Eye() const {
+        nyas::Mat4 inverse = nyas::Mat4::inv(View);
         return {inverse[12], inverse[13], inverse[14]};
     }
 
-    inline nym::vec3_t Fwd() const { return {View[2], View[6], View[10]}; } // Forward vector.
+    inline nyas::Vec3 Fwd() const { return {View[2], View[6], View[10]}; } // Forward vector.
 
     // Matrix with zeroed translation (i.e., projection * vec4(vec3(view)). For
     // skybox.
-    inline void OriginViewProj(nym::mat4_t &out) {
+    inline void OriginViewProj(nyas::Mat4 &out) {
         out = View;
         out[3] = 0.0f;
         out[7] = 0.0f;
@@ -90,24 +78,23 @@ struct NyasCamera {
     }
 
     inline void Init(
-        const NyasCtx &ctx, nym::vec3_t pos = {0.0f, 2.0f, 2.0f},
-        nym::vec3_t target = {0.0f, 0.0f, -1.0f}, float far = 300.0f, float fov = 70.0f) {
+        const NyasCtx &ctx, nyas::Vec3 pos = {0.0f, 2.0f, 2.0f},
+        nyas::Vec3 target = {0.0f, 0.0f, -1.0f}, float far = 300.0f, float fov = 70.0f) {
         Far = far;
         Fov = fov;
-        View = nym::mat4_t::look_at(pos, target, nym::vec3_t::up());
-        Proj = nym::mat4_t::perspective(
-            nym::to_radians(fov), ctx.Platform.WindowSize.x, ctx.Platform.WindowSize.y, 0.01f, far);
+        View = nyas::Mat4::look_at(pos, target, nyas::Vec3::up());
+        Proj = nyas::Mat4::perspective(
+            nyas::to_radians(fov), ctx.Platform.WindowSize.x, ctx.Platform.WindowSize.y, 0.01f, far);
     }
 };
 
-typedef struct NyasEntity {
-    float Transform[16];
+struct NyasEntity {
+    nyas::Mat4 Transform;
     NyasHandle Mesh;
     NyasHandle Shader;
-} NyasEntity;
+};
 
 namespace nyas {
-extern NyPool<NyasMesh> Meshes;
 extern NyPool<NyasFramebuffer> Framebufs;
 extern NyPool<NyasEntity> Entities;
 extern NyasCamera Camera;

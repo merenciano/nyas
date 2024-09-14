@@ -86,11 +86,8 @@ void NyTextures::Load(NyasTexture handle, const char *path) {
 }
 
 void NyTextures::Update(NyasTexture h, NyasTexImage img) {
-    // TODO: Dejar solo la linea del medio.
-    auto ImgPromise = std::promise<NyasTexImage>();
     Updates.emplace_back(
         h, std::async(std::launch::deferred, [](NyasTexImage img) { return img; }, img));
-    ImgPromise.set_value(NyasTexImage(NULL));
 }
 
 void NyTextures::Sync() {

@@ -10,10 +10,11 @@
 #define NYAS_CUBEMAP_ARRAY_SIZE 8
 #define NYAS_CUBEMAP_ARRAYS 8
 
+// TODO: Check this define...
 #define NYAS_INVALID_RESOURCE_ID 0
 
-// #define NyDrawIdx unsigned int
-// #define NyResourceID void*
+#define NyDrawIdx unsigned short
+#define NyResourceID unsigned int
 // #define NYAS_ASSERT(_COND) assert(_COND)
 
 #endif // NYAS_CONFIG_H

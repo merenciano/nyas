@@ -15,6 +15,7 @@
 
 typedef int NyasHandle;
 
+// Fallback definitions
 #ifndef NyDrawIdx
 typedef unsigned short NyDrawIdx;
 #endif
@@ -31,13 +32,11 @@ struct NyasTexInfo;
 struct NyasTexImage;
 struct NyasTexture;
 struct NyasTexTarget;
-struct NyasMesh;
 struct NyasMaterial;
 struct NyasShaderSrc;
 struct NyasPipeline;
 struct NyasFramebuffer;
 struct NyasDrawState;
-struct NyasDrawUnit;
 struct NyasDrawCmd;
 
 // Flags
@@ -249,21 +248,10 @@ struct NyasTexture {
     NyasTexFlags Flags = NyasTexFlags_None;
 };
 
-typedef struct NyasResource {
+struct NyasResource {
     uint32_t ID = NYAS_INVALID_RESOURCE_ID;
-    NyasResourceFlags Flags = NyasResourceFlags_Created;
-} NyasResource;
-
-typedef struct NyasMesh {
-    NyasResource Resource;
-    NyasResource ResVtx; // vertex buffer resource
-    NyasResource ResIdx; // index buffer resource
-    float *Vtx;
-    NyDrawIdx *Indices;
-    int64_t ElementCount;
-    uint32_t VtxSize;
-    NyasVtxAttribFlags Attribs;
-} NyasMesh;
+    NyasResourceFlags Flags = NyasResourceFlags_Dirty;
+};
 
 struct NyasTexTarget {
     NyasTexture Tex;
@@ -275,6 +263,7 @@ struct NyasTexTarget {
 struct NyasFramebuffer {
     NyasResource Resource;
     NyasTexTarget Target[8];
+    int TargetCount;
 };
 
 typedef struct NyasDrawState {
@@ -307,31 +296,21 @@ typedef struct NyasDrawState {
           BgColorA(-1.0f) {}
 } NyasDrawState;
 
-typedef struct NyasDrawUnit {
-    NyasHandle Shader;
-    NyasHandle Mesh;
-    int Instances;
-
-    NyasDrawUnit() : Instances(1) {}
-} NyasDrawUnit;
-
 struct NyasDrawElementCmd {
-    uint32_t IndexCount;
-    uint32_t InstanceCount;
-    uint32_t IndexStart; // first index
-    int32_t BaseVertex;
-    uint32_t BaseInstance;
+    uint32_t IndexCount = 0;
+    uint32_t InstanceCount = 1;
+    uint32_t IndexStart = 0; // first index
+    int32_t BaseVertex = 0;
+    uint32_t BaseInstance = 0;
 };
 
-typedef struct NyasDrawCmd {
+struct NyasDrawCmd {
     NyasDrawState State;
-    NyasDrawUnit *Units;
-    int UnitCount;
     NyasHandle Framebuf;
-    NyasHandle Shader;
+    NyasHandle Pipeline;
     std::vector<NyasDrawElementCmd> Commands; // TODO: GL_DRAW_INDIRECT_BUFFER
-    NyasDrawCmd() : Units(NULL), UnitCount(0), Framebuf(NyasCode_NoOp) {}
-} NyasDrawCmd;
+    NyasDrawCmd() : Framebuf(NyasCode_NoOp) {}
+};
 
 struct NyTextures {
     struct NyTexArray {
@@ -352,41 +331,57 @@ struct NyTextures {
     NyTexArray Cubemaps[NYAS_CUBEMAP_ARRAYS];
     NyResourceID TexInternalIDs[NYAS_TEX_ARRAYS];
     NyResourceID CubemapInternalIDs[NYAS_CUBEMAP_ARRAYS];
-
     std::vector<std::pair<NyasTexture, std::future<NyasTexImage>>> Updates;
 };
 
 struct NyMeshes {
     struct MeshUnit {
-        MeshUnit(int vtx, int idx, int count) : Vtx(vtx), Idx(idx), Count(count) {}
-        int Vtx; // VertexBase
-        int Idx;
-        int Count; // Index
+        MeshUnit(NyasVtxAttribFlags attr, int vtx, int idx, int count)
+            : Attribs(attr), Vertex(vtx), Index(idx), Count(count) {}
+        NyasVtxAttribFlags Attribs = NyasVtxAttribFlags_None;
+        int Vertex; // Base vertex
+        int Index;  // First index
+        int Count;  // Element count
     };
 
-    struct MeshData {
+    struct LoadedMesh {
         std::vector<float> Vertices;
         std::vector<NyDrawIdx> Indices;
     };
 
-    NyMeshes() { InternalID = -1; }
-    NyasHandle Alloc();
+    struct NyMeshArray {
+        NyasVtxAttribFlags Attribs = NyasVtxAttribFlags_None;
+        NyResourceID VaoID = -1;
+        NyResourceID VtxID = -1;
+        NyResourceID IdxID = -1;
+
+        std::vector<float> VtxData;
+        std::vector<NyDrawIdx> IdxData;
+    };
+
+    NyasHandle Alloc(NyasVtxAttribFlags attribs);
     void Load(NyasHandle handle, const char *path);
+    // vtx_count and ind_count are units (float/NyDrawIdx) not bytes
     void Update(NyasHandle handle, float *vtx, int vtx_count, NyDrawIdx *ind, int ind_count);
-    void Sync();
+    void Sync(NyasVtxAttribFlags attribs);
+    NyMeshArray *GetData(NyasVtxAttribFlags attribs);
 
-    NyResourceID InternalID;
-    NyResourceID VtxInternalID;
-    NyResourceID IdxInternalID;
-
-    NyResourceID ShaderInternalID;
-    NyasVtxAttribFlags Attribs;
-
-    std::vector<float> VtxData;
-    std::vector<NyDrawIdx> IdxData;
+    std::vector<NyMeshArray> Data;
     std::vector<MeshUnit> Meshes;
+    std::vector<std::pair<NyasHandle, std::future<LoadedMesh>>> Updates;
+};
 
-    std::vector<std::pair<NyasHandle, std::future<MeshData>>> Updates;
+struct NyFramebuffers {
+    struct TargetInfo {
+        TargetInfo(NyasTexTarget tar, int idx) : Target(tar), Index(idx) {}
+        NyasTexTarget Target;
+        int Index;
+    };
+    NyasHandle Alloc(int target_count);
+    void Update(NyasHandle handle, NyasTexTarget target, int index);
+    void Sync(NyasHandle handle);
+    std::vector<NyasFramebuffer> Fb;
+    std::vector<std::pair<NyasHandle, std::future<TargetInfo>>> Updates;
 };
 
 // clang-format off
@@ -395,7 +390,14 @@ struct NyMeshes {
 		"#define TEX_COUNT " NYAS_STR(NYAS_TEX_ARRAYS)"\n"\
 		"#define CUBE_COUNT " NYAS_STR(NYAS_CUBEMAP_ARRAYS)"\n"\
 		"layout(binding = 0) uniform samplerCubeArray u_cubemaps[CUBE_COUNT];\n"\
-		"layout(binding = CUBE_COUNT) uniform sampler2DArray u_textures[TEX_COUNT];\n"
+		"layout(binding = CUBE_COUNT) uniform sampler2DArray u_textures[TEX_COUNT];\n"\
+        "layout(location=0) in vec3 a_position;\n"\
+        "layout(location=1) in vec3 a_normal;\n"\
+        "layout(location=2) in vec3 a_tangent;\n"\
+        "layout(location=3) in vec3 a_bitangent;\n"\
+        "layout(location=4) in vec2 a_uv;\n"\
+        "layout(location=5) in vec4 a_color;\n"
+
 // clang-format on
 
 struct NyasShaderSrc {
@@ -439,9 +441,24 @@ struct NyasPipeline {
     float *Data = NULL;
     int DataSize = 0;
     NyasVtxAttribFlags Attribs = NyasVtxAttribFlags_None;
-    NyResourceID VaoID = NYAS_INVALID_RESOURCE_ID;
 
     NyasPipeline(int data_size) : DataSize(data_size) { Data = (float *)NYAS_ALLOC(DataSize); }
+    NyasPipeline(NyasPipeline &&other) {
+        DataID = other.DataID;
+        Data = other.Data;
+        DataSize = other.DataSize;
+        Attribs = other.Attribs;
+        other.DataID = NYAS_INVALID_RESOURCE_ID;
+        other.Data = NULL;
+        other.DataSize = 0;
+        other.Attribs = NyasVtxAttribFlags_None;
+    }
+
+    NyasPipeline(const NyasPipeline &) = delete;
+    ~NyasPipeline() {
+        NYAS_FREE(Data);
+        Data = NULL;
+    }
 };
 
 struct NyasPipelineBuilder {
@@ -464,8 +481,11 @@ struct NyPipelines {
         Updates.emplace_back(std::move(pipeline_src));
     }
 
-    NyasHandle Load(int unif_size, NyasShaderStage *stages, const char **paths, int count);
-    NyasHandle Load(int unif_size, const char *vert_path, const char *frag_path);
+    NyasHandle Load(
+        int unif_size, NyasShaderStage *stages, const char **paths, int count,
+        NyasVtxAttribFlags attribs);
+    NyasHandle
+    Load(int unif_size, const char *vert_path, const char *frag_path, NyasVtxAttribFlags attribs);
     void Sync(NyasHandle h);
 
     std::vector<NyasPipeline> Pipelines;

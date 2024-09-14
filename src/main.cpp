@@ -1,16 +1,13 @@
 
 #include "nyas.h"
-#include "nyas_types.h"
-
-#include <array>
-#include <stdio.h>
 
 NyTextures GTextures;
 NyPipelines GShaders;
 NyMeshes GMeshes;
+NyFramebuffers GFb;
 
 struct PbrUnitData {
-    nym::mat4_t Model;
+    nyas::Mat4 Model;
     float Color[3];
     float UseAlbedo;
     float TilingX;
@@ -32,8 +29,8 @@ struct PbrUnitData {
 };
 
 struct PbrData {
-    nym::mat4_t ViewProj;
-    nym::vec3_t CameraEye;
+    nyas::Mat4 ViewProj;
+    nyas::Vec3 CameraEye;
     float _Padding;
     float Sunlight[4]; // Alpha for light intensity
     int LutIdx;
@@ -63,17 +60,22 @@ NyasHandle G_Framebuf;
 NyasTexture G_FbTex;
 
 void Init() {
+    NyasVtxAttribFlags pbr_attr =
+        NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_Tangent |
+        NyasVtxAttribFlags_Bitangent | NyasVtxAttribFlags_UV;
     PbrShader = GShaders.Load(
-        sizeof(PbrData), "assets/shaders/pbr-vert.glsl", "assets/shaders/pbr-frag.glsl");
+        sizeof(PbrData), "assets/shaders/pbr-vert.glsl", "assets/shaders/pbr-frag.glsl", pbr_attr);
     SkyShader = GShaders.Load(
-        20 * sizeof(float), "assets/shaders/skybox-vert.glsl", "assets/shaders/skybox-frag.glsl");
+        20 * sizeof(float), "assets/shaders/skybox-vert.glsl", "assets/shaders/skybox-frag.glsl",
+        NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV);
     ImgShader = GShaders.Load(
-        16, "assets/shaders/fullscreen-img-vert.glsl", "assets/shaders/fullscreen-img-frag.glsl");
+        16, "assets/shaders/fullscreen-img-vert.glsl", "assets/shaders/fullscreen-img-frag.glsl",
+        NyasVtxAttribFlags_Position | NyasVtxAttribFlags_Normal | NyasVtxAttribFlags_UV);
 
-    NyasHandle G_Mesh = GMeshes.Alloc();
-    GMeshes.Load(G_Mesh, "assets/obj/matball.msh");
-    NyasHandle G_Mesh2 = GMeshes.Alloc();
-    GMeshes.Load(G_Mesh2, "assets/obj/slender.msh");
+    NyasHandle matball = GMeshes.Alloc(pbr_attr);
+    GMeshes.Load(matball, "assets/obj/matball.obj");
+    NyasHandle slender = GMeshes.Alloc(pbr_attr);
+    GMeshes.Load(slender, "assets/obj/slender.msh");
 
     NyasTexture irradiance;
     NyasTexture prefilter;
@@ -81,12 +83,7 @@ void Init() {
     NyUtil::LoadEnv("assets/env/canyon.env", &lut, &G_Tex.Sky, &irradiance, &prefilter);
     NyUtil::LoadBasicGeometries();
 
-    NyasHandle Sphere = GMeshes.Alloc();
-    GMeshes.Update(
-        Sphere, nyas::Meshes[NYAS_SPHERE].Vtx, nyas::Meshes[NYAS_SPHERE].VtxSize / sizeof(float),
-        nyas::Meshes[NYAS_SPHERE].Indices, nyas::Meshes[NYAS_SPHERE].ElementCount);
-
-    std::array<const char *, 36> texpaths{
+    const char *texpaths[] = {
         "assets/tex/celtic-gold/celtic-gold_A.png",
         "assets/tex/celtic-gold/celtic-gold_N.png",
         "assets/tex/celtic-gold/celtic-gold_R.png",
@@ -148,22 +145,18 @@ void Init() {
     pbr_data->PrefIdx = prefilter.Index;
     pbr_data->PrefLayer = (float)prefilter.Layer;
 
-    G_Framebuf = nyas::CreateFramebuffer();
-    nym::vec2i_t vp = nyas::GetCurrentCtx()->Platform.WindowSize;
+    G_Framebuf = GFb.Alloc(2);
+    nyas::Vec2i vp = nyas::GetCurrentCtx()->Platform.WindowSize;
     G_FbTex = GTextures.Alloc({NyasTexFmt_RGB_32F, vp.x, vp.y, 1});
     NyasTexture fb_depth = GTextures.Alloc({NyasTexFmt_Depth, vp.x, vp.y, 1});
 
-    NyasTexTarget color = {G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0};
-    NyasTexTarget depth = {fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0};
-    nyas::SetFramebufferTarget(G_Framebuf, 0, color);
-    nyas::SetFramebufferTarget(G_Framebuf, 1, depth);
+    GFb.Update(G_Framebuf, {G_FbTex, NyasTexFace_2D, NyasFbAttach_Color, 0}, 0);
+    GFb.Update(G_Framebuf, {fb_depth, NyasTexFace_2D, NyasFbAttach_Depth, 0}, 1);
 
     for (int i = 0; i < 9; ++i) {
         auto &e = nyas::Entities[nyas::Entities.Add()];
-        memcpy(
-            e.Transform, nym::mat4_t::translation({(i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f}).v,
-            16 * sizeof(float));
-        e.Mesh = !i ? Sphere : i > 2 ? G_Mesh2 : G_Mesh;
+        e.Transform = nyas::Mat4::translation({(i % 3) * 2.0f - 2.0f, 0.0f, (i / 3) * -2.0f});
+        e.Mesh = !i ? NYAS_SPHERE : i == 1 ? slender : matball;
         e.Shader = PbrShader;
 
         auto &mat = pbr_data->Entity[i];
@@ -195,20 +188,13 @@ void Init() {
 }
 
 void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new_frame) {
-    nyas::PollIO();
-    nym::vec2i_t vp = nyas::GetCurrentCtx()->Platform.WindowSize;
-    nyas::Camera.Navigate();
-
-    /* PBR common shader data. */
-    auto *pbr_shared_block = (PbrData *)GShaders.Pipelines[PbrShader].Data;
-    mat4_multiply(pbr_shared_block->ViewProj, nyas::Camera.Proj, nyas::Camera.View);
-    pbr_shared_block->CameraEye = nyas::Camera.Eye();
+    nyas::Vec2i vp = nyas::GetCurrentCtx()->Platform.WindowSize;
 
     // Scene entities
     {
         NyasDrawCmd draw;
         draw.Framebuf = G_Framebuf;
-        draw.Shader = PbrShader;
+        draw.Pipeline = PbrShader;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
         draw.State.ViewportMaxX = vp.x;
@@ -218,38 +204,40 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
         draw.State.EnableFlags |= NyasDrawFlags_DepthWrite;
         draw.State.Depth = NyasDepthFunc_Less;
 
-        for (int i = 0; i < nyas::Entities.Count; ++i) {
-            auto *pbr_uniform_block =
-                (PbrUnitData *)(((PbrData *)GShaders.Pipelines[PbrShader].Data)->Entity);
-            mat4_assign(pbr_uniform_block[i].Model, nyas::Entities[i].Transform);
-            NyMeshes::MeshUnit mesh = GMeshes.Meshes[nyas::Entities[i].Mesh];
-            NyasDrawElementCmd cmd;
-            cmd.IndexCount = mesh.Count;
-            cmd.InstanceCount = 1;
-            cmd.IndexStart = mesh.Idx;
-            cmd.BaseVertex = mesh.Vtx / 14;
-            cmd.BaseInstance = 0;
-            draw.Commands.emplace_back(cmd);
-        }
-        draw.UnitCount = 0;
-        draw.Units = NULL;
+        // PBR common shader data
+        PbrData *shader_data = (PbrData *)GShaders.Pipelines[PbrShader].Data;
+        shader_data->ViewProj = nyas::Camera.Proj * nyas::Camera.View;
+        shader_data->CameraEye = nyas::Camera.Eye();
 
+        for (int i = 0; i < nyas::Entities.Count; ++i) {
+            PbrUnitData *unit_data = shader_data->Entity;
+            mat4_assign(unit_data[i].Model, nyas::Entities[i].Transform);
+            NyMeshes::MeshUnit mesh = GMeshes.Meshes[nyas::Entities[i].Mesh];
+            NyasDrawElementCmd &cmd = draw.Commands.emplace_back();
+            cmd.IndexCount = mesh.Count;
+            cmd.IndexStart = mesh.Index;
+            cmd.BaseVertex = mesh.Vertex;
+        }
         new_frame.Push(draw);
     }
 
     // Skybox
     {
         NyasDrawCmd draw;
-        nyas::Camera.OriginViewProj(*(nym::mat4_t *)GShaders.Pipelines[SkyShader].Data);
+        nyas::Camera.OriginViewProj(*(nyas::Mat4 *)GShaders.Pipelines[SkyShader].Data);
         ((int *)GShaders.Pipelines[SkyShader].Data)[16] = G_Tex.Sky.Index;
         GShaders.Pipelines[SkyShader].Data[17] = G_Tex.Sky.Layer;
-        draw.Shader = SkyShader;
+        draw.Pipeline = SkyShader;
         draw.State.Depth = NyasDepthFunc_LessEqual;
-        draw.UnitCount = 1;
-        draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Shader = SkyShader;
-        draw.Units->Mesh = NYAS_CUBE;
-        draw.Units->Instances = 1;
+
+        NyMeshes::MeshUnit mesh = GMeshes.Meshes[NYAS_CUBE];
+        auto &cmd = draw.Commands.emplace_back();
+        cmd.IndexCount = mesh.Count;
+        cmd.InstanceCount = 1;
+        cmd.IndexStart = mesh.Index;
+        cmd.BaseVertex = mesh.Vertex;
+        cmd.BaseInstance = 0;
+
         new_frame.Push(draw);
     }
 
@@ -257,17 +245,21 @@ void BuildFrame(NyArray<NyasDrawCmd, NyCircularAllocator<NY_MEGABYTES(16)>> &new
     {
         NyasDrawCmd draw;
         draw.Framebuf = NyasCode_Default;
-        draw.Shader = ImgShader;
+        draw.Pipeline = ImgShader;
         draw.State.ViewportMinX = 0;
         draw.State.ViewportMinY = 0;
         draw.State.ViewportMaxX = vp.x;
         draw.State.ViewportMaxY = vp.y;
         draw.State.Depth = NyasDepthFunc_Always;
-        draw.UnitCount = 1;
-        draw.Units = (NyasDrawUnit *)NyFrameAllocator::Alloc(sizeof(NyasDrawUnit));
-        draw.Units->Shader = ImgShader;
-        draw.Units->Mesh = NYAS_QUAD;
-        draw.Units->Instances = 1;
+
+        NyMeshes::MeshUnit mesh = GMeshes.Meshes[NYAS_QUAD];
+        auto &cmd = draw.Commands.emplace_back();
+        cmd.IndexCount = mesh.Count;
+        cmd.InstanceCount = 1;
+        cmd.IndexStart = mesh.Index;
+        cmd.BaseVertex = mesh.Vertex;
+        cmd.BaseInstance = 0;
+
         new_frame.Push(draw);
     }
 }
@@ -287,6 +279,8 @@ int main(int argc, char **argv) {
         float delta_time = NyChrono::Seconds((double)frame_chrono.Elapsed());
         frame_chrono.Restart();
         nyas::GetCurrentCtx()->Platform.DeltaTime = delta_time;
+        nyas::PollIO();
+        nyas::Camera.Navigate();
         // Build
         NyArray<NyasDrawCmd, NyFrameAllocator> frame;
         BuildFrame(frame);

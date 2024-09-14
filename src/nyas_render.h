@@ -4,6 +4,10 @@
 #include "nyas_types.h"
 
 namespace nyas::render {
+[[maybe_unused]] static const int AttribSizes[NyasVtxAttrib_COUNT] = {3, 3, 3, 3, 2, 4};
+
+// Default generic graphics configuration
+void _Init();
 void _NySetProcLoader(void *(*load_fn)(const char *));
 void _NyCreateTex(NyasTexFlags flags, int unit, NyResourceID *out_id, int count = 1);
 void _NyAllocTex(NyResourceID id, NyasTexInfo info, int layers = 1);
@@ -11,12 +15,12 @@ void _NySetTex(NyResourceID id, NyasTexture tex, NyasTexImage img, NyasTexInfo i
 
 void _NyCreatePipeline(NyResourceID *id, NyasPipeline *pipeline);
 void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb);
-void _NyUsePipeline(NyResourceID id, NyasPipeline pipeline);
+void _NyUsePipeline(NyResourceID id, NyasPipeline *pipeline);
 
-void _NyCreateMesh(NyResourceID *id, NyResourceID *vid, NyResourceID *iid);
+void _NyCreateMesh(
+    NyasVtxAttribFlags attribs, NyResourceID *id, NyResourceID *vid, NyResourceID *iid);
 void _NyUseMesh(NyResourceID id);
-void _NySetMesh(const NyMeshes *meshes);
-void _NySetMesh(NyasMesh *mesh, uint32_t shader_id);
+void _NySetMesh(const NyMeshes::NyMeshArray *mesh);
 void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid);
 
 void _NyCreateFramebuf(NyasFramebuffer *fb);
@@ -45,8 +49,8 @@ void _NyEnableStencilTest();
 void _NyDisableStencilTest();
 void _NyEnableStencilMask();
 void _NyDisableStencilMask();
-void _NyViewport(nym::rect_t rect);
-void _NyScissor(nym::rect_t rect);
+void _NyViewport(nyas::Rect rect);
+void _NyScissor(nyas::Rect rect);
 } // namespace nyas::render
 
 #endif // NYAS_RENDER_H

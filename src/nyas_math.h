@@ -250,7 +250,7 @@ mat4_perspective_fov(float *result, float fov, float w, float h, float n, float 
     return result;
 }
 
-namespace nym {
+namespace nyas {
 
 constexpr float PI = {3.1415926536f};
 
@@ -260,26 +260,26 @@ constexpr float clamp(float value, float min, float max) {
     return value < min ? min : value > max ? max : value;
 }
 
-struct vec2i_t {
+struct Vec2i {
     int x, y;
 };
 
-struct vec2_t {
-    static constexpr float dot(vec2_t lhs, vec2_t rhs);
+struct Vec2 {
+    static constexpr float dot(Vec2 lhs, Vec2 rhs);
 
-    static constexpr float magnitude(vec2_t vec);
+    static constexpr float magnitude(Vec2 vec);
 
-    static constexpr vec2_t normal(vec2_t vec);
+    static constexpr Vec2 normal(Vec2 vec);
 
-    constexpr vec2_t() : x(0.0f), y(0.0f) {}
+    constexpr Vec2() : x(0.0f), y(0.0f) {}
 
-    constexpr vec2_t(float ax, float ay) : x(ax), y(ay) {}
+    constexpr Vec2(float ax, float ay) : x(ax), y(ay) {}
 
-    constexpr vec2_t(float v[2]) : x(v[0]), y(v[1]) {}
+    constexpr Vec2(float v[2]) : x(v[0]), y(v[1]) {}
 
-    constexpr vec2_t(const vec2_t &other) : x(other.x), y(other.y) {}
+    constexpr Vec2(const Vec2 &other) : x(other.x), y(other.y) {}
 
-    constexpr vec2_t &operator=(const vec2_t &other);
+    constexpr Vec2 &operator=(const Vec2 &other);
 
     constexpr operator float *();
 
@@ -289,27 +289,27 @@ struct vec2_t {
 
     constexpr float &operator[](int i);
 
-    constexpr vec2_t operator+(const vec2_t &other) const;
+    constexpr Vec2 operator+(const Vec2 &other) const;
 
-    constexpr void operator+=(const vec2_t &other);
+    constexpr void operator+=(const Vec2 &other);
 
-    constexpr vec2_t operator-(const vec2_t &other) const;
+    constexpr Vec2 operator-(const Vec2 &other) const;
 
-    constexpr void operator-=(const vec2_t &other);
+    constexpr void operator-=(const Vec2 &other);
 
-    constexpr vec2_t operator*(const vec2_t &other) const;
+    constexpr Vec2 operator*(const Vec2 &other) const;
 
-    constexpr void operator*=(const vec2_t &other);
+    constexpr void operator*=(const Vec2 &other);
 
-    constexpr vec2_t operator*(float k) const;
+    constexpr Vec2 operator*(float k) const;
 
     constexpr void operator*=(float k);
 
-    constexpr vec2_t operator/(const vec2_t &other) const;
+    constexpr Vec2 operator/(const Vec2 &other) const;
 
-    constexpr void operator/=(const vec2_t &other);
+    constexpr void operator/=(const Vec2 &other);
 
-    constexpr vec2_t operator/(float k) const;
+    constexpr Vec2 operator/(float k) const;
 
     constexpr void operator/=(float k);
 
@@ -318,79 +318,79 @@ struct vec2_t {
     float x, y;
 };
 
-constexpr float vec2_t::dot(vec2_t lhs, vec2_t rhs) { return lhs.x * rhs.x + lhs.y * rhs.y; }
+constexpr float Vec2::dot(Vec2 lhs, Vec2 rhs) { return lhs.x * rhs.x + lhs.y * rhs.y; }
 
-constexpr float vec2_t::magnitude(vec2_t vec) { return sqrtf(dot(vec, vec)); }
+constexpr float Vec2::magnitude(Vec2 vec) { return sqrtf(dot(vec, vec)); }
 
-constexpr vec2_t vec2_t::normal(vec2_t vec) { return vec / magnitude(vec); }
+constexpr Vec2 Vec2::normal(Vec2 vec) { return vec / magnitude(vec); }
 
-constexpr vec2_t::operator float *() { return &x; }
+constexpr Vec2::operator float *() { return &x; }
 
-constexpr vec2_t::operator const float *() const { return &x; }
+constexpr Vec2::operator const float *() const { return &x; }
 
-constexpr float vec2_t::operator[](int i) const { return (&x)[i]; }
+constexpr float Vec2::operator[](int i) const { return (&x)[i]; }
 
-constexpr float &vec2_t::operator[](int i) { return (&x)[i]; }
+constexpr float &Vec2::operator[](int i) { return (&x)[i]; }
 
-constexpr inline vec2_t &vec2_t::operator=(const vec2_t &other) {
+constexpr inline Vec2 &Vec2::operator=(const Vec2 &other) {
     x = other.x, y = other.y;
     return *this;
 }
 
-constexpr inline void vec2_t::operator+=(const vec2_t &other) { *this = *this + other; }
+constexpr inline void Vec2::operator+=(const Vec2 &other) { *this = *this + other; }
 
-constexpr inline vec2_t vec2_t::operator+(const vec2_t &other) const {
+constexpr inline Vec2 Vec2::operator+(const Vec2 &other) const {
     return {x + other.x, y + other.y};
 }
 
-constexpr inline void vec2_t::operator-=(const vec2_t &other) { *this = *this - other; }
+constexpr inline void Vec2::operator-=(const Vec2 &other) { *this = *this - other; }
 
-constexpr inline vec2_t vec2_t::operator-(const vec2_t &other) const {
+constexpr inline Vec2 Vec2::operator-(const Vec2 &other) const {
     return {x - other.x, y - other.y};
 }
 
-constexpr inline void vec2_t::operator*=(const vec2_t &other) { *this = *this * other; }
+constexpr inline void Vec2::operator*=(const Vec2 &other) { *this = *this * other; }
 
-constexpr inline vec2_t vec2_t::operator*(const vec2_t &other) const {
+constexpr inline Vec2 Vec2::operator*(const Vec2 &other) const {
     return {x * other.x, y * other.y};
 }
 
-constexpr inline void vec2_t::operator*=(float k) { *this = *this * k; }
+constexpr inline void Vec2::operator*=(float k) { *this = *this * k; }
 
-constexpr inline vec2_t vec2_t::operator*(float k) const { return {x * k, y * k}; }
+constexpr inline Vec2 Vec2::operator*(float k) const { return {x * k, y * k}; }
 
-constexpr inline void vec2_t::operator/=(const vec2_t &other) { *this = *this / other; }
+constexpr inline void Vec2::operator/=(const Vec2 &other) { *this = *this / other; }
 
-constexpr inline vec2_t vec2_t::operator/(const vec2_t &other) const {
+constexpr inline Vec2 Vec2::operator/(const Vec2 &other) const {
     return {x / other.x, y / other.y};
 }
 
-constexpr inline void vec2_t::operator/=(float k) { *this = *this / k; }
+constexpr inline void Vec2::operator/=(float k) { *this = *this / k; }
 
-constexpr inline vec2_t vec2_t::operator/(float k) const { return *this * (1.0f / k); }
+constexpr inline Vec2 Vec2::operator/(float k) const { return *this * (1.0f / k); }
 
-inline void vec2_t::normalize() { *this = normal(*this); }
+inline void Vec2::normalize() { *this = normal(*this); }
 
-struct vec3_t {
-    static constexpr vec3_t up();
+struct Vec3 {
+    static constexpr Vec3 up();
 
-    static constexpr float dot(vec3_t lhs, vec3_t rhs);
+    static constexpr float dot(Vec3 lhs, Vec3 rhs);
 
-    static constexpr vec3_t cross(vec3_t lhs, vec3_t rhs);
+    static constexpr Vec3 cross(Vec3 lhs, Vec3 rhs);
 
-    static constexpr float magnitude(vec3_t vec);
+    static constexpr float magnitude(Vec3 vec);
 
-    static constexpr vec3_t normal(vec3_t vec);
+    static constexpr Vec3 normal(Vec3 vec);
 
-    constexpr vec3_t() : x(0.0f), y(0.0f), z(0.0f) {}
+    constexpr Vec3() : x(0.0f), y(0.0f), z(0.0f) {}
 
-    constexpr vec3_t(float ax, float ay, float az) : x(ax), y(ay), z(az) {}
+    constexpr Vec3(float ax, float ay, float az) : x(ax), y(ay), z(az) {}
 
-    constexpr vec3_t(float v[3]) : x(v[0]), y(v[1]), z(v[2]) {}
+    constexpr Vec3(float v[3]) : x(v[0]), y(v[1]), z(v[2]) {}
 
-    constexpr vec3_t(const vec3_t &other) : x(other.x), y(other.y), z(other.z) {}
+    constexpr Vec3(const Vec3 &other) : x(other.x), y(other.y), z(other.z) {}
 
-    constexpr vec3_t &operator=(const vec3_t &other);
+    constexpr Vec3 &operator=(const Vec3 &other);
 
     constexpr operator float *();
 
@@ -400,25 +400,25 @@ struct vec3_t {
 
     constexpr float &operator[](int i);
 
-    constexpr vec3_t operator+(const vec3_t &other) const;
+    constexpr Vec3 operator+(const Vec3 &other) const;
 
-    constexpr void operator+=(const vec3_t &other);
+    constexpr void operator+=(const Vec3 &other);
 
-    constexpr void operator-=(const vec3_t &other);
+    constexpr void operator-=(const Vec3 &other);
 
-    constexpr vec3_t operator*(const vec3_t &other) const;
+    constexpr Vec3 operator*(const Vec3 &other) const;
 
-    constexpr void operator*=(const vec3_t &other);
+    constexpr void operator*=(const Vec3 &other);
 
-    constexpr vec3_t operator*(float k) const;
+    constexpr Vec3 operator*(float k) const;
 
     constexpr void operator*=(float k);
 
-    constexpr vec3_t operator/(const vec3_t &other) const;
+    constexpr Vec3 operator/(const Vec3 &other) const;
 
-    constexpr void operator/=(const vec3_t &other);
+    constexpr void operator/=(const Vec3 &other);
 
-    constexpr vec3_t operator/(float k) const;
+    constexpr Vec3 operator/(float k) const;
 
     constexpr void operator/=(float k);
 
@@ -427,85 +427,85 @@ struct vec3_t {
     float x, y, z;
 };
 
-constexpr vec3_t vec3_t::up() { return {0.0f, 1.0f, 0.0f}; }
+constexpr Vec3 Vec3::up() { return {0.0f, 1.0f, 0.0f}; }
 
-constexpr float vec3_t::dot(vec3_t lhs, vec3_t rhs) {
+constexpr float Vec3::dot(Vec3 lhs, Vec3 rhs) {
     return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
 
-constexpr vec3_t vec3_t::cross(vec3_t lhs, vec3_t rhs) {
+constexpr Vec3 Vec3::cross(Vec3 lhs, Vec3 rhs) {
     return {lhs[1] * rhs[2] - lhs[2] * rhs[1], lhs[2] * rhs[0] - lhs[0] * rhs[2],
             lhs[0] * rhs[1] - lhs[1] * rhs[0]};
 }
 
-constexpr float vec3_t::magnitude(vec3_t vec) { return sqrtf(dot(vec, vec)); }
+constexpr float Vec3::magnitude(Vec3 vec) { return sqrtf(dot(vec, vec)); }
 
-constexpr vec3_t vec3_t::normal(vec3_t vec) { return vec / magnitude(vec); }
+constexpr Vec3 Vec3::normal(Vec3 vec) { return vec / magnitude(vec); }
 
-constexpr vec3_t::operator float *() { return &x; }
+constexpr Vec3::operator float *() { return &x; }
 
-constexpr vec3_t::operator const float *() const { return &x; }
+constexpr Vec3::operator const float *() const { return &x; }
 
-constexpr float vec3_t::operator[](int i) const { return (&x)[i]; }
+constexpr float Vec3::operator[](int i) const { return (&x)[i]; }
 
-constexpr float &vec3_t::operator[](int i) { return (&x)[i]; }
+constexpr float &Vec3::operator[](int i) { return (&x)[i]; }
 
-constexpr inline vec3_t &vec3_t::operator=(const vec3_t &other) {
+constexpr inline Vec3 &Vec3::operator=(const Vec3 &other) {
     x = other.x, y = other.y, z = other.z;
     return *this;
 }
 
-constexpr inline void vec3_t::operator+=(const vec3_t &other) { *this = *this + other; }
+constexpr inline void Vec3::operator+=(const Vec3 &other) { *this = *this + other; }
 
-constexpr inline vec3_t vec3_t::operator+(const vec3_t &other) const {
+constexpr inline Vec3 Vec3::operator+(const Vec3 &other) const {
     return {x + other.x, y + other.y, z + other.z};
 }
 
-constexpr inline vec3_t operator-(vec3_t lhs, vec3_t rhs) {
+constexpr inline Vec3 operator-(Vec3 lhs, Vec3 rhs) {
     return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
 }
 
-constexpr inline void vec3_t::operator-=(const vec3_t &other) { *this = (*this - other); }
+constexpr inline void Vec3::operator-=(const Vec3 &other) { *this = (*this - other); }
 
-constexpr inline void vec3_t::operator*=(const vec3_t &other) { *this = *this * other; }
+constexpr inline void Vec3::operator*=(const Vec3 &other) { *this = *this * other; }
 
-constexpr inline vec3_t vec3_t::operator*(const vec3_t &other) const {
+constexpr inline Vec3 Vec3::operator*(const Vec3 &other) const {
     return {x * other.x, y * other.y, z * other.z};
 }
 
-constexpr inline void vec3_t::operator*=(float k) { *this = *this * k; }
+constexpr inline void Vec3::operator*=(float k) { *this = *this * k; }
 
-constexpr inline vec3_t vec3_t::operator*(float k) const { return {x * k, y * k, z * k}; }
+constexpr inline Vec3 Vec3::operator*(float k) const { return {x * k, y * k, z * k}; }
 
-constexpr inline void vec3_t::operator/=(const vec3_t &other) { *this = *this / other; }
+constexpr inline void Vec3::operator/=(const Vec3 &other) { *this = *this / other; }
 
-constexpr inline vec3_t vec3_t::operator/(const vec3_t &other) const {
+constexpr inline Vec3 Vec3::operator/(const Vec3 &other) const {
     return {x / other.x, y / other.y, z / other.z};
 }
 
-constexpr inline void vec3_t::operator/=(float k) { *this = *this / k; }
+constexpr inline void Vec3::operator/=(float k) { *this = *this / k; }
 
-constexpr inline vec3_t vec3_t::operator/(float k) const { return *this * (1.0f / k); }
+constexpr inline Vec3 Vec3::operator/(float k) const { return *this * (1.0f / k); }
 
-inline void vec3_t::normalize() { *this = normal(*this); }
+inline void Vec3::normalize() { *this = normal(*this); }
 
-struct rect_t {
+struct Rect {
     int x, y, w, h;
 };
 
-struct mat4_t {
-    static mat4_t look_at(vec3_t eye, vec3_t target, vec3_t up);
+struct Mat4 {
+    static Mat4 look_at(Vec3 eye, Vec3 target, Vec3 up);
 
-    static mat4_t perspective(float fov, float width, float height, float near, float far);
+    static Mat4 perspective(float fov, float width, float height, float near, float far);
 
-    static mat4_t inv(const mat4_t &mat);
-    static mat4_t translation(vec3_t offset);
-    static mat4_t identity();
+    static Mat4 inv(const Mat4 &mat);
+    static Mat4 translation(Vec3 offset);
+    static Mat4 identity();
 
-    mat4_t() = default;
-    mat4_t(float (&&args)[16]) { memcpy(v, args, sizeof(v)); }
+    Mat4() = default;
+    Mat4(float (&&args)[16]) { memcpy(v, args, sizeof(v)); }
 
-    mat4_t(float *mat_ptr) {
+    Mat4(float *mat_ptr) {
         for (int i = 0; i < 16; ++i)
             v[i] = mat_ptr[i];
     }
@@ -517,43 +517,43 @@ struct mat4_t {
     float v[16];
 };
 
-inline mat4_t operator*(const mat4_t &lhs, const mat4_t &rhs) {
+inline Mat4 operator*(const Mat4 &lhs, const Mat4 &rhs) {
     float tmp[16];
     return mat4_multiply(tmp, lhs, rhs);
 }
 
-inline mat4_t operator*(const mat4_t &m, float k) {
+inline Mat4 operator*(const Mat4 &m, float k) {
     float tmp[16];
     return mat4_multiply_f(tmp, m, k);
 }
 
-inline mat4_t mat4_t::identity() {
+inline Mat4 Mat4::identity() {
     return {{1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
              0.0f, 1.0f}};
 }
 
-inline mat4_t mat4_t::translation(vec3_t offset) {
-    mat4_t tmp{identity()};
+inline Mat4 Mat4::translation(Vec3 offset) {
+    Mat4 tmp{identity()};
     tmp[12] = offset.x;
     tmp[13] = offset.y;
     tmp[14] = offset.z;
     return tmp;
 }
 
-inline mat4_t mat4_t::look_at(vec3_t eye, vec3_t target, vec3_t up) {
+inline Mat4 Mat4::look_at(Vec3 eye, Vec3 target, Vec3 up) {
     float tmp[16];
     return mat4_look_at(tmp, eye, target, up);
 }
 
-inline mat4_t mat4_t::inv(const mat4_t &mat) {
+inline Mat4 Mat4::inv(const Mat4 &mat) {
     float tmp[16];
     return mat4_inverse(tmp, mat);
 }
 
-inline mat4_t mat4_t::perspective(float fov, float width, float height, float near, float far) {
+inline Mat4 Mat4::perspective(float fov, float width, float height, float near, float far) {
     float tmp[16];
     return mat4_perspective_fov(tmp, fov, width, height, near, far);
 }
-} // namespace nym
+} // namespace nyas
 
 #endif

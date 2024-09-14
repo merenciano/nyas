@@ -7,10 +7,6 @@
 
 #include <stdio.h>
 
-static const GLint attrib_sizes[NyasVtxAttrib_COUNT] = {3, 3, 3, 3, 2, 4};
-static const char *attrib_names[NyasVtxAttrib_COUNT] = {
-    "a_position", "a_normal", "a_tangent", "a_bitangent", "a_uv", "a_color"};
-
 static GLint _GL_TexFilter(NyasTexFilter f) {
     switch (f) {
     case NyasTexFilter_Linear:
@@ -109,6 +105,7 @@ static GLenum _GL_ShaderType(NyasShaderStage stage) {
 }
 
 namespace nyas::render {
+void _Init() { glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS); }
 void _NySetProcLoader(void *(*load_fn)(const char *)) { gladLoadGLLoader(load_fn); }
 
 void _NyCreateTex(NyasTexFlags flags, int unit, NyResourceID *out_id, int count) {
@@ -138,11 +135,9 @@ void _NyCreatePipeline(NyResourceID *id, NyasPipeline *pipeline) {
     glGenBuffers(1, &pipeline->DataID);
     glBindBuffer(GL_UNIFORM_BUFFER, pipeline->DataID);
     glBufferData(GL_UNIFORM_BUFFER, pipeline->DataSize, pipeline->Data, GL_DYNAMIC_DRAW);
-
-    glCreateVertexArrays(1, &pipeline->VaoID);
 }
 
-void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb, NyasPipeline pipeline) {
+void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb) {
     NyResourceID shader_ids[NyasShaderStage_COUNT];
     GLchar out_log[2048];
     GLint err;
@@ -179,118 +174,63 @@ void _NyBuildPipeline(NyResourceID id, NyasPipelineBuilder *pb, NyasPipeline pip
             glDeleteShader(shader_ids[i]);
         }
     }
-
-    GLint ActiveAttrib;
-    glGetProgramiv(id, GL_ACTIVE_ATTRIBUTES, &ActiveAttrib);
-
-    for (int i = 0; i < ActiveAttrib; ++i) {
-        GLint size;
-        GLenum type;
-        GLuint offset = 0;
-        char name[64];
-        glGetActiveAttrib(id, i, 64, NULL, &size, &type, name);
-        glEnableVertexArrayAttrib(pipeline.VaoID, i);
-        glVertexArrayAttribFormat(pipeline.VaoID, i, size, type, GL_FALSE, offset);
-        offset += size * sizeof(float);
-    }
-
-    // TODO(OpenGL): attribute info
 }
 
 static GLsizei _GetAttribStride(int32_t attr_flags) {
     GLsizei stride = 0;
     for (int i = 0; i < NyasVtxAttrib_COUNT; ++i) {
         if (attr_flags & (1 << i)) {
-            stride += attrib_sizes[i];
+            stride += AttribSizes[i];
         }
     }
     return stride * sizeof(float);
 }
 
-static void _NySetVtxLayout(NyasVtxAttribFlags attr, GLuint shader_id) {
+void _NyUsePipeline(NyResourceID id, NyasPipeline *pipeline) {
+    glUseProgram(id);
+
+    if (pipeline->DataSize) {
+        // TODO(OpenGL)
+        glBindBuffer(GL_UNIFORM_BUFFER, pipeline->DataID);
+        glBufferData(GL_UNIFORM_BUFFER, pipeline->DataSize, pipeline->Data, GL_DYNAMIC_DRAW);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, pipeline->DataID);
+    }
+}
+
+void _NyCreateMesh(NyasVtxAttribFlags attr, NyResourceID *id, NyResourceID *vid, NyResourceID *iid) {
+    NYAS_ASSERT((int)*id == -1);
+    NYAS_ASSERT((int)*vid == -1);
+    NYAS_ASSERT((int)*iid == -1);
+    glCreateBuffers(1, vid);
+    glCreateBuffers(1, iid);
+    glCreateVertexArrays(1, id);
+    glVertexArrayVertexBuffer(*id, 0, *vid, 0, _GetAttribStride(attr));
+    glVertexArrayElementBuffer(*id, *iid);
+
     GLint offset = 0;
-    GLsizei stride = _GetAttribStride(attr);
+    // GLsizei stride = _GetAttribStride(attr);
     for (int i = 0; i < NyasVtxAttrib_COUNT; ++i) {
         if (!(attr & (1 << i))) {
             continue;
         }
 
-        GLint size = attrib_sizes[i];
-        GLint attrib_pos = glGetAttribLocation(shader_id, attrib_names[i]);
-        if (attrib_pos >= 0) {
-            glEnableVertexAttribArray(attrib_pos);
-            glVertexAttribPointer(
-                attrib_pos, size, GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
-        }
+        GLint size = AttribSizes[i];
+        glEnableVertexArrayAttrib(*id, i);
+        glVertexArrayAttribFormat(*id, i, size, GL_FLOAT, GL_FALSE, offset * sizeof(float));
+        glVertexArrayAttribBinding(*id, i, 0);
         offset += size;
     }
-}
-
-void _NyUsePipeline(NyResourceID id, NyasPipeline *pipeline) {
-    glUseProgram(id);
-
-    _NySetVtxLayout(pipeline->Attribs, id);
-
-    if (pipeline.DataSize) {
-        // TODO(OpenGL)
-        glBindBuffer(GL_UNIFORM_BUFFER, pipeline.DataID);
-        glBufferData(GL_UNIFORM_BUFFER, pipeline.DataSize, pipeline.Data, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, pipeline.DataID);
-    }
-}
-
-void _NyCreateMesh(NyResourceID *id, NyResourceID *vid, NyResourceID *iid) {
-    glGenVertexArrays(1, id);
-    glGenBuffers(1, vid);
-    glGenBuffers(1, iid);
 }
 
 void _NyUseMesh(NyResourceID id) { glBindVertexArray(id); }
 
-void _NySetMesh(NyasMesh *mesh, uint32_t shader_id) {
-    glBindVertexArray(mesh->Resource.ID);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->ResVtx.ID);
-    glBufferData(GL_ARRAY_BUFFER, mesh->VtxSize, mesh->Vtx, GL_STATIC_DRAW);
+void _NySetMesh(const NyMeshes::NyMeshArray *mesh) {
+    glNamedBufferData(
+        mesh->VtxID, mesh->VtxData.size() * sizeof(float), mesh->VtxData.data(), GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ResIdx.ID);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->ElementCount * sizeof(NyDrawIdx),
-                 (const void *)mesh->Indices, GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
-
-void _NySetMesh(const NyMeshes *meshes) {
-    glBindVertexArray(meshes->InternalID);
-    glBindBuffer(GL_ARRAY_BUFFER, meshes->VtxInternalID);
-    glBufferData(GL_ARRAY_BUFFER, meshes->VtxData.size() * sizeof(float), meshes->VtxData.data(),
-                 GL_STATIC_DRAW);
-
-    GLint offset = 0;
-    GLsizei stride = _GetAttribStride(meshes->Attribs);
-    for (int i = 0; i < NyasVtxAttrib_COUNT; ++i) {
-        if (!(meshes->Attribs & (1 << i))) {
-            continue;
-        }
-
-        GLint size = attrib_sizes[i];
-        GLint attrib_pos = glGetAttribLocation(meshes->ShaderInternalID, attrib_names[i]);
-        if (attrib_pos >= 0) {
-            glEnableVertexAttribArray(attrib_pos);
-            glVertexAttribPointer(
-                attrib_pos, size, GL_FLOAT, GL_FALSE, stride, (void *)(offset * sizeof(float)));
-        }
-        offset += size;
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshes->IdxInternalID);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, meshes->IdxData.size() * sizeof(NyDrawIdx),
-                 (const void *)meshes->IdxData.data(), GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glNamedBufferData(
+        mesh->IdxID, mesh->IdxData.size() * sizeof(NyDrawIdx), (const void *)mesh->IdxData.data(),
+        GL_STATIC_DRAW);
 }
 
 void _NyReleaseMesh(uint32_t *id, uint32_t *vid, uint32_t *iid) {
@@ -333,11 +273,6 @@ void _NyClear(bool color, bool depth, bool stencil) {
     if (mask) {
         glClear(mask);
     }
-}
-
-void _NyDraw(int elem_count, int index_type, int instances) {
-    glDrawElementsInstanced(
-        GL_TRIANGLES, elem_count, index_type ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, instances);
 }
 
 void _NyDraw(NyasDrawElementCmd *commands, int count) {
@@ -458,13 +393,13 @@ void _NyEnableScissor(void) { glEnable(GL_SCISSOR_TEST); }
 
 void _NyDisableScissor(void) { glDisable(GL_SCISSOR_TEST); }
 
-void _NyViewport(nym::rect_t rect) {
+void _NyViewport(nyas::Rect rect) {
     if (rect.x != rect.w) {
         glViewport(rect.x, rect.y, rect.w, rect.h);
     }
 }
 
-void _NyScissor(nym::rect_t rect) {
+void _NyScissor(nyas::Rect rect) {
     if (rect.x != rect.w) {
         glScissor(rect.x, rect.y, rect.w, rect.h);
     }

@@ -238,7 +238,7 @@ typedef struct NyasPlatform {
 
     float DeltaTime;
     void *InternalWindow;
-    nym::vec2i_t WindowSize; // In pixels
+    nyas::Vec2i WindowSize; // In pixels
     bool WindowClosed;
     bool WindowHovered;
     bool WindowFocused;
@@ -262,24 +262,21 @@ typedef struct NyasConfig {
 typedef struct NyasIO {
     NyasKeyState Keys[348 + 1]; // TODO: Get last key value from the enum.
     NyasKeyState MouseButton[3];
-    nym::vec2_t MousePosition;
-    nym::vec2_t MouseScroll; // x horizontal and y vertical scrolls
+    nyas::Vec2 MousePosition;
+    nyas::Vec2 MouseScroll; // x horizontal and y vertical scrolls
 
     NyasIO() { memset(&Keys[0], 0, sizeof(Keys) + sizeof(MouseButton)); }
 } NyasIO;
 
 struct NyAllocator {
-    static inline void *Alloc(size_t size, void *_ = NULL) {
-        NY_UNUSED(_);
+    static inline void *Alloc(size_t size, [[maybe_unused]] void *_ = NULL) {
         return NYAS_ALLOC(size);
     }
-    static inline void Free(void *ptr, void *_ = NULL) {
-        NY_UNUSED(_);
-        NYAS_FREE(ptr);
-    }
+    static inline void Free(void *ptr, [[maybe_unused]] void *_ = NULL) { NYAS_FREE(ptr); }
 };
 
-template <size_t CAP> struct NyCircularAllocator {
+template <size_t CAP>
+struct NyCircularAllocator {
     static char Arena[CAP];
     static ptrdiff_t Offset;
     static inline void *Alloc(size_t size, void *_ = NULL) {
@@ -300,22 +297,25 @@ template <size_t CAP> struct NyCircularAllocator {
     }
 };
 
-template <size_t CAP> char NyCircularAllocator<CAP>::Arena[CAP] = {0};
-template <size_t CAP> ptrdiff_t NyCircularAllocator<CAP>::Offset = {0};
+template <size_t CAP>
+char NyCircularAllocator<CAP>::Arena[CAP] = {0};
+template <size_t CAP>
+ptrdiff_t NyCircularAllocator<CAP>::Offset = {0};
 typedef NyCircularAllocator<NYAS_FRAME_ALLOCATOR_ARENA_SIZE> NyFrameAllocator;
 
-template <typename T, typename A = NyAllocator> struct NyBuffer {
+template <typename T, typename A = NyAllocator>
+struct NyBuffer {
     T *Data;
     int Capacity;
 
-    inline NyBuffer() : Data(NULL), Capacity(0) {}
-    inline NyBuffer(int capacity) { Reserve(capacity); }
-    inline ~NyBuffer() {
+    NyBuffer() : Data(NULL), Capacity(0) {}
+    NyBuffer(int capacity) { Reserve(capacity); }
+    ~NyBuffer() {
         A::Free(Data);
         Data = NULL;
         Capacity = 0;
     }
-    inline void Reserve(int capacity) {
+    void Reserve(int capacity) {
         if (capacity < Capacity) {
             return;
         }
@@ -327,51 +327,53 @@ template <typename T, typename A = NyAllocator> struct NyBuffer {
         Capacity = capacity;
     }
 
-    inline const T &operator[](int i) const { return Data[i]; }
-    inline T &operator[](int i) { return Data[i]; }
+    const T &operator[](int i) const { return Data[i]; }
+    T &operator[](int i) { return Data[i]; }
 };
 
 // Dynamic array.
-template <typename T, typename A = NyAllocator> struct NyArray {
+template <typename T, typename A = NyAllocator>
+struct NyArray {
     NyBuffer<T, A> Buf;
     int Size;
 
-    inline NyArray() : Buf(), Size(0) {}
-    inline NyArray(int capacity) : Buf(capacity), Size(0) {}
-    inline ~NyArray() { Size = 0; }
-    inline void Push(const T &value) {
+    NyArray() : Buf(), Size(0) {}
+    NyArray(int capacity) : Buf(capacity), Size(0) {}
+    ~NyArray() { Size = 0; }
+    void Push(const T &value) {
         if (Buf.Capacity == Size) {
             Buf.Reserve(Size > 4 ? Size * 2 : 8);
         }
         Buf[Size] = value;
         ++Size;
     }
-    inline void Pop() {
+    void Pop() {
         NYAS_ASSERT(Size > 0);
         --Size;
     }
-    inline const T &Back() { return Buf[Size - 1]; }
-    inline const T &operator[](int i) const { return Buf[i]; }
-    inline T &operator[](int i) { return Buf[i]; }
+    const T &Back() const { return Buf[Size - 1]; }
+    const T &operator[](int i) const { return Buf[i]; }
+    T &operator[](int i) { return Buf[i]; }
 };
 
 // Basic pool, uses internal array index as id (key).
-template <typename T, typename A = NyAllocator> struct NyPool {
+template <typename T, typename A = NyAllocator>
+struct NyPool {
     NyArray<T, A> Arr;
     int Count;
     int Next;
 
-    inline NyPool() : Arr(), Count(0), Next(0) {}
-    inline NyPool(int capacity) : Arr(capacity), Count(0), Next(0) {}
-    inline ~NyPool() {
+    NyPool() : Arr(), Count(0), Next(0) {}
+    NyPool(int capacity) : Arr(capacity), Count(0), Next(0) {}
+    ~NyPool() {
         Count = 0;
         Next = 0;
     }
 
-    inline const T &operator[](int i) const { return Arr[i]; }
-    inline T &operator[](int i) { return Arr[i]; }
+    const T &operator[](int i) const { return Arr[i]; }
+    T &operator[](int i) { return Arr[i]; }
 
-    inline int Add(const T &value = T()) {
+    int Add(const T &value = T()) {
         int ret = Next;
         if (Next == Arr.Size) {
             Arr.Push(value);
@@ -384,7 +386,7 @@ template <typename T, typename A = NyAllocator> struct NyPool {
         return ret;
     }
 
-    inline void Remove(int id) {
+    void Remove(int id) {
         *(int *)&Arr[id] = Next;
         Next = id;
         --Count;
